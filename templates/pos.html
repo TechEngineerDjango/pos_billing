@@ -1,0 +1,592 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] flex flex-col md:flex-row" x-data="posApp()">
+
+    <!-- Mobile Cart Toggle Button (Floating) -->
+    <button @click="mobileCartOpen = true"
+        class="md:hidden fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-[var(--accent-color)] text-white shadow-2xl flex items-center justify-center active:scale-95 transition-transform"
+        :class="{'animate-bounce': cart.length > 0 && !mobileCartOpen}">
+        <div class="relative">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+            </svg>
+            <!-- Cart Badge -->
+            <span x-show="cart.length > 0"
+                class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-xs font-bold flex items-center justify-center"
+                x-text="cart.length"></span>
+        </div>
+    </button>
+
+    <!-- Mobile Cart Overlay -->
+    <div x-show="mobileCartOpen" x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" @click="mobileCartOpen = false"
+        class="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" x-cloak></div>
+
+    <!-- Left: Menu Grid -->
+    <div class="w-full md:w-3/4 p-4 sm:p-6 overflow-y-auto relative pb-24 md:pb-6"
+        style="background-color: var(--bg-color); color: var(--panel-font);">
+        <!-- Watermark -->
+        {% if shop and shop.logo_url %}
+        <div class="fixed inset-0 pointer-events-none flex items-center justify-center z-0">
+            <img src="{{ shop.logo_url }}" alt="Watermark"
+                style="opacity: {{ shop.watermark_opacity if shop and shop.watermark_opacity is not none else 0.1 }}; transform: scale(3);"
+                class="w-96 h-96 object-contain grayscale blur-sm">
+        </div>
+        {% endif %}
+
+        <!-- Superadmin Shop Selector -->
+        {% if is_superadmin and all_shops %}
+        <div
+            class="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+            <span class="text-purple-400 font-medium text-sm">🛡️ Superadmin:</span>
+            <select onchange="window.location.href='/billing/?shop_id=' + this.value"
+                class="flex-1 bg-slate-800 border border-purple-500/50 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                {% for s in all_shops %}
+                <option value="{{ s.id }}" {% if shop and s.id==shop.id %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+            <a href="/superadmin/"
+                class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap">Control
+                Center</a>
+        </div>
+        {% endif %}
+
+        <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 flex items-center gap-2"
+            style="font-family: var(--nav-font); color: var(--panel-font);">
+            {% if shop.menu_icon_url %}
+            <img src="{{ shop.menu_icon_url }}" class="w-8 h-8 object-contain">
+            {% else %}
+            <span>🍔</span>
+            {% endif %}
+            Menu
+        </h2>
+
+        <!-- Category Filter Tabs (Horizontal Scroll on Mobile) -->
+        <div
+            class="flex gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide">
+            <button @click="selectedCategory = 'All'"
+                :class="selectedCategory === 'All' ? 'bg-[var(--accent-color)] text-white shadow-lg' : 'bg-[var(--card-bg)] text-[var(--font-color)] hover:bg-[var(--accent-color)]/20'"
+                class="px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 whitespace-nowrap shrink-0">All</button>
+            <template x-for="cat in categories" :key="cat">
+                <button @click="selectedCategory = cat"
+                    :class="selectedCategory === cat ? 'bg-[var(--accent-color)] text-white shadow-lg' : 'bg-[var(--card-bg)] text-[var(--font-color)] hover:bg-[var(--accent-color)]/20'"
+                    class="px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 uppercase whitespace-nowrap shrink-0"
+                    x-text="cat"></button>
+            </template>
+        </div>
+
+        <!-- Menu Grid (Responsive) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
+            {% for item in items %}
+            <div x-show="selectedCategory === 'All' || '{{ item.category }}'.toUpperCase() === selectedCategory.toUpperCase()"
+                @click="addToCartById({{ item.id }})"
+                style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--font-color);"
+                class="relative z-10 group backdrop-blur-md border p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 select-none flex flex-col items-center">
+
+                {% if item.image_url %}
+                <img src="{{ item.image_url }}" alt="{{ item.name }}"
+                    class="w-full h-20 sm:h-32 object-cover rounded-lg sm:rounded-xl mb-2 sm:mb-4 shadow-md group-hover:scale-105 transition-transform duration-300">
+                {% else %}
+                <div style="background-color: var(--card-bg); border: 1px dashed var(--border-color);"
+                    class="w-full h-20 sm:h-32 rounded-lg sm:rounded-xl mb-2 sm:mb-4 flex items-center justify-center text-[var(--accent-color)] shadow-inner group-hover:scale-105 transition-transform duration-300">
+                    <span class="text-3xl sm:text-5xl filter drop-shadow-lg">🍔</span>
+                </div>
+                {% endif %}
+
+                <h3 class="font-bold text-sm sm:text-lg mb-0.5 sm:mb-1 text-center truncate w-full group-hover:text-[var(--accent-color)] transition-colors"
+                    style="font-family: var(--nav-font);">
+                    {{ item.name }}</h3>
+                <p class="text-[10px] sm:text-xs uppercase tracking-wider mb-1 sm:mb-2 opacity-60 hidden sm:block">{{
+                    item.category }}</p>
+                <div class="mt-auto px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-[var(--border-color)]"
+                    style="background-color: var(--price-card-bg);">
+                    <p class="text-[var(--accent-color)] font-bold text-sm sm:text-base">{{ currency }}{{ item.price }}
+                    </p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Right: Cart & Billing (Slide-out on Mobile) -->
+    <div class="fixed inset-y-0 right-0 z-50 flex flex-col shadow-2xl transform transition-transform duration-300 ease-in-out
+                w-full sm:w-[400px] md:w-[450px] lg:w-[400px] xl:w-1/4
+                border-l border-[var(--border-color)] backdrop-blur-xl"
+        :class="mobileCartOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0 md:relative md:inset-auto md:w-1/3 lg:w-1/4'"
+        style="background-color: var(--cart-bg); color: var(--billing-font);">
+
+        <!-- Cart Header -->
+        <div
+            class="p-4 sm:p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-transparent shrink-0">
+            <h2 class="text-lg sm:text-xl font-bold" style="font-family: var(--nav-font);">Current Order</h2>
+            <div class="flex items-center gap-3">
+                <button @click="clearCart()" style="color: inherit; opacity: 0.6;"
+                    class="text-sm hover:text-red-400 transition-colors flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                        </path>
+                    </svg>
+                    <span class="hidden sm:inline">Clear</span>
+                </button>
+                <!-- Mobile Close Button -->
+                <button @click="mobileCartOpen = false"
+                    class="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scrollable Content (Items + Inputs) -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
+
+            <!-- Items Section -->
+            <div class="space-y-3">
+                <template x-if="cart.length === 0">
+                    <div class="h-32 flex flex-col items-center justify-center opacity-50">
+                        <svg class="w-12 h-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                        </svg>
+                        <p class="text-base font-medium">Cart is empty</p>
+                    </div>
+                </template>
+
+                <template x-for="(item, index) in cart" :key="index">
+                    <div style="background-color: var(--billing-card-bg); color: var(--billing-card-font); border-color: var(--border-color);"
+                        class="flex justify-between items-center border p-3 rounded-xl group hover:brightness-110 transition-colors">
+                        <div>
+                            <p class="font-bold text-sm" x-text="item.name"></p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <button @click="changeQty(index, -1)"
+                                    style="background-color: var(--inc-dec-btn); color: white;"
+                                    class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-opacity hover:opacity-90">-</button>
+                                <span class="text-sm font-mono w-4 text-center" x-text="item.qty"></span>
+                                <button @click="changeQty(index, 1)"
+                                    style="background-color: var(--inc-dec-btn); color: white;"
+                                    class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-opacity hover:opacity-90">+</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="font-bold text-sm text-[var(--accent-color)]"
+                                x-text="formatMoney(item.price * item.qty)"></span>
+                            <button @click="removeFromCart(index)"
+                                class="text-gray-600 hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded-full transition-colors opacity-0 group-hover:opacity-100">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Inputs Section (Visible when cart has items) -->
+            <div x-show="cart.length > 0" class="space-y-6 pt-4 border-t border-[var(--border-color)]">
+
+                <!-- Customer Details -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold uppercase opacity-60">Customer Details</label>
+                    <div class="space-y-2">
+                        <input type="tel" x-model="customerPhone" @input="searchCustomer()"
+                            @keyup.enter="selectCustomer()" placeholder="Phone Number"
+                            style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
+                            class="w-full border rounded-lg px-3 py-2.5 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none text-sm">
+
+                        <!-- Search Suggestion Dropdown -->
+                        <div x-show="foundCustomer && foundCustomer.phone_number && foundCustomer.phone_number !== customerPhone"
+                            @mousedown.prevent="selectCustomer()"
+                            class="p-3 bg-white dark:bg-slate-800 border-2 border-orange-500 rounded-xl cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-all flex items-center gap-3 relative z-50 shadow-xl">
+                            <div
+                                class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white shrink-0">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1 overflow-hidden">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-gray-900 dark:text-white truncate text-sm"
+                                        x-text="foundCustomer?.name"></span>
+                                    <span
+                                        class="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Click
+                                        to Fill</span>
+                                </div>
+                                <p class="text-xs text-gray-500 font-mono"
+                                    x-text="'Full Number: ' + (foundCustomer?.phone_number || '')"></p>
+                            </div>
+                        </div>
+
+                        <div x-show="customerPhone.length > 2" x-transition>
+                            <div class="relative">
+                                <input type="text" x-model="customerName"
+                                    :placeholder="isNewCustomer ? 'Customer Name *' : 'Customer Name'"
+                                    :required="isNewCustomer"
+                                    style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
+                                    :class="{'border-red-500 ring-1 ring-red-500': isNewCustomer && !customerName}"
+                                    class="w-full border rounded-lg px-3 py-2.5 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none transition-colors text-sm">
+
+                                <div x-show="customerInfo" class="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                                        :style="{ backgroundColor: 'var(--accent-color)' }"
+                                        x-text="isNewCustomer ? 'NEW' : 'FOUND'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                <div>
+                    <label class="text-xs font-bold uppercase opacity-60 mb-2 block">Payment Method</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button @click="paymentMethod = 'Cash'"
+                            :class="{'shadow-lg border-transparent': paymentMethod === 'Cash', 'bg-transparent border-gray-600 hover:border-gray-500': paymentMethod !== 'Cash'}"
+                            :style="paymentMethod === 'Cash' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font); opacity: 0.6;'"
+                            class="py-2.5 rounded-xl font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+                            <span>💵</span> Cash
+                        </button>
+                        <button @click="paymentMethod = 'UPI'"
+                            :class="{'shadow-lg border-transparent': paymentMethod === 'UPI', 'bg-transparent border-gray-600 hover:border-gray-500': paymentMethod !== 'UPI'}"
+                            :style="paymentMethod === 'UPI' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font); opacity: 0.6;'"
+                            class="py-2.5 rounded-xl font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+                            <span>📱</span> UPI
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cash Calculator -->
+                {% if features.cash_calculator.enabled %}
+                <div x-show="paymentMethod === 'Cash'" x-transition
+                    class="p-4 rounded-xl border-2 border-dashed border-green-500/30 bg-green-500/5">
+                    <label class="text-xs font-bold uppercase opacity-60 mb-2 block flex items-center justify-between">
+                        <span class="flex items-center gap-2">💵 Cash Received</span>
+
+                        <!-- Suggestions -->
+                        <div class="flex gap-2" x-show="totalPrice > 0">
+                            <button @click="cashReceived = totalPrice"
+                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
+                                Exact
+                            </button>
+                            <button @click="cashReceived = Math.ceil(totalPrice / 10) * 10"
+                                x-show="Math.ceil(totalPrice/10)*10 !== totalPrice"
+                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
+                                <span x-text="formatMoney(Math.ceil(totalPrice / 10) * 10)"></span>
+                            </button>
+                            <button @click="cashReceived = Math.ceil(totalPrice / 50) * 50"
+                                x-show="Math.ceil(totalPrice/50)*50 !== totalPrice && Math.ceil(totalPrice/50)*50 !== Math.ceil(totalPrice/10)*10"
+                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
+                                <span x-text="formatMoney(Math.ceil(totalPrice / 50) * 50)"></span>
+                            </button>
+                            <button @click="cashReceived = Math.ceil(totalPrice / 100) * 100"
+                                x-show="Math.ceil(totalPrice/100)*100 !== totalPrice && Math.ceil(totalPrice/100)*100 !== Math.ceil(totalPrice/50)*50"
+                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
+                                <span x-text="formatMoney(Math.ceil(totalPrice / 100) * 100)"></span>
+                            </button>
+                        </div>
+                    </label>
+                    <input type="number" x-model.number="cashReceived" placeholder="Amount"
+                        style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
+                        class="w-full border rounded-lg px-4 py-3 text-lg font-bold placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:outline-none text-right">
+
+                    <div x-show="cashReceived > 0" x-transition class="mt-4">
+                        <div class="flex flex-col gap-2 p-3 rounded-xl"
+                            :class="changeAmount >= 0 ? 'bg-green-500/20 border border-green-500/50' : 'bg-red-500/20 border border-red-500/50'">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-xs"
+                                    x-text="changeAmount >= 0 ? 'Return Change:' : 'Short:'"></span>
+                                <span class="text-lg font-black tracking-tight"
+                                    :class="changeAmount >= 0 ? 'text-green-400' : 'text-red-400'"
+                                    x-text="formatMoney(Math.abs(changeAmount))"></span>
+                            </div>
+
+                            <!-- Change Breakdown -->
+                            <div class="flex flex-wrap gap-1 mt-1 justify-end" x-show="changeAmount > 0">
+                                <template x-for="denom in getChangeDenominations()" :key="denom.value">
+                                    <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-mono"
+                                        x-text="denom.count + 'x ' + formatMoney(denom.value)"></span>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Fixed Footer (Total & Pay) -->
+        <div
+            class="p-4 sm:p-6 border-t border-[var(--border-color)] bg-[var(--sidebar-bg)] backdrop-blur-sm z-10 shrink-0 shadow-inner">
+            <div class="flex justify-between text-lg mb-4">
+                <span class="opacity-70 font-medium">Total Amount</span>
+                <span class="font-bold text-3xl tracking-tight" x-text="formatMoney(totalPrice)"></span>
+            </div>
+
+            <button @click="submitBill()" :disabled="cart.length === 0 || loading"
+                class="w-full bg-[var(--accent-color)] text-white font-bold py-4 rounded-xl shadow-lg transform active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center text-lg">
+                <span x-show="!loading" class="flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                        </path>
+                    </svg>
+                    PRINT BILL
+                </span>
+                <span x-show="loading" class="flex items-center gap-2">
+                    <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                    Processing...
+                </span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Data Island for POS Items -->
+<script id="pos-items-data" type="application/json">
+    {{ items | tojson | safe }}
+</script>
+
+<!-- Data Island for Features -->
+<script id="pos-features-data" type="application/json">
+    {{ features | tojson | safe }}
+</script>
+
+<script>
+    function posApp() {
+        // Load features data for subscription gating
+        const featuresData = JSON.parse(document.getElementById('pos-features-data')?.textContent || '{}');
+
+        return {
+            itemsData: JSON.parse(document.getElementById('pos-items-data').textContent),
+            features: featuresData,
+            cart: [],
+            foundCustomer: null,
+            loading: false,
+            mobileCartOpen: false,
+            customerPhone: '',
+            customerName: '',
+            customerInfo: '',
+            customerId: null,
+            isNewCustomer: false,
+            searchTimeout: null,
+            lastBillId: null,
+            lastBillNumber: null,
+            selectedCategory: 'All',
+            paymentMethod: 'Cash',
+            cashReceived: 0,
+
+            // Helper to check if a feature is enabled
+            hasFeature(key) {
+                return this.features[key]?.enabled === true;
+            },
+
+            get categories() {
+                const cats = [...new Set(this.itemsData.map(i => i.category || 'General'))];
+                return cats.sort();
+            },
+
+            selectCustomer() {
+                if (this.foundCustomer) {
+                    this.customerPhone = this.foundCustomer.phone_number;
+                    this.customerName = this.foundCustomer?.name;
+                    this.customerId = this.foundCustomer.id;
+                    this.isNewCustomer = false;
+                    this.customerInfo = `✓ ${this.customerName}`;
+                    this.foundCustomer = null;
+                }
+            },
+
+            addToCartById(id) {
+                const item = this.itemsData.find(i => i.id === id);
+                if (!item) return;
+                this.addToCart(item.id, item.name, item.price);
+            },
+
+            addToCart(id, name, price) {
+                let existing = this.cart.find(i => i.id === id);
+                if (existing) {
+                    existing.qty++;
+                } else {
+                    this.cart.push({ id: id, name: name, price: price, qty: 1 });
+                }
+            },
+
+            changeQty(index, delta) {
+                const item = this.cart[index];
+                if (item.qty + delta > 0) {
+                    item.qty += delta;
+                }
+            },
+
+            removeFromCart(index) {
+                this.cart.splice(index, 1);
+            },
+
+            clearCart() {
+                this.cart = [];
+                this.cashReceived = 0;
+            },
+
+            get totalPrice() {
+                return this.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            },
+
+            get changeAmount() {
+                return this.cashReceived - this.totalPrice;
+            },
+
+            getChangeDenominations() {
+                let change = Math.round(this.changeAmount);
+                if (change <= 0) return [];
+                const denoms = [500, 200, 100, 50, 20, 10, 5, 2, 1];
+                const result = [];
+                for (const d of denoms) {
+                    if (change >= d) {
+                        const count = Math.floor(change / d);
+                        result.push({ value: d, count: count });
+                        change = change % d;
+                    }
+                }
+                return result;
+            },
+
+            formatMoney(value) {
+                return '{{ currency }}' + value.toFixed(2);
+            },
+
+            async searchCustomer() {
+                clearTimeout(this.searchTimeout);
+
+                if (!this.customerPhone || this.customerPhone.length < 3) {
+                    this.customerInfo = '';
+                    this.foundCustomer = null;
+                    this.customerId = null;
+                    this.isNewCustomer = false;
+                    return;
+                }
+
+                this.searchTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/billing/customer/search?phone=${encodeURIComponent(this.customerPhone)}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.found) {
+                                this.foundCustomer = data;
+                                this.customerInfo = `✓ ${data.name}`;
+                                this.customerId = data.id;
+                                this.customerName = data.name;
+                                this.isNewCustomer = false;
+                            } else {
+                                this.foundCustomer = null;
+                                this.customerInfo = '+ New customer';
+                                this.customerId = null;
+                                this.isNewCustomer = true;
+                                this.customerName = '';
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Customer search error:', e);
+                    }
+                }, 300);
+            },
+
+            validateCustomer() {
+                if (!this.customerPhone) return true;
+                const digits = this.customerPhone.replace(/\D/g, '');
+                if (digits.length < 10) {
+                    alert("Please enter a valid phone number.");
+                    return false;
+                }
+                if (this.isNewCustomer && !this.customerName) {
+                    alert("Please enter the customer name.");
+                    return false;
+                }
+                return true;
+            },
+
+            async submitBill() {
+                if (this.cart.length === 0) return;
+                if (!this.validateCustomer()) return;
+                this.loading = true;
+
+                // Capture phone before it gets potentially cleared or modified
+                const currentPhone = this.customerPhone;
+
+                const payload = {
+                    items: this.cart.map(i => ({ id: i.id, qty: i.qty })),
+                    payment_method: this.paymentMethod,
+                    customer_phone: currentPhone,
+                    customer_name: this.customerName
+                };
+
+                try {
+                    const response = await fetch('/billing/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.lastBillId = data.bill_id;
+                        this.lastBillNumber = data.bill_number;
+
+                        // SUCCESS FLOW
+                        this.clearCart();
+                        this.customerPhone = '';
+                        this.customerName = '';
+                        this.customerInfo = '';
+                        this.customerId = null;
+                        this.cashReceived = 0;
+
+                        // Only offer WhatsApp if feature is enabled in subscription
+                        if (this.hasFeature('whatsapp_billing') && currentPhone) {
+                            // Use a synchronous confirm - clicking OK here is a user interaction
+                            // We MUST call the opening logic completely synchronously after this.
+                            const wantsWhatsApp = confirm(`Bill ${data.bill_number} Created!\n\nSend WhatsApp Receipt now?`);
+                            if (wantsWhatsApp) {
+                                // Direct synchronous open attempt. 
+                                // We trust the backend to have a formatted URL, but we can't wait for it if we want to beat the blocker safely.
+                                // ALTERNATIVE: Open a generic /wa-redirect endpoint with params.
+                                this.openWhatsAppDirectly(currentPhone, data.bill_id);
+                            }
+                        } else {
+                            alert(`Bill ${data.bill_number} Created Successfully!`);
+                        }
+
+                    } else {
+                        const err = await response.json();
+                        alert("Error: " + err.detail);
+                    }
+                } catch (e) {
+                    alert("Network Error: " + e.message);
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            // New function that constructs a client-side URL or opens a redirector tab
+            openWhatsAppDirectly(phone, billId) {
+                // Open a temporary tab that handles the async fetching/redirecting.
+                // Since this is called DIRECTLY after a 'confirm' click, Chrome usually allows it.
+                const url = `/admin/bill/${billId}/whatsapp-redirect?phone=${phone}`;
+                window.open(url, '_blank');
+            }
+        };
+    }
+</script>
+{% endblock %}

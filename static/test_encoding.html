@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Encoding Test</title>
+</head>
+
+<body>
+    <h1>WhatsApp Encoding Validation</h1>
+
+    <p>Please click the following links to isolate the issue.</p>
+
+    <h3>Test 1: Pre-Encoded Emoji (%F0%9F%8D%94)</h3>
+    <a href="https://wa.me/?text=Testing%20Emoji%20%F0%9F%8D%94" target="_blank">Send 🍔 (Link 1)</a>
+
+    <h3>Test 2: Raw Emoji Character (🍔)</h3>
+    <a href="https://wa.me/?text=Testing%20Raw%20🍔" target="_blank">Send 🍔 (Link 2)</a>
+
+    <h3>Test 3: Alternative Emoji (🍟)</h3>
+    <a href="https://wa.me/?text=Testing%20Fries%20🍟" target="_blank">Send 🍟 (Link 3)</a>
+
+    <hr>
+    <p>If Link 1 works, the issue is on the Server Side generation.</p>
+    <p>If Link 1 shows a replacement character (), the issue is on the Browser/WhatsApp handling.</p>
+</body>
+
+</html>

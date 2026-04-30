@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+aiosqlite
+jinja2
+python-multipart
+python-jose
+passlib[bcrypt]
+bcrypt<4.0.0
+httpx
+python-escpos
+pydantic-settings
+pytest
+pytest-asyncio
+greenlet

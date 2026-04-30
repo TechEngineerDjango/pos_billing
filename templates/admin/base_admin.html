@@ -1,0 +1,47 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="flex h-[calc(100vh-4rem)]">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-slate-800/50 backdrop-blur-xl border-r border-white/10 hidden md:block">
+        <nav class="p-4 space-y-2">
+            <a href="/admin/"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group {% if active_page == 'overview' %}bg-blue-600 text-white shadow-lg shadow-blue-500/20{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}">
+                <span class="text-xl">📊</span>
+                <span class="font-medium">Overview</span>
+            </a>
+
+            <a href="/admin/customers"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group {% if active_page == 'customers' %}bg-green-600 text-white shadow-lg shadow-green-500/20{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}">
+                <span class="text-xl">👥</span>
+                <span class="font-medium">Customers</span>
+            </a>
+
+            <a href="/admin/products"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group {% if active_page == 'products' %}bg-orange-600 text-white shadow-lg shadow-orange-500/20{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}">
+                <span class="text-xl">🍔</span>
+                <span class="font-medium">Products</span>
+            </a>
+
+            <a href="/admin/reports"
+                class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group {% if active_page == 'reports' %}bg-purple-600 text-white shadow-lg shadow-purple-500/20{% else %}text-gray-400 hover:bg-white/5 hover:text-white{% endif %}">
+                <span class="text-xl">📄</span>
+                <span class="font-medium">Reports</span>
+            </a>
+        </nav>
+
+        <div class="absolute bottom-4 left-4 right-4 p-4 bg-slate-900/50 rounded-xl border border-white/5">
+            <p class="text-xs text-gray-500 uppercase font-bold mb-2">Details</p>
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                <span class="text-sm text-gray-300 truncate">{{ shop.name or 'My Shop' }}</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto custom-scrollbar p-6">
+        {% block admin_content %}{% endblock %}
+    </main>
+</div>
+{% endblock %}

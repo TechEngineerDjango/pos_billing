@@ -1,0 +1,101 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="flex-1 flex items-center justify-center" x-data="loginApp()">
+
+    <!-- Glass Card -->
+    <div
+        class="w-full max-w-md bg-slate-800/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 relative overflow-hidden z-10">
+
+        <!-- Decorative Glow inside card -->
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-orange-500/30 rounded-full blur-3xl"></div>
+
+        <div class="text-center mb-8">
+            <h2 class="text-3xl font-bold logo-font text-white mb-2">Welcome Back</h2>
+            <p class="text-gray-400">Sign in to manage your shop</p>
+        </div>
+
+        <form @submit.prevent="login" class="space-y-6">
+            <div>
+                <label class="block text-gray-300 text-sm font-medium mb-2">Username</label>
+                <div class="relative">
+                    <input type="text" x-model="username"
+                        class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                        placeholder="admin" required>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-gray-300 text-sm font-medium mb-2">Password</label>
+                <div class="relative">
+                    <input type="password" x-model="password"
+                        class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                        placeholder="••••••" required>
+                </div>
+            </div>
+
+            <button type="submit" :disabled="loading"
+                class="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white font-bold py-3 rounded-lg shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                <span x-show="!loading">Login</span>
+                <span x-show="loading" class="flex items-center justify-center gap-2">
+                    <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                    Verifying...
+                </span>
+            </button>
+
+            <div x-show="error" x-transition:enter="transition ease-out duration-300"
+                x-transition:enter-start="opacity-0 transform scale-90"
+                x-transition:enter-end="opacity-100 transform scale-100"
+                class="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+                <span x-text="error"></span>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function loginApp() {
+        return {
+            username: '',
+            password: '',
+            loading: false,
+            error: '',
+
+            async login() {
+                this.loading = true;
+                this.error = '';
+
+                const formData = new FormData();
+                formData.append('username', this.username);
+                formData.append('password', this.password);
+
+                try {
+                    const response = await fetch('/auth/login', {
+                        method: 'POST',
+                        body: formData,
+                        redirect: 'follow'
+                    });
+
+                    if (response.ok || response.redirected) {
+                        // Follow the redirect URL from server (role-based)
+                        window.location.href = response.url;
+                    } else {
+                        const data = await response.json();
+                        this.error = data.detail || 'Login Failed';
+                    }
+                } catch (e) {
+                    this.error = 'Network Error';
+                } finally {
+                    this.loading = false;
+                }
+            }
+        }
+    }
+</script>
+{% endblock %}
