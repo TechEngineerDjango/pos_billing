@@ -85,10 +85,10 @@ class ThermalPrinter:
             logger.error(f"Printing Error: {e}")
         finally:
             try:
-                # Close connection if network to free resource, or keep alive depending on driver
+                # Close connection to free resources
                 self.printer.close()
-            except:
-                pass
+            except OSError as e:
+                logger.warning(f"Failed to close printer connection: {e}")
             self.printer = None
 
 # Global helper can be used if needed, or instantiate per request

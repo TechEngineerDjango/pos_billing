@@ -139,6 +139,7 @@
                     <div x-show="showPlanChange" x-transition
                         class="mb-4 p-3 bg-teal-500/10 border border-teal-500/30 rounded-xl">
                         <form action="/superadmin/subscriptions/assign" method="POST" class="flex items-center gap-3">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <input type="hidden" name="shop_id" value="{{ shop.id }}">
                             <select name="subscription_id"
                                 class="flex-1 bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:ring-teal-500">
@@ -169,6 +170,7 @@
                             </span>
                         </div>
                         <form action="/superadmin/shops/toggle/{{ shop.id }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <button
                                 class="bg-white/5 hover:bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold text-gray-300 transition-colors">
                                 TOGGLE STATUS
@@ -212,6 +214,7 @@
                 <!-- Left: Compact Control Panel (Scrollable) -->
                 <div class="w-full lg:w-80 xl:w-96 flex-shrink-0 overflow-y-auto pr-2 pb-20">
                     <form @submit.prevent="saveDesign" class="space-y-10">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
                         <!-- Section: Typography & Global -->
                         <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
@@ -583,6 +586,7 @@
                                 class="text-xs font-black text-teal-500/50 hover:text-teal-500 transition-colors uppercase tracking-widest">Edit</button>
                             <form action="/superadmin/subscriptions/delete/{{ sub.id }}" method="POST"
                                 onsubmit="return confirm('Kill this plan forever?')">
+                                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                 <button
                                     class="text-xs font-black text-red-500/50 hover:text-red-500 transition-colors uppercase tracking-widest">Terminate</button>
                             </form>
@@ -620,6 +624,7 @@
                         <h4 class="text-lg font-bold text-white mb-4">Edit Plan: {{ sub.name }}</h4>
                         <form action="/superadmin/subscriptions/update/{{ sub.id }}" method="POST"
                             class="flex-1 flex flex-col gap-4">
+                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <div class="flex gap-4">
                                 <div class="flex-1">
                                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Name</label>
@@ -705,6 +710,7 @@
                             <td class="p-8">
                                 <div class="flex gap-2">
                                     <form action="/superadmin/users/toggle/{{ u.id }}" method="POST">
+                                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                         <button
                                             class="p-2 hover:bg-white/10 rounded-lg text-xs font-bold {% if u.is_active %}text-green-500{% else %}text-red-500{% endif %}">
                                             {{ 'DEACTIVATE' if u.is_active else 'ACTIVATE' }}
@@ -712,6 +718,7 @@
                                     </form>
                                     <form action="/superadmin/users/purge/{{ u.id }}" method="POST"
                                         onsubmit="return confirm('Purge this identity from the database?')">
+                                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                         <button
                                             class="p-2 hover:bg-white/10 rounded-lg text-xs font-bold text-gray-600 hover:text-red-500 transition-colors uppercase">Purge</button>
                                     </form>
@@ -736,6 +743,7 @@
             <h2 class="text-3xl font-black text-white italic tracking-tighter mb-8 uppercase">Deploy New Asset
             </h2>
             <form action="/superadmin/shops/create" method="POST" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <div class="space-y-4">
                     <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Trading
@@ -789,11 +797,13 @@
             </h2>
             <form action="/superadmin/subscriptions/create" method="POST" class="space-y-6" x-data="{
                 selectedFeatures: [],
+                csrf_token: '{{ request.state.csrf_token }}',
                 selectTier(tier) {
                     const tiers = {{ default_tier_features | tojson | safe }};
                     this.selectedFeatures = tiers[tier] || [];
                 }
             }">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <div class="space-y-4">
                     <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Plan
@@ -896,6 +906,7 @@
                 Personnel
             </h2>
             <form action="/superadmin/users/create" method="POST" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <div class="space-y-4">
                     <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Access Identity

@@ -1,0 +1,51 @@
+# ============================================================
+# Burger POS — .gitignore
+# ============================================================
+
+# Environment & Secrets
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# Database files
+*.db
+*.sqlite3
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+error_screenshot.png
+cookies.txt
+server*.log
+app.log
+
+# Pytest
+.pytest_cache/
+
+# Uploads (user content — back up separately)
+static/uploads/*
+!static/uploads/.gitkeep
+
+# Scratch / temp
+scratch/

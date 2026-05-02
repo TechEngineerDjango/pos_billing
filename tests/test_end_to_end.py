@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 from database.models import User, Shop, MenuItem, Bill
 from sqlalchemy import select
-from main import get_password_hash
+from routers.auth import get_password_hash
 
 @pytest.mark.asyncio
 async def test_full_platform_lifecycle_e2e(async_client: AsyncClient, db_session):
@@ -93,7 +93,7 @@ async def test_full_platform_lifecycle_e2e(async_client: AsyncClient, db_session
     result = await db_session.execute(select(Bill).filter_by(bill_number=bill_data["bill_number"]))
     final_bill = result.scalars().first()
     assert final_bill is not None
-    assert final_bill.total_amount == 200.0
+    assert float(final_bill.total_amount) == 200.0
     assert final_bill.shop_id == new_shop.id
 
     print("\n✅ Platform Lifecycle E2E Test Passed: Platform is functional and ready.")

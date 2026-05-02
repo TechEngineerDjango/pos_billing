@@ -1,3 +1,4 @@
+import os
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
@@ -5,9 +6,13 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+# Ensure SECRET_KEY is set before importing app/config
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-only")
+
 from database.base import Base
 from database.session import get_db
-from main import app, get_password_hash
+from main import app
+from routers.auth import get_password_hash
 from database.models import User, Shop
 
 # TEST DATABASE
@@ -15,27 +20,30 @@ from database.models import User, Shop
 SQLALCHEMY_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 engine = create_async_engine(
-    SQLALCHEMY_DATABASE_URL, 
-    connect_args={"check_same_thread": False}, 
-    poolclass=StaticPool, # Needed for in-memory to share across connections
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,  # Needed for in-memory to share across connections
 )
 
 TestingSessionLocal = sessionmaker(
     class_=AsyncSession, autocommit=False, autoflush=False, bind=engine
 )
 
+
 async def override_get_db():
     async with TestingSessionLocal() as session:
         yield session
 
+
 app.dependency_overrides[get_db] = override_get_db
+
 
 @pytest_asyncio.fixture()
 async def db_session():
     # Setup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     async with TestingSessionLocal() as session:
         # Seed Superadmin
         hashed_pw_super = get_password_hash("superadmin")
@@ -50,20 +58,24 @@ async def db_session():
         session.add(shop)
         await session.commit()
         await session.refresh(shop)
-        
+
         # Link user to shop
         admin_user.shop_id = shop.id
         session.add(admin_user)
         await session.commit()
-        
+
         yield session
-        
+
     # Teardown
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
 
 @pytest_asyncio.fixture()
 async def async_client(db_session):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        client.cookies.set("csrf_token", "test-csrf-token")
+        client.headers.update({"x-csrf-token": "test-csrf-token"})
         yield client
+

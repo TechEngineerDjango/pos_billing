@@ -16,10 +16,11 @@
         </div>
 
         <form @submit.prevent="login" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <div>
                 <label class="block text-gray-300 text-sm font-medium mb-2">Username</label>
                 <div class="relative">
-                    <input type="text" x-model="username"
+                    <input type="text" x-model="username" name="username"
                         class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                         placeholder="admin" required>
                 </div>
@@ -28,7 +29,7 @@
             <div>
                 <label class="block text-gray-300 text-sm font-medium mb-2">Password</label>
                 <div class="relative">
-                    <input type="password" x-model="password"
+                    <input type="password" x-model="password" name="password"
                         class="w-full bg-slate-900/50 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                         placeholder="••••••" required>
                 </div>
@@ -78,6 +79,9 @@
                 try {
                     const response = await fetch('/auth/login', {
                         method: 'POST',
+                        headers: {
+                            'x-csrf-token': document.querySelector('input[name="csrf_token"]').value
+                        },
                         body: formData,
                         redirect: 'follow'
                     });

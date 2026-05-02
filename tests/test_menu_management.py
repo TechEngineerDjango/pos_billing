@@ -24,7 +24,7 @@ async def test_menu_add_single_item_via_db(async_client: AsyncClient, db_session
     # Verify it was created
     assert new_item.id is not None
     assert new_item.name == "Test Burger"
-    assert new_item.price == 9.99
+    assert float(new_item.price) == 9.99
     assert new_item.category == "Burgers"
     assert new_item.shop_id == 1
 
@@ -52,7 +52,7 @@ async def test_menu_update_item(async_client: AsyncClient, db_session):
     updated = result.scalars().first()
     
     assert updated.name == "Updated Name"
-    assert updated.price == 10.50
+    assert float(updated.price) == 10.50
     assert updated.category == "Updated"
 
 
@@ -117,13 +117,13 @@ async def test_menu_price_handling(async_client: AsyncClient, db_session):
         select(MenuItem).where(MenuItem.name == "Free Item")
     )
     free_item = result.scalars().first()
-    assert free_item.price == 0.00
+    assert float(free_item.price) == 0.00
     
     result = await db_session.execute(
         select(MenuItem).where(MenuItem.name == "Expensive Item")
     )
     expensive = result.scalars().first()
-    assert expensive.price == 99.99
+    assert float(expensive.price) == 99.99
 
 
 @pytest.mark.asyncio
@@ -391,7 +391,7 @@ async def test_menu_full_crud_lifecycle(async_client: AsyncClient, db_session):
         select(MenuItem).where(MenuItem.id == item_id)
     )
     updated_item = result.scalars().first()
-    assert updated_item.price == 12.99
+    assert float(updated_item.price) == 12.99
     assert updated_item.category == "Updated"
     
     # 4. DELETE

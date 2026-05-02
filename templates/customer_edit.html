@@ -30,6 +30,7 @@
             <div class="absolute top-0 right-0 w-32 h-32 bg-green-500/10 blur-3xl rounded-full -mr-16 -mt-16"></div>
 
             <form action="/admin/customer/update/{{ customer.id }}" method="POST" class="space-y-8 relative z-10">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="shop_id" value="{{ shop.id }}">
 
                 <div class="grid grid-cols-1 gap-6">

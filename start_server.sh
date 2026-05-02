@@ -36,4 +36,4 @@ echo "   Press Ctrl+C to stop"
 echo ""
 
 # Start the server
-python3 -m uvicorn main:app --reload --host 192.168.1.6 --port 8000
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000

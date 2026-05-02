@@ -1,19 +1,21 @@
-from fastapi import APIRouter, Depends, Request, Form, UploadFile, File
+import html as html_mod
+import re
+import urllib.parse
+from datetime import date
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Request, Form, UploadFile, File, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, cast, String, func
-from datetime import date
-from typing import Optional
-import shutil
-import os
-import uuid
-from PIL import Image
-import re
 
 from database.session import get_db
 from database.models import User, MenuItem, Bill, Shop, Customer
 from routers.auth import get_current_user, get_optional_current_user
+from schemas.schemas import UserCreate, MenuItemCreate, CustomerCreate, ShopCreate
+from services.image import save_uploaded_image
+from services.auth import require_owner_or_above, require_any_staff
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 templates = Jinja2Templates(directory="templates")
@@ -74,7 +76,7 @@ async def admin_overview(
             )
             bills = bills_res.scalars().all()
             stats["order_count"] = len(bills)
-            stats["total_sales"] = sum(b.total_amount for b in bills)
+            stats["total_sales"] = sum(float(b.total_amount) for b in bills if b.total_amount is not None)
 
             # Staff
             staff_res = await db.execute(select(User).where(User.shop_id == shop.id, User.role == "cashier"))
@@ -82,10 +84,10 @@ async def admin_overview(
             stats["staff_count"] = len(staff)
             
             # ============== ADVANCED ANALYTICS WITH PERIOD FILTER ==============
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, timezone
             from collections import defaultdict
             
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             today = now.replace(hour=0, minute=0, second=0, microsecond=0)
             
             # Define period ranges
@@ -141,12 +143,12 @@ async def admin_overview(
                 
                 # Today's stats
                 if bill_date >= today:
-                    today_total += bill.total_amount
+                    today_total += float(bill.total_amount)
                     today_orders += 1
                 
                 # Current period
                 if bill_date >= period_start:
-                    current_period_total += bill.total_amount
+                    current_period_total += float(bill.total_amount)
                     period_orders_count += 1
                     
                     # Group by appropriate granularity
@@ -158,11 +160,11 @@ async def admin_overview(
                     else:  # month
                         key = bill_date.strftime("%b")
                     
-                    period_revenue[key] += bill.total_amount
+                    period_revenue[key] += float(bill.total_amount)
                     period_orders[key] += 1
                     
                     # Hourly distribution (only current period)
-                    hourly_sales[bill_date.hour] += bill.total_amount
+                    hourly_sales[bill_date.hour] += float(bill.total_amount)
                     
                     # Top selling items (only current period)
                     if bill.items_snapshot:
@@ -171,16 +173,16 @@ async def admin_overview(
                             qty = item.get("qty", 1)
                             line_total = item.get("line_total", 0)
                             item_sales[name]["qty"] += qty
-                            item_sales[name]["revenue"] += line_total
+                            item_sales[name]["revenue"] += float(line_total)
                     
                     # Payment breakdown (only current period)
                     method = bill.payment_method or "Cash"
                     payment_breakdown[method]["count"] += 1
-                    payment_breakdown[method]["total"] += bill.total_amount
+                    payment_breakdown[method]["total"] += float(bill.total_amount)
                 
                 # Previous period (for comparison)
                 elif prev_period_start <= bill_date < period_start:
-                    prev_period_total += bill.total_amount
+                    prev_period_total += float(bill.total_amount)
             
             # Build chart data
             chart_revenue = [round(period_revenue.get(label, 0), 2) for label in chart_labels]
@@ -252,29 +254,25 @@ async def admin_overview(
 
 @router.post("/staff/add")
 async def add_staff(
-    username: str = Form(...),
-    password: str = Form(...),
-    shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(require_owner_or_above),
+    db: AsyncSession = Depends(get_db),
+    data: UserCreate = Depends(UserCreate.as_form)
 ):
     from routers.auth import get_password_hash
-    if current_user.role not in ["owner", "superadmin"]:
-        return RedirectResponse(url="/auth/login")
     
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = data.shop_id or current_user.shop_id
     if not target_shop_id:
         return RedirectResponse(url="/admin/?tab=staff&error=No shop assigned", status_code=303)
     
     # Check if username exists
-    existing = await db.execute(select(User).where(User.username == username))
+    existing = await db.execute(select(User).where(User.username == data.username))
     if existing.scalars().first():
         # Handle error gracefully - maybe redirect with error
         return RedirectResponse(url=f"/admin/?shop_id={target_shop_id}&tab=staff&error=Username already taken", status_code=303)
     
     new_staff = User(
-        username=username,
-        hashed_password=get_password_hash(password),
+        username=data.username,
+        hashed_password=get_password_hash(data.password),
         role="cashier",
         shop_id=target_shop_id
     )
@@ -287,11 +285,9 @@ async def add_staff(
 async def delete_staff(
     staff_id: int,
     shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_owner_or_above),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role not in ["owner", "superadmin"]:
-        return {"error": "Unauthorized"}
     
     target_shop_id = shop_id or current_user.shop_id
     
@@ -354,45 +350,22 @@ async def admin_branding(
 @router.post("/admin/menu/add")
 @router.post("/menu/add")
 async def add_menu_item(
-    name: str = Form(...),
-    price: float = Form(...),
-    category: str = Form("General"),
     image: UploadFile = File(None),
-    shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_optional_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(require_owner_or_above),
+    db: AsyncSession = Depends(get_db),
+    data: MenuItemCreate = Depends(MenuItemCreate.as_form)
 ):
-    if not current_user or current_user.role not in ["owner", "superadmin"]:
-         return {"error": "Unauthorized"}
-    
     # Use target shop ID
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = data.shop_id or current_user.shop_id
     if not target_shop_id:
-        return {"error": "No shop assigned"}
-         
-    image_url = None
-    if image and image.filename:
-        ext = image.filename.split(".")[-1]
-        filename = f"{uuid.uuid4()}.{ext}"
-        upload_dir = "static/uploads"
-        filepath = os.path.join(upload_dir, filename)
-        
-        try:
-            with open(filepath, "wb") as buffer:
-                shutil.copyfileobj(image.file, buffer)
-            
-            with Image.open(filepath) as img:
-                img.thumbnail((300, 300))
-                img.save(filepath)
-                
-            image_url = f"/static/uploads/{filename}"
-        except Exception as e:
-            print(f"Image Upload Error: {e}")
+        raise HTTPException(status_code=400, detail="No shop assigned")
+
+    image_url = await save_uploaded_image(image, max_size=(300, 300), prefix="menu")
 
     new_item = MenuItem(
-        name=name, 
-        price=price, 
-        category=category, 
+        name=data.name, 
+        price=data.price, 
+        category=data.category, 
         image_url=image_url,
         shop_id=target_shop_id
     )
@@ -442,18 +415,12 @@ async def menu_edit_page(
 @router.post("/menu/update/{item_id}")
 async def update_menu_item(
     item_id: int,
-    name: str = Form(...),
-    category: str = Form(...),
-    price: float = Form(...),
     image: UploadFile = File(None),
-    shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(require_owner_or_above),
+    db: AsyncSession = Depends(get_db),
+    data: MenuItemCreate = Depends(MenuItemCreate.as_form)
 ):
-    if current_user.role not in ["owner", "superadmin"]:
-         return {"error": "Unauthorized"}
-    
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = data.shop_id or current_user.shop_id
     
     # Only update items from user's shop
     query = select(MenuItem).where(MenuItem.id == item_id)
@@ -466,28 +433,13 @@ async def update_menu_item(
     effective_shop_id = item.shop_id if item else target_shop_id
     
     if item:
-        item.name = name
-        item.category = category
-        item.price = price
+        item.name = data.name
+        item.category = data.category
+        item.price = data.price
         
-        # Handle image upload if provided
-        if image and image.filename:
-            ext = image.filename.split(".")[-1]
-            filename = f"{uuid.uuid4()}.{ext}"
-            upload_dir = "static/uploads"
-            filepath = os.path.join(upload_dir, filename)
-            
-            try:
-                with open(filepath, "wb") as buffer:
-                    shutil.copyfileobj(image.file, buffer)
-                
-                with Image.open(filepath) as img:
-                    img.thumbnail((300, 300))
-                    img.save(filepath)
-                    
-                item.image_url = f"/static/uploads/{filename}"
-            except Exception as e:
-                print(f"Image Upload Error: {e}")
+        image_url = await save_uploaded_image(image, max_size=(300, 300), prefix="menu")
+        if image_url:
+            item.image_url = image_url
         
         await db.commit()
     
@@ -498,11 +450,9 @@ async def update_menu_item(
 async def delete_menu_item(
     item_id: int,
     shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_owner_or_above),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role not in ["owner", "superadmin"]:
-         return {"error": "Unauthorized"}
     
     target_shop_id = shop_id or current_user.shop_id
     
@@ -527,72 +477,42 @@ async def delete_menu_item(
 
 @router.post("/settings")
 async def update_settings(
-    name: str = Form(...),
-    address: str = Form(""),
-    currency: str = Form("₹"),
-    font_color: str = Form("#ffffff"),
-    background_color: str = Form("#0f172a"),
-    header_color: str = Form("#1e293b"),
-    logo_size: int = Form(40),
-    watermark_opacity: float = Form(0.1),
-    card_bg_color: str = Form("#1e293b"),
-    sidebar_bg_color: str = Form("#0f172a"),
-    accent_color: str = Form("#f97316"),
-    border_color: str = Form("rgba(255, 255, 255, 0.1)"),
-    price_card_bg: str = Form("#1e293b"),  # NEW - for price tags
-    header_text_color: str = Form("#ffffff"),  # NEW - for header menu text
-    cart_bg_color: str = Form("#0f172a"),  # NEW - for cart/bill panel
     logo: UploadFile = File(None),
-    shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(require_owner_or_above),
+    db: AsyncSession = Depends(get_db),
+    data: ShopCreate = Depends(ShopCreate.as_form)
 ):
-    if current_user.role not in ["owner", "superadmin"]:
-         return {"error": "Unauthorized"}
+    # Use shop_id from form data if provided (superadmin), else use current_user's shop_id
+    target_shop_id = getattr(data, "shop_id", None) or current_user.shop_id
     
-    target_shop_id = shop_id or current_user.shop_id
     if not target_shop_id:
-        return {"error": "No shop assigned"}
+        raise HTTPException(status_code=400, detail="No shop assigned")
     
     res = await db.execute(select(Shop).where(Shop.id == target_shop_id))
     shop = res.scalars().first()
     
     if not shop:
-        return {"error": "Shop not found"}
+        raise HTTPException(status_code=404, detail="Shop not found")
     
-    shop.name = name
-    shop.address = address
-    shop.currency_symbol = currency
-    shop.font_color = font_color
-    shop.background_color = background_color
-    shop.header_color = header_color
-    shop.logo_size = logo_size
-    shop.watermark_opacity = watermark_opacity
-    shop.card_bg_color = card_bg_color
-    shop.sidebar_bg_color = sidebar_bg_color
-    shop.accent_color = accent_color
-    shop.border_color = border_color
-    shop.price_card_bg = price_card_bg
-    shop.header_text_color = header_text_color
-    shop.cart_bg_color = cart_bg_color
+    shop.name = data.name
+    shop.address = data.address
+    shop.currency_symbol = data.currency_symbol
+    shop.font_color = data.font_color
+    shop.background_color = data.background_color
+    shop.header_color = data.header_color
+    shop.logo_size = data.logo_size
+    shop.watermark_opacity = data.watermark_opacity
+    shop.card_bg_color = data.card_bg_color
+    shop.sidebar_bg_color = data.sidebar_bg_color
+    shop.accent_color = data.accent_color
+    shop.border_color = data.border_color
+    shop.price_card_bg = data.price_card_bg
+    shop.header_text_color = data.header_text_color
+    shop.cart_bg_color = data.cart_bg_color
     
-    if logo and logo.filename:
-        ext = logo.filename.split(".")[-1]
-        filename = f"logo_{uuid.uuid4()}.{ext}"
-        upload_dir = "static/uploads"
-        filepath = os.path.join(upload_dir, filename)
-        
-        try:
-            with open(filepath, "wb") as buffer:
-                shutil.copyfileobj(logo.file, buffer)
-            
-            with Image.open(filepath) as img:
-                img.thumbnail((150, 150))
-                img.save(filepath)
-                
-            shop.logo_url = f"/static/uploads/{filename}"
-        except Exception as e:
-            print(f"Logo Upload Error: {e}")
+    logo_url = await save_uploaded_image(logo, max_size=(150, 150), prefix="logo")
+    if logo_url:
+        shop.logo_url = logo_url
             
     await db.commit()
     return RedirectResponse(url=f"/admin/?shop_id={target_shop_id}&tab=branding", status_code=303)
@@ -604,23 +524,19 @@ async def update_settings(
 
 @router.post("/customer/add")
 async def add_customer(
-    name: str = Form(...),
-    phone_number: str = Form(...),
-    shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(require_owner_or_above),
+    db: AsyncSession = Depends(get_db),
+    data: CustomerCreate = Depends(CustomerCreate.as_form)
 ):
-    if current_user.role not in ["owner", "superadmin"]:
-         return {"error": "Unauthorized"}
     
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = data.shop_id or current_user.shop_id
     if not target_shop_id:
         return {"error": "No shop assigned"}
     
-    phone_number = re.sub(r'\D', '', phone_number)
+    phone_number = re.sub(r'\D', '', data.phone_number)
     
     new_customer = Customer(
-        name=name,
+        name=data.name,
         phone_number=phone_number,
         shop_id=target_shop_id
     )
@@ -670,16 +586,12 @@ async def customer_edit_page(
 @router.post("/customer/update/{customer_id}")
 async def update_customer(
     customer_id: int,
-    name: str = Form(...),
-    phone_number: str = Form(...),
-    shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(require_owner_or_above),
+    db: AsyncSession = Depends(get_db),
+    data: CustomerCreate = Depends(CustomerCreate.as_form)
 ):
-    if current_user.role not in ["owner", "superadmin"]:
-         return {"error": "Unauthorized"}
     
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = data.shop_id or current_user.shop_id
     
     query = select(Customer).where(Customer.id == customer_id)
     if target_shop_id and current_user.role != "superadmin":
@@ -691,8 +603,8 @@ async def update_customer(
     effective_shop_id = customer.shop_id if customer else target_shop_id
     
     if customer:
-        customer.name = name
-        customer.phone_number = re.sub(r'\D', '', phone_number)
+        customer.name = data.name
+        customer.phone_number = re.sub(r'\D', '', data.phone_number)
         await db.commit()
     
     return RedirectResponse(url=f"/admin/?shop_id={effective_shop_id}&tab=customers", status_code=303)
@@ -702,11 +614,9 @@ async def update_customer(
 async def delete_customer(
     customer_id: int,
     shop_id: Optional[int] = Form(None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_owner_or_above),
     db: AsyncSession = Depends(get_db)
 ):
-    if current_user.role not in ["owner", "superadmin"]:
-         return {"error": "Unauthorized"}
     
     target_shop_id = shop_id or current_user.shop_id
     
@@ -826,8 +736,6 @@ Bill #{bill.bill_number}
 
 Thank you for your order! \U0001f354"""
     
-    import urllib.parse
-    import urllib.parse
     whatsapp_url = f"https://wa.me/{phone_number}?text={urllib.parse.quote(message.strip(), encoding='utf-8')}"
     return JSONResponse({
         "success": True,
@@ -887,8 +795,11 @@ Thank you for your order! \U0001f354"""
     # Generate the actual WhatsApp URL
     whatsapp_url = f"https://wa.me/{phone_number}?text={urllib.parse.quote(message.strip(), encoding='utf-8')}"
     
-    # Return an auto-redirecting HTML page
-    html = f"""
+    # S2 FIX: Escape all user-controllable data to prevent XSS
+    safe_url = html_mod.escape(whatsapp_url, quote=True)
+    
+    # Return an auto-redirecting HTML page with escaped values
+    html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -904,15 +815,15 @@ Thank you for your order! \U0001f354"""
     <body>
         <div class="loader"></div>
         <h2>Opening WhatsApp...</h2>
-        <p>If it doesn't open automatically, <a href="{whatsapp_url}">Click Here</a></p>
+        <p>If it doesn't open automatically, <a href="{safe_url}">Click Here</a></p>
         <script>
             // Attempt instant redirect
-            window.location.href = "{whatsapp_url}";
+            window.location.href = "{safe_url}";
         </script>
     </body>
     </html>
     """
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=html_content)
 
 
 # ============================================================================

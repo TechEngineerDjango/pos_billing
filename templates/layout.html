@@ -144,6 +144,7 @@
                         class="text-gray-300 hover:text-white hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200">{%
                         if user and user.role == 'superadmin' %}Control Center{% else %}Dashboard{% endif %}</a>
                     <form action="/auth/logout" method="post" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit"
                             class="text-gray-300 hover:text-red-400 hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200 ml-2">Logout</button>
                     </form>
@@ -184,6 +185,7 @@
                     class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">{%
                     if user and user.role == 'superadmin' %}🛡️ Control Center{% else %}📊 Dashboard{% endif %}</a>
                 <form action="/auth/logout" method="post">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <button type="submit"
                         class="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-3 rounded-xl font-medium transition-all text-center">🚪
                         Logout</button>

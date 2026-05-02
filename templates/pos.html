@@ -2,6 +2,7 @@
 
 {% block content %}
 <div class="h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)] flex flex-col md:flex-row" x-data="posApp()">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
     <!-- Mobile Cart Toggle Button (Floating) -->
     <button @click="mobileCartOpen = true"
@@ -536,7 +537,10 @@
                 try {
                     const response = await fetch('/billing/create', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'x-csrf-token': document.querySelector('input[name="csrf_token"]').value
+                        },
                         body: JSON.stringify(payload)
                     });
 

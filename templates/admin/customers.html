@@ -47,6 +47,7 @@
                     {% for customer in customers %}
                     <tr class="group hover:bg-white/5 transition-colors">
                         <form action="/admin/customer/update/{{ customer.id }}" method="POST" class="contents">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <td class="p-3">
                                 <input type="text" name="name" value="{{ customer.name }}"
                                     class="w-full bg-slate-800 border border-white/10 rounded px-2 py-1 text-gray-200 font-medium text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">

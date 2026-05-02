@@ -1,44 +1,48 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
-
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import List, Optional
 import uuid
-import datetime
+import datetime as dt
+from datetime import timezone
+from decimal import Decimal
 import json
 import re
 
 from database.session import get_db
 from database.models import Bill, MenuItem, Shop, User, Customer
+from features import get_shop_features, has_feature
 from services.printer import print_bill_bg
 from routers.auth import get_current_user, get_optional_current_user
+from schemas.schemas import CartItem, BillCreate
 
 router = APIRouter(prefix="/billing", tags=["Billing"])
 templates = Jinja2Templates(directory="templates")
 
+class DecimalEncoder(json.JSONEncoder):
+    """Custom encoder that converts Decimal to float for JSON serialization."""
+    def default(self, o):
+        if isinstance(o, Decimal):
+            return float(o)
+        return super().default(o)
+
+
 def json_serializer(obj):
     if isinstance(obj, list):
-        return json.dumps([i.to_dict() if hasattr(i, "to_dict") else jsonable_encoder(i) for i in obj])
+        return json.dumps(
+            [i.to_dict() if hasattr(i, "to_dict") else jsonable_encoder(i) for i in obj],
+            cls=DecimalEncoder,
+        )
     if hasattr(obj, "to_dict"):
-        return json.dumps(obj.to_dict())
-    return json.dumps(jsonable_encoder(obj))
+        return json.dumps(obj.to_dict(), cls=DecimalEncoder)
+    return json.dumps(jsonable_encoder(obj), cls=DecimalEncoder)
 
 templates.env.filters["tojson"] = json_serializer
-
-
-class CartItem(BaseModel):
-    id: int
-    qty: int
-
-class BillCreate(BaseModel):
-    items: List[CartItem]
-    payment_method: str = "Cash"
-    customer_phone: Optional[str] = None
-    customer_name: Optional[str] = None
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -52,10 +56,6 @@ async def pos_page(
     Serves the POS UI with Menu Items loaded for the user's shop.
     Superadmin can select any shop via shop_id query parameter.
     """
-    from sqlalchemy.orm import selectinload
-    from features import get_shop_features, has_feature
-    
-    # Authorization checks continue based on current_user
     
     shop = None
     all_shops = []  # For superadmin dropdown
@@ -138,10 +138,9 @@ async def create_bill(
     Associates bill with the current user's shop.
     """
     # Get current user from cookie
-    from routers.auth import get_current_user
     try:
         current_user = await get_current_user(request, db)
-    except:
+    except Exception:
         raise HTTPException(status_code=401, detail="Not authenticated")
     
     if not bill_in.items:
@@ -153,7 +152,7 @@ async def create_bill(
         shop_res = await db.execute(select(Shop).where(Shop.id == current_user.shop_id))
         shop = shop_res.scalars().first()
 
-    total_amount = 0.0
+    total_amount = Decimal("0.00")
     items_snapshot = []
     
     # 1. Fetch Items and Calculate Total
@@ -176,9 +175,9 @@ async def create_bill(
             "id": menu_item.id,
             "name": menu_item.name,
             "category": menu_item.category,
-            "price": menu_item.price,
+            "price": float(menu_item.price),
             "qty": cart_item.qty,
-            "line_total": line_total
+            "line_total": float(line_total)
         })
 
     if not items_snapshot:
@@ -220,19 +219,23 @@ async def create_bill(
     printer_ip = shop.printer_ip if shop else None
 
     # 2. Save Bill with shop_id and customer_id
-    new_bill = Bill(
-        bill_number=str(uuid.uuid4())[:8].upper(),
-        total_amount=total_amount,
-        payment_method=bill_in.payment_method,
-        items_snapshot=items_snapshot,
-        timestamp=datetime.datetime.utcnow(),
-        shop_id=shop.id if shop else None,
-        customer_id=customer_id
-    )
-    
-    db.add(new_bill)
-    await db.commit()
-    await db.refresh(new_bill)
+    try:
+        new_bill = Bill(
+            bill_number=str(uuid.uuid4())[:8].upper(),
+            total_amount=total_amount,
+            payment_method=bill_in.payment_method,
+            items_snapshot=items_snapshot,
+            timestamp=dt.datetime.now(timezone.utc),
+            shop_id=shop.id if shop else None,
+            customer_id=customer_id
+        )
+        
+        db.add(new_bill)
+        await db.commit()
+        await db.refresh(new_bill)
+    except Exception:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to create bill. Please try again.")
 
     # 3. Trigger Print Task
 
@@ -295,7 +298,6 @@ async def view_bill(
     current_user: User = Depends(get_optional_current_user)
 ):
     """Display bill details in a printable HTML format."""
-    from sqlalchemy.orm import selectinload
     
     # Fetch bill with customer relationship
     query = select(Bill).where(Bill.id == bill_id).options(selectinload(Bill.customer))

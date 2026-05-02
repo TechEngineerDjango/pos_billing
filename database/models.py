@@ -1,5 +1,10 @@
-import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, JSON, ForeignKey
+import datetime as dt
+from datetime import timezone
+
+from sqlalchemy import (
+    Column, Integer, String, Float, Numeric, Boolean, DateTime,
+    JSON, ForeignKey, Index, UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from database.base import Base
 
@@ -28,7 +33,7 @@ class Subscription(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)  # Free, Basic, Pro
-    price = Column(Float, default=0.0)
+    price = Column(Numeric(10, 2), default=0.00)
     # JSON list of feature keys enabled for this plan
     enabled_features = Column(JSON, default=list)  # ["dashboard", "sale_report"]
     
@@ -62,7 +67,7 @@ class Shop(Base):
     background_color = Column(String, default="#0f172a")  # Slate-900
     header_color = Column(String, default="#1e293b")      # Slate-800
     logo_size = Column(Integer, default=40)               # px (height)
-    watermark_opacity = Column(Float, default=0.1)        # 0.0 to 1.0
+    watermark_opacity = Column(Float, default=0.1)  # 0.0 to 1.0 (not money)
     
     # Advanced Customization
     card_bg_color = Column(String, default="#1e293b")     # Slate-800
@@ -102,7 +107,7 @@ class Shop(Base):
     subscription = relationship("Subscription", back_populates="shops")
     
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
     
     # Relationships
     users = relationship("User", back_populates="shop")
@@ -169,7 +174,7 @@ class Customer(Base):
     # Relationships
     bills = relationship("Bill", back_populates="customer")
     
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
 
 
 # ============================================================================
@@ -192,29 +197,11 @@ class User(Base):
     shop = relationship("Shop", back_populates="users")
     
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
 
     def to_dict(self):
         return {"id": self.id, "username": self.username, "role": self.role, "shop_id": self.shop_id, "is_active": self.is_active}
 
-
-
-# ============================================================================
-# LEGACY: ShopProfile (Deprecated - use Shop instead)
-# Keeping for backward compatibility during migration
-# ============================================================================
-
-class ShopProfile(Base):
-    """DEPRECATED: Use Shop model instead. Kept for migration compatibility."""
-    __tablename__ = "shop_profile"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, default="Burger Shop")
-    address = Column(String, nullable=True)
-    contact = Column(String, nullable=True)
-    printer_ip = Column(String, nullable=True)
-    currency_symbol = Column(String, default="₹")
-    logo_url = Column(String, nullable=True)
 
 
 # ============================================================================
@@ -224,10 +211,13 @@ class ShopProfile(Base):
 class MenuItem(Base):
     """Menu items belonging to a specific shop."""
     __tablename__ = "menu_items"
+    __table_args__ = (
+        Index("ix_menuitems_shop_active", "shop_id", "is_active"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
-    price = Column(Float, nullable=False)
+    price = Column(Numeric(10, 2), nullable=False)
     category = Column(String, index=True, default="General")
     image_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -248,12 +238,16 @@ class MenuItem(Base):
 class Bill(Base):
     """Bills/transactions belonging to a specific shop."""
     __tablename__ = "bills"
+    __table_args__ = (
+        UniqueConstraint("shop_id", "bill_number", name="uq_shop_bill_number"),
+        Index("ix_bills_shop_timestamp", "shop_id", "timestamp"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    bill_number = Column(String, unique=True, index=True, nullable=False)
-    total_amount = Column(Float, nullable=False)
+    bill_number = Column(String, index=True, nullable=False)
+    total_amount = Column(Numeric(10, 2), nullable=False)
     payment_method = Column(String, default="Cash")  # Cash, UPI
-    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
     
     # CRITICAL: Store exact price/name at moment of sale
     items_snapshot = Column(JSON, nullable=False)
@@ -277,3 +271,17 @@ class Bill(Base):
             "customer_id": self.customer_id,
             "shop_id": self.shop_id
         }
+
+
+# ============================================================================
+# LOGIN ATTEMPTS (R1: DB-backed rate limiting)
+# ============================================================================
+
+class LoginAttempt(Base):
+    """Tracks failed login attempts per IP for rate limiting."""
+    __tablename__ = "login_attempts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String, index=True, nullable=False, unique=True)
+    attempt_count = Column(Integer, default=0)
+    last_attempt = Column(DateTime(timezone=True), nullable=False)

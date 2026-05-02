@@ -2,7 +2,7 @@ import pytest
 from httpx import AsyncClient
 from database.models import User, Shop
 from sqlalchemy import select
-from main import get_password_hash
+from routers.auth import get_password_hash
 
 @pytest.mark.asyncio
 async def test_superadmin_branding_studio_persistence(async_client: AsyncClient, db_session):

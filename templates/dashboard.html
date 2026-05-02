@@ -264,6 +264,7 @@
                             </a>
                             <form action="/admin/menu/delete/{{ item.id }}" method="POST"
                                 onsubmit="return confirm('Archive this item?')">
+                                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                 <input type="hidden" name="shop_id" value="{{ shop.id }}">
                                 <button
                                     class="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
@@ -314,6 +315,7 @@
                                         class="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600">Modify</a>
                                     <form action="/admin/customer/delete/{{ customer.id }}" method="POST" class="inline"
                                         onsubmit="return confirm('Forget this customer?')">
+                                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                         <input type="hidden" name="shop_id" value="{{ shop.id }}">
                                         <button
                                             class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600">Purge</button>
@@ -555,6 +557,7 @@
                             <td class="p-6 text-right">
                                 <form action="/admin/staff/delete/{{ s.id }}" method="POST"
                                     onsubmit="return confirm('Revoke access for this user?')">
+                                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                     <input type="hidden" name="shop_id" value="{{ shop.id }}">
                                     <button
                                         class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-700">Revoke
@@ -581,6 +584,7 @@
             <h2 class="text-3xl font-black italic tracking-tighter uppercase mb-6 dark:text-white">New Catalog Entry
             </h2>
             <form action="/admin/menu/add" method="POST" enctype="multipart/form-data" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="shop_id" value="{{ shop.id }}">
                 <div class="space-y-4">
                     <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
@@ -628,6 +632,7 @@
             <h2 class="text-3xl font-black italic tracking-tighter uppercase mb-6 dark:text-white">Onboard Personnel
             </h2>
             <form action="/admin/staff/add" method="POST" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="shop_id" value="{{ shop.id }}">
                 <div class="space-y-4">
                     <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
