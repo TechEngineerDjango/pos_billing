@@ -14,10 +14,23 @@ class BillCreate(BaseModel):
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
 
+import re
+
+def validate_password_strength(password: str) -> str:
+    # Single regex for: 8+ chars, uppercase, lowercase, digit, and special character
+    pattern = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?]).{8,}$"
+    if not re.match(pattern, password):
+        raise ValueError("Password does not meet the security policy requirements")
+    return password
+
 class UserCreate(BaseModel):
     username: str
     password: str
     shop_id: Optional[int] = None
+
+    @validator("password")
+    def validate_password(cls, v):
+        return validate_password_strength(v)
 
     @classmethod
     def as_form(
@@ -162,3 +175,19 @@ class ShopCreate(BaseModel):
             cash_upi_font_color=cash_upi_font_color,
             shop_id=target_shop_id
         )
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @validator("new_password")
+    def validate_new_password(cls, v):
+        return validate_password_strength(v)
+
+    @classmethod
+    def as_form(
+        cls,
+        current_password: str = Form(...),
+        new_password: str = Form(...)
+    ):
+        return cls(current_password=current_password, new_password=new_password)

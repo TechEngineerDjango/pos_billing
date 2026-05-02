@@ -143,6 +143,8 @@
                     <a href="{% if user and user.role == 'superadmin' %}/superadmin/{% else %}/admin/{% endif %}"
                         class="text-gray-300 hover:text-white hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200">{%
                         if user and user.role == 'superadmin' %}Control Center{% else %}Dashboard{% endif %}</a>
+                    <a href="/auth/change-password"
+                        class="text-gray-300 hover:text-white hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200">Change Password</a>
                     <form action="/auth/logout" method="post" class="inline">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <button type="submit"
@@ -184,6 +186,8 @@
                 <a href="{% if user and user.role == 'superadmin' %}/superadmin/{% else %}/admin/{% endif %}"
                     class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">{%
                     if user and user.role == 'superadmin' %}🛡️ Control Center{% else %}📊 Dashboard{% endif %}</a>
+                <a href="/auth/change-password"
+                    class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">🔑 Change Password</a>
                 <form action="/auth/logout" method="post">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <button type="submit"
@@ -207,6 +211,7 @@
 
     {% block scripts %}{% endblock %}
 
+    <script src="/static/js/auth.js"></script>
 </body>
 
 </html>

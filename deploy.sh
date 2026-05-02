@@ -28,33 +28,50 @@ echo -e "${YELLOW}[1/6] Checking Python Virtual Environment...${NC}"
 
 if [ -n "$VIRTUAL_ENV" ]; then
     echo -e "${GREEN}✓ Using currently active virtual environment: $(basename "$VIRTUAL_ENV")${NC}\n"
+    # Use absolute paths derived from $VIRTUAL_ENV to avoid PATH issues in subshells
+    PIP_CMD="$VIRTUAL_ENV/bin/pip"
+    PY_CMD="$VIRTUAL_ENV/bin/python"
+    PLAYWRIGHT_CMD="$VIRTUAL_ENV/bin/playwright"
+    PYTEST_CMD="$VIRTUAL_ENV/bin/pytest"
+    ALEMBIC_CMD="$VIRTUAL_ENV/bin/alembic"
 else
     # Default to ".venv" if no environment is active
     VENV_NAME=".venv"
     if [ ! -d "$VENV_NAME" ]; then
-        python3 -m venv $VENV_NAME
+        echo "Creating virtual environment ($VENV_NAME)..."
+        if ! python3 -m venv $VENV_NAME; then
+            echo -e "${RED}❌ Failed to create virtual environment.${NC}"
+            echo -e "${YELLOW}On Ubuntu/Debian, you may need to run: sudo apt install python3-venv${NC}"
+            exit 1
+        fi
         echo -e "${GREEN}✓ Created default virtual environment ($VENV_NAME).${NC}"
     fi
-    . $VENV_NAME/bin/activate
-    echo -e "${GREEN}✓ Default virtual environment ($VENV_NAME) activated.${NC}\n"
+    # Use direct paths to avoid flaky 'source/activate' behavior in scripts
+    PIP_CMD="$VENV_NAME/bin/pip"
+    PY_CMD="$VENV_NAME/bin/python"
+    PLAYWRIGHT_CMD="$VENV_NAME/bin/playwright"
+    PYTEST_CMD="$VENV_NAME/bin/pytest"
+    ALEMBIC_CMD="$VENV_NAME/bin/alembic"
+    echo -e "${GREEN}✓ Virtual environment paths linked.${NC}\n"
 fi
 
 # ------------------------------------------------------------------------------
 # 2. Dependency Installation
 # ------------------------------------------------------------------------------
-echo -e "${YELLOW}[2/6] Installing dependencies...${NC}"
-pip install --upgrade pip -q
-pip install -r requirements.txt -q
+echo -e "${YELLOW}[2/5] Installing dependencies...${NC}"
+$PIP_CMD install --upgrade pip
+$PIP_CMD install -r requirements.txt
 echo -e "${GREEN}✓ Python dependencies installed.${NC}"
 
-# Ensure Playwright browsers are installed for the E2E testing
-playwright install chromium -q
-echo -e "${GREEN}✓ Playwright testing browsers installed.${NC}\n"
+# Ensure Playwright browsers and Linux system dependencies are installed
+$PLAYWRIGHT_CMD install chromium
+sudo $PLAYWRIGHT_CMD install-deps chromium || $PLAYWRIGHT_CMD install-deps chromium
+echo -e "${GREEN}✓ Playwright testing browsers and dependencies installed.${NC}\n"
 
 # ------------------------------------------------------------------------------
 # 3. Configuration Setup
 # ------------------------------------------------------------------------------
-echo -e "${YELLOW}[3/6] Checking configuration (.env)...${NC}"
+echo -e "${YELLOW}[3/5] Checking configuration (.env)...${NC}"
 if [ ! -f ".env" ]; then
     echo "Creating .env file from template..."
     cp .env.example .env
@@ -76,45 +93,22 @@ echo ""
 # ------------------------------------------------------------------------------
 # 4. Database Migrations
 # ------------------------------------------------------------------------------
-echo -e "${YELLOW}[4/6] Applying database migrations...${NC}"
-alembic upgrade head
+echo -e "${YELLOW}[4/5] Applying database migrations...${NC}"
+$ALEMBIC_CMD upgrade head
 echo -e "${GREEN}✓ Database schema is up to date.${NC}\n"
 
 # ------------------------------------------------------------------------------
-# 5. Background Server Startup
+# 5. E2E Verification Testing
 # ------------------------------------------------------------------------------
-echo -e "${YELLOW}[5/6] Starting FastAPI Server temporarily for testing...${NC}"
-# Kill any existing server on port 8000
-lsof -t -i:8000 | xargs kill -9 2>/dev/null || true
-
-# Start server in the background and pipe logs to a file
-uvicorn main:app --host 0.0.0.0 --port 8000 > server_startup.log 2>&1 &
-SERVER_PID=$!
-
-# Wait for server to be fully ready
-echo "Waiting for server to initialize..."
-sleep 5
-
-if ps -p $SERVER_PID > /dev/null; then
-   echo -e "${GREEN}✓ Server started successfully (PID: $SERVER_PID).${NC}\n"
-else
-   echo -e "${RED}✗ Server failed to start. Check server_startup.log for details.${NC}"
-   cat server_startup.log
-   exit 1
-fi
-
-# ------------------------------------------------------------------------------
-# 6. E2E Verification Testing
-# ------------------------------------------------------------------------------
-echo -e "${YELLOW}[6/6] Running Full E2E Verification Suite...${NC}"
+echo -e "${YELLOW}[5/5] Running Full E2E Verification Suite...${NC}"
 echo "This will launch a headless browser and simulate user interactions."
 echo "Running Playwright Tests..."
 
 # We run headless to ensure it works on servers without GUI displays
-if pytest tests/test_browser_e2e.py -v -s; then
+if $PYTEST_CMD tests/test_browser_e2e.py -v -s; then
     TESTS_PASSED=true
     echo -e "\n${GREEN}======================================================${NC}"
-    echo -e "${GREEN}  ✅ ALL 22/22 E2E TESTS PASSED SUCCESSFULLY!         ${NC}"
+    echo -e "${GREEN}  ✅ ALL E2E TESTS PASSED SUCCESSFULLY!               ${NC}"
     echo -e "${GREEN}  ✅ APPLICATION IS VERIFIED AND READY FOR HANDOVER!  ${NC}"
     echo -e "${GREEN}======================================================${NC}"
 else
@@ -125,12 +119,8 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# Cleanup
+# Final Instructions
 # ------------------------------------------------------------------------------
-echo -e "\n${YELLOW}Cleaning up testing environment...${NC}"
-kill -9 $SERVER_PID 2>/dev/null || true
-echo -e "${GREEN}✓ Test server shutdown.${NC}"
-
 if [ "$TESTS_PASSED" = true ]; then
     echo -e "\n${BLUE}To run the app permanently on your server, use PM2 or Systemd:${NC}"
     echo -e "  ${YELLOW}pm2 start \"uvicorn main:app --host 0.0.0.0 --port 8000\" --name \"burger-pos\"${NC}"

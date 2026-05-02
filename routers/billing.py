@@ -20,8 +20,9 @@ from features import get_shop_features, has_feature
 from services.printer import print_bill_bg
 from routers.auth import get_current_user, get_optional_current_user
 from schemas.schemas import CartItem, BillCreate
+from dependencies.csrf import verify_csrf
 
-router = APIRouter(prefix="/billing", tags=["Billing"])
+router = APIRouter(prefix="/billing", tags=["Billing"], dependencies=[Depends(verify_csrf)])
 templates = Jinja2Templates(directory="templates")
 
 class DecimalEncoder(json.JSONEncoder):

@@ -19,10 +19,11 @@ from routers.auth import get_current_user, get_password_hash
 from schemas.schemas import ShopCreate, SubscriptionCreate, UserCreate
 from services.image import save_uploaded_image
 from services.auth import require_superadmin
+from dependencies.csrf import verify_csrf
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/superadmin", tags=["SuperAdmin"])
+router = APIRouter(prefix="/superadmin", tags=["SuperAdmin"], dependencies=[Depends(verify_csrf)])
 templates = Jinja2Templates(directory="templates")
 
 def json_serializer(obj):

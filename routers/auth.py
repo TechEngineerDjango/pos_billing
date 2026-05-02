@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,11 +10,13 @@ from typing import Optional
 from config import settings
 from database.session import get_db
 from database.models import User, LoginAttempt
+from schemas.schemas import PasswordChangeRequest
+from dependencies.csrf import verify_csrf
 
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(prefix="/auth", tags=["Authentication"], dependencies=[Depends(verify_csrf)])
 templates = Jinja2Templates(directory="templates")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -175,4 +177,52 @@ async def logout():
     response = RedirectResponse(url="/auth/login", status_code=303)
     # Explicitly clear the cookie on the response being returned
     response.delete_cookie(key="access_token", path="/")
+    return response
+
+@router.get("/change-password")
+async def change_password_page(
+    request: Request,
+    current_user: User = Depends(get_current_user)
+):
+    return templates.TemplateResponse(
+        "change_password.html", 
+        {"request": request, "user": current_user}
+    )
+
+@router.post("/change-password")
+async def change_password(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    form_data = await request.form()
+    
+    try:
+        request_data = PasswordChangeRequest(
+            current_password=form_data.get("current_password", ""),
+            new_password=form_data.get("new_password", "")
+        )
+    except ValueError as e:
+        return templates.TemplateResponse(
+            "change_password.html",
+            {"request": request, "user": current_user, "error": str(e)}
+        )
+
+    # Verify current password
+    if not verify_password(request_data.current_password, current_user.hashed_password):
+        return templates.TemplateResponse(
+            "change_password.html",
+            {"request": request, "user": current_user, "error": "Incorrect current password"}
+        )
+
+    # Update password
+    current_user.hashed_password = get_password_hash(request_data.new_password)
+    db.add(current_user)
+    await db.commit()
+    
+    # Standard Redirect with success indicator
+    response = RedirectResponse(
+        url="/admin/" if current_user.role != "superadmin" else "/superadmin/",
+        status_code=status.HTTP_303_SEE_OTHER
+    )
     return response

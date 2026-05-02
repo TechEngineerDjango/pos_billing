@@ -16,8 +16,9 @@ from routers.auth import get_current_user, get_optional_current_user
 from schemas.schemas import UserCreate, MenuItemCreate, CustomerCreate, ShopCreate
 from services.image import save_uploaded_image
 from services.auth import require_owner_or_above, require_any_staff
+from dependencies.csrf import verify_csrf
 
-router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(verify_csrf)])
 templates = Jinja2Templates(directory="templates")
 
 

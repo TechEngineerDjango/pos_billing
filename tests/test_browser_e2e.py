@@ -13,7 +13,7 @@ import re
 from playwright.sync_api import Page, expect, sync_playwright
 
 # Server configuration
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8005"
 SERVER_PROCESS = None
 
 
@@ -22,9 +22,9 @@ def server():
     """Start the FastAPI server before tests and stop after."""
     global SERVER_PROCESS
     
-    # Start server in background
+    # Start server in background on port 8005
     SERVER_PROCESS = subprocess.Popen(
-        ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"],
+        ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8005"],
         cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         stdout=None,
         stderr=None,
@@ -65,7 +65,15 @@ def _login_owner(page: Page):
     page.fill("input[name='username']", "owner")
     page.fill("input[name='password']", "owner")
     page.click("button[type='submit']")
-    page.wait_for_url(re.compile(r".*/(admin|billing)/"), timeout=10000)
+    
+    try:
+        page.wait_for_url(re.compile(r".*/(admin|billing)/"), timeout=2000)
+    except Exception:
+        # If default password fails (because test_password_security changed it), try the updated one
+        page.fill("input[name='password']", "Owner123!")
+        page.click("button[type='submit']")
+        page.wait_for_url(re.compile(r".*/(admin|billing)/"), timeout=10000)
+        
     page.wait_for_load_state("networkidle")
 
 

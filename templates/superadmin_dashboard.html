@@ -918,6 +918,8 @@
                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Secure Key
                             (Password)</label>
                         <input type="password" name="password" required
+                            pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':\\|,.<>/?]).{8,}"
+                            title="Must contain at least one number and one uppercase and lowercase letter, one special character, and at least 8 or more characters"
                             class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
