@@ -973,6 +973,12 @@
             saving: false,
 
             init() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const errorMsg = urlParams.get('error');
+                if (errorMsg) {
+                    setTimeout(() => alert(decodeURIComponent(errorMsg)), 100);
+                }
+
                 if (this.selectedShopId) {
                     this.onShopSelect();
                 }
@@ -1112,8 +1118,12 @@
                 }
 
                 try {
+                    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
                     const resp = await fetch('/superadmin/shops/update/' + this.designConfig.id, {
                         method: 'POST',
+                        headers: {
+                            'x-csrf-token': csrfToken
+                        },
                         body: formData
                     });
                     if (resp.ok) {

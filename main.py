@@ -173,6 +173,22 @@ async def unauthorized_redirect_handler(request: Request, exc):
         content={"detail": "Not authenticated"},
     )
 
+from pydantic import ValidationError
+
+@app.exception_handler(ValidationError)
+async def validation_exception_handler(request: Request, exc: ValidationError):
+    """
+    Globally catch Pydantic validation errors raised inside custom dependencies (like .as_form).
+    This prevents the application from crashing with a 500 Internal Server Error
+    and instead returns a standard 422 response that the frontend fetch API can handle.
+    """
+    errors = exc.errors()
+    msg = errors[0].get("msg", "Invalid data submitted") if errors else "Invalid data submitted"
+    return JSONResponse(
+        status_code=422,
+        content={"detail": msg},
+    )
+
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

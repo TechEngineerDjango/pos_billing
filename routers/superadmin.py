@@ -228,12 +228,29 @@ async def toggle_shop(
 
 @router.post("/users/create")
 async def create_user(
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_superadmin),
-    data: UserCreate = Depends(UserCreate.as_form),
-    role: str = Form("owner")
+    current_user: User = Depends(require_superadmin)
 ):
     """Provision a new user with platform-wide or shop-specific access."""
+    form_data = await request.form()
+    
+    try:
+        from pydantic import ValidationError
+        data = UserCreate(
+            username=form_data.get("username"),
+            password=form_data.get("password"),
+            shop_id=int(form_data.get("shop_id")) if form_data.get("shop_id") else None
+        )
+        role = form_data.get("role", "owner")
+    except ValidationError as e:
+        # Extract the specific error message (e.g., password strength failure)
+        error_msg = e.errors()[0].get("msg", "Validation failed")
+        from urllib.parse import quote
+        return RedirectResponse(url=f"/superadmin/?tab=users&error={quote(error_msg)}", status_code=303)
+    except ValueError:
+        return RedirectResponse(url="/superadmin/?tab=users&error=Invalid data format", status_code=303)
+
     # Check if username taken
     existing = await db.execute(select(User).where(User.username == data.username))
     if existing.scalars().first():
