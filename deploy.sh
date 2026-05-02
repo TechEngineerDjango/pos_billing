@@ -29,13 +29,13 @@ echo -e "${YELLOW}[1/6] Checking Python Virtual Environment...${NC}"
 if [ -n "$VIRTUAL_ENV" ]; then
     echo -e "${GREEN}✓ Using currently active virtual environment: $(basename "$VIRTUAL_ENV")${NC}\n"
 else
-    # Default to "venv" if no environment is active
-    VENV_NAME="venv"
+    # Default to ".venv" if no environment is active
+    VENV_NAME=".venv"
     if [ ! -d "$VENV_NAME" ]; then
         python3 -m venv $VENV_NAME
         echo -e "${GREEN}✓ Created default virtual environment ($VENV_NAME).${NC}"
     fi
-    source $VENV_NAME/bin/activate
+    . $VENV_NAME/bin/activate
     echo -e "${GREEN}✓ Default virtual environment ($VENV_NAME) activated.${NC}\n"
 fi
 
