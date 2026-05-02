@@ -24,16 +24,20 @@ echo -e "${BLUE}======================================================${NC}\n"
 # ------------------------------------------------------------------------------
 # 1. Environment Setup
 # ------------------------------------------------------------------------------
-echo -e "${YELLOW}[1/6] Setting up Python Virtual Environment...${NC}"
-if [ ! -d "venv" ]; then
-    python3 -m venv venv
-    echo -e "${GREEN}✓ Virtual environment created.${NC}"
-else
-    echo -e "${GREEN}✓ Virtual environment already exists.${NC}"
-fi
+echo -e "${YELLOW}[1/6] Checking Python Virtual Environment...${NC}"
 
-source venv/bin/activate
-echo -e "${GREEN}✓ Virtual environment activated.${NC}\n"
+if [ -n "$VIRTUAL_ENV" ]; then
+    echo -e "${GREEN}✓ Using currently active virtual environment: $(basename "$VIRTUAL_ENV")${NC}\n"
+else
+    # Default to "venv" if no environment is active
+    VENV_NAME="venv"
+    if [ ! -d "$VENV_NAME" ]; then
+        python3 -m venv $VENV_NAME
+        echo -e "${GREEN}✓ Created default virtual environment ($VENV_NAME).${NC}"
+    fi
+    source $VENV_NAME/bin/activate
+    echo -e "${GREEN}✓ Default virtual environment ($VENV_NAME) activated.${NC}\n"
+fi
 
 # ------------------------------------------------------------------------------
 # 2. Dependency Installation
