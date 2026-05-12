@@ -54,3 +54,22 @@ static/uploads/*
 
 # Scratch / temp
 scratch/
+
+# Frontend Build Tools
+node_modules/
+package.json
+package-lock.json
+tailwind.config.js
+static/css/input.css
+# static/css/styles.css is now TRACKED for production
+
+# Image file
+*.jpeg
+*.png
+*.jpg
+*.gif
+*.webp
+*.svg
+*.ico
+*.tiff
+*.bmp

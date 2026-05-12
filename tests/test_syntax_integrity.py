@@ -1,4 +1,10 @@
+import os
 import pytest
+from dotenv import load_dotenv
+
+load_dotenv()
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
 from httpx import AsyncClient
 
 @pytest.mark.asyncio
@@ -7,7 +13,7 @@ async def test_pos_template_integrity(async_client: AsyncClient):
     # Login as admin (who exists in conftest)
     await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=True
     )
     
@@ -31,7 +37,7 @@ async def test_superadmin_dashboard_template_integrity(async_client: AsyncClient
     # Login as superadmin
     await async_client.post(
         "/auth/login",
-        data={"username": "superadmin", "password": "superadmin"},
+        data={"username": "superadmin", "password": SUPERADMIN_PASSWORD},
         follow_redirects=True
     )
     

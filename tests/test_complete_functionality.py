@@ -51,7 +51,7 @@ async def test_dashboard_loads_without_errors(async_client: AsyncClient):
     # Using test database which should have admin user
     response = await async_client.post(
         "/auth/login",
-        data={"username": "owner", "password": "owner"},
+        data={"username": "Owner@123", "password": "Owner@123"},
         follow_redirects=True
     )
     
@@ -73,7 +73,7 @@ async def test_dashboard_has_content(async_client: AsyncClient):
     """Test dashboard displays actual content"""
     response = await async_client.post(
         "/auth/login",
-        data={"username": "owner", "password": "owner"},
+        data={"username": "Owner@123", "password": "Owner@123"},
         follow_redirects=True
     )
     
@@ -99,7 +99,7 @@ async def test_settings_endpoint_accepts_all_fields(async_client: AsyncClient):
     # Login
     await async_client.post(
         "/auth/login",
-        data={"username": "owner", "password": "owner"}
+        data={"username": "Owner@123", "password": "Owner@123"}
     )
     
    # Send all expected fields
@@ -144,7 +144,7 @@ async def test_pos_page_accessible(async_client: AsyncClient):
     # Login
     await async_client.post(
         "/auth/login",
-        data={"username": "owner", "password": "owner"}
+        data={"username": "Owner@123", "password": "Owner@123"}
     )
     # Access POS
     pos = await async_client.get("/billing/")
@@ -172,7 +172,7 @@ async def test_no_template_syntax_errors(async_client: AsyncClient):
     # Login first
     await async_client.post(
         "/auth/login",
-        data={"username": "owner", "password": "owner"}
+        data={"username": "Owner@123", "password": "Owner@123"}
     )
     
     pages_to_test = [
@@ -211,7 +211,7 @@ async def test_system_health_check(async_client: AsyncClient):
     # Login first
     await async_client.post(
         "/auth/login",
-        data={"username": "owner", "password": "owner"}
+        data={"username": "Owner@123", "password": "Owner@123"}
     )
     
     checks = {

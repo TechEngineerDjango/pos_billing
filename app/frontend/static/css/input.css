@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    [x-cloak] {
+        display: none !important;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+    }
+
+    h1,
+    h2,
+    h3,
+    .logo-font {
+        font-family: 'Outfit', sans-serif;
+    }
+
+    /* Cross-platform Fix: Ensure select options are visible on Windows */
+    select option {
+        background-color: #1e293b;
+        /* Dark background for Windows dropdowns */
+        color: white;
+    }
+}
+
+@layer components {
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: var(--sidebar-bg, #0f172a);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: var(--border-color, #334155);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-color, #475569);
+        opacity: 0.8;
+    }
+}

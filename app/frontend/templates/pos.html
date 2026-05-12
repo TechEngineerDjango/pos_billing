@@ -1,0 +1,821 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div x-data="posApp()" 
+     class="flex-1 flex flex-col w-full bg-transparent relative overflow-x-hidden overflow-y-auto">
+    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+
+    <!-- Mobile Cart Toggle Button -->
+    <button id="pos-mobile-cart-toggle" x-show="showFloatingCart" x-cloak
+        @click="mobileCartOpen = true"
+        class="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-[var(--accent-color)] text-white shadow-2xl flex items-center justify-center active:scale-95 transition-transform hover:scale-110">
+        <div class="relative">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+            </svg>
+            <!-- Cart Badge -->
+            <span x-show="cart.length > 0"
+                class="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full text-xs font-bold flex items-center justify-center"
+                x-text="cart.length"></span>
+        </div>
+    </button>
+
+    <!-- Mobile Cart Overlay -->
+    <div x-show="mobileCartOpen" x-transition:enter="transition ease-out duration-300"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0" @click="mobileCartOpen = false"
+        class="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" x-cloak></div>
+
+    <!-- Main Layout Container (Industrial Grid) -->
+    <div :class="!isMobile ? 'grid grid-cols-[1fr,400px]' : 'block'" 
+         class="flex-1 w-full overflow-hidden relative h-full">
+        <!-- Left: Menu Area -->
+        <div :class="isMobile ? 'pb-24' : 'pb-6'"
+             class="flex-1 flex flex-col min-h-0 overflow-hidden overflow-y-auto relative transition-all duration-300 min-w-0"
+             style="background-color: var(--bg-color); color: var(--panel-font);">
+        <!-- Watermark -->
+        {% if shop and shop.logo_url %}
+        <div class="fixed inset-0 pointer-events-none flex items-center justify-center z-0">
+            <img src="{{ shop.logo_url }}" alt="Watermark"
+                style="opacity: {{ shop.watermark_opacity if shop and shop.watermark_opacity is not none else 0.1 }}; transform: scale(3);"
+                class="w-96 h-96 object-contain grayscale blur-sm">
+        </div>
+        {% endif %}
+
+        <!-- Superadmin Shop Selector -->
+        {% if is_superadmin and all_shops %}
+        <div
+            class="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl">
+            <span class="text-purple-400 font-medium text-sm">🛡️ Superadmin:</span>
+            <select onchange="window.location.href='/billing/?shop_id=' + this.value"
+                class="flex-1 bg-slate-800 border border-purple-500/50 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                {% for s in all_shops %}
+                <option value="{{ s.id }}" {% if shop and s.id==shop.id %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+            <a href="/superadmin/"
+                class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap">Control
+                Center</a>
+        </div>
+        {% endif %}
+
+        <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 flex items-center gap-2"
+            style="font-family: var(--nav-font); color: var(--panel-font);">
+            {% if shop.menu_icon_url %}
+            <img src="{{ shop.menu_icon_url }}" class="w-8 h-8 object-contain">
+            {% else %}
+            <span>🍔</span>
+            {% endif %}
+            Menu
+        </h2>
+
+        <!-- Category Filter Tabs (Horizontal Scroll on Mobile) -->
+        <div
+            class="flex gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide">
+            <button @click="selectedCategory = 'All'"
+                :class="selectedCategory === 'All' ? 'bg-[var(--accent-color)] text-white shadow-lg' : 'bg-[var(--card-bg)] text-[var(--font-color)] hover:bg-[var(--accent-color)]/20'"
+                class="px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 whitespace-nowrap shrink-0">All</button>
+            <template x-for="cat in categories" :key="cat">
+                <button @click="selectedCategory = cat"
+                    :class="selectedCategory === cat ? 'bg-[var(--accent-color)] text-white shadow-lg' : 'bg-[var(--card-bg)] text-[var(--font-color)] hover:bg-[var(--accent-color)]/20'"
+                    class="px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 uppercase whitespace-nowrap shrink-0"
+                    x-text="cat"></button>
+            </template>
+        </div>
+
+        <!-- Menu Grid (Responsive) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
+            {% for item in items %}
+            <div x-show="selectedCategory === 'All' || '{{ item.category }}'.toUpperCase() === selectedCategory.toUpperCase()"
+                @click="openItem({{ item.id }})"
+                style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--font-color);"
+                class="relative z-10 group backdrop-blur-md border p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 select-none flex flex-col items-center">
+
+                {% if item.image_url %}
+                <img src="{{ item.image_url }}" alt="{{ item.name }}"
+                    class="w-full h-20 sm:h-32 object-cover rounded-lg sm:rounded-xl mb-2 sm:mb-4 shadow-md group-hover:scale-105 transition-transform duration-300">
+                {% else %}
+                <div style="background-color: var(--card-bg); border: 1px dashed var(--border-color);"
+                    class="w-full h-20 sm:h-32 rounded-lg sm:rounded-xl mb-2 sm:mb-4 flex items-center justify-center text-[var(--accent-color)] shadow-inner group-hover:scale-105 transition-transform duration-300">
+                    <span class="text-3xl sm:text-5xl filter drop-shadow-lg">🍔</span>
+                </div>
+                {% endif %}
+
+                <h3 class="font-bold text-sm sm:text-lg mb-0.5 sm:mb-1 text-center truncate w-full group-hover:text-[var(--accent-color)] transition-colors"
+                    style="font-family: var(--nav-font);">
+                    {{ item.name }}</h3>
+                <p class="text-[10px] sm:text-xs uppercase tracking-wider mb-1 sm:mb-2 opacity-60 hidden sm:block">{{
+                    item.category }}</p>
+                <div class="mt-auto px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border border-[var(--border-color)]"
+                    style="background-color: var(--price-card-bg);">
+                    <p class="text-[var(--accent-color)] font-bold text-sm sm:text-base">
+                        {{ currency }}{{ item.price }}
+                        {% if item.unit and item.unit != 'piece' %}<span class="text-[10px] opacity-60">/{{ item.unit }}</span>{% endif %}
+                    </p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div> <!-- CLOSE LEFT MENU AREA -->
+
+        <!-- Right: Sidebar Container (Grid Synchronized) -->
+        <aside id="pos-cart-sidebar"
+             x-show="showSidebar"
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="translate-x-full opacity-0"
+             x-transition:enter-end="translate-x-0 opacity-100"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="translate-x-0 opacity-100"
+             x-transition:leave-end="translate-x-full opacity-0"
+             :class="isMobile ? 'fixed inset-0 z-50' : 'relative h-full border-l border-[var(--border-color)]'"
+             class="flex flex-col shadow-2xl shrink-0"
+             style="background-color: var(--cart-bg); color: var(--billing-font);" x-cloak>
+
+        <!-- Cart Header -->
+        <div
+            class="p-4 sm:p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-transparent shrink-0">
+            <h2 class="text-lg sm:text-xl font-bold" style="font-family: var(--nav-font);">Current Order</h2>
+            <div class="flex items-center gap-3">
+                <button @click="clearCart()" style="color: inherit; opacity: 0.6;"
+                    class="text-sm hover:text-red-400 transition-colors flex items-center gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                        </path>
+                    </svg>
+                    <span class="hidden sm:inline">Clear</span>
+                </button>
+                <!-- Mobile Close Button -->
+                <button @click="mobileCartOpen = false" x-show="isMobile"
+                    class="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scrollable Content (Items + Inputs) -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-6">
+
+            <!-- Items Section -->
+            <div id="cart-items-list" class="space-y-3">
+                <template x-for="(item, index) in cart" :key="index">
+                    <div style="background-color: var(--billing-card-bg); color: var(--billing-card-font); border-color: var(--border-color);"
+                        class="flex justify-between items-center border p-3 rounded-xl group hover:brightness-110 transition-colors">
+                        <div>
+                            <p class="font-bold text-sm" x-text="item.name"></p>
+                            <div class="flex items-center gap-2 mt-1">
+                                <!-- Fixed-price items: show +/- qty buttons -->
+                                <template x-if="!item.unit || item.unit === 'piece'">
+                                    <div class="flex items-center gap-2">
+                                        <button @click="changeQty(index, -1)"
+                                            style="background-color: var(--inc-dec-btn); color: white;"
+                                            class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-opacity hover:opacity-90">-</button>
+                                        <span class="text-sm font-mono w-4 text-center" x-text="item.qty"></span>
+                                        <button @click="changeQty(index, 1)"
+                                            style="background-color: var(--inc-dec-btn); color: white;"
+                                            class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-opacity hover:opacity-90">+</button>
+                                    </div>
+                                </template>
+                                <!-- Unit-based items: show qty + unit, tap to re-edit -->
+                                <template x-if="item.unit && item.unit !== 'piece'">
+                                    <button @click="openUnitModal(item, index)"
+                                        style="background-color: var(--inc-dec-btn); color: white;"
+                                        class="px-3 h-6 rounded flex items-center gap-1 text-xs font-bold transition-opacity hover:opacity-90">
+                                        <span x-text="item.qty + ' ' + item.unit"></span>
+                                        <span class="opacity-60 text-[10px]">✎</span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-3">
+                            <span class="font-bold text-sm text-[var(--accent-color)]"
+                                x-text="formatMoney(item.price * item.qty)"></span>
+                            <button @click="removeFromCart(index)"
+                                class="text-gray-600 hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded-full transition-colors opacity-0 group-hover:opacity-100">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            <!-- Inputs Section (Deterministic Form Isolation) -->
+            <div x-show="cart.length > 0" class="space-y-6 pt-4 border-t border-[var(--border-color)]">
+
+                <!-- Customer Details — gated by customer_management feature -->
+                <div x-show="$store.features['customer_management']" x-cloak x-transition
+                    class="space-y-2">
+                    <label class="text-xs font-bold uppercase opacity-60">Customer Details</label>
+                    <div class="space-y-2">
+                        <input type="tel" x-model="customerPhone" @input="searchCustomer()"
+                            @keyup.enter="selectCustomer()" placeholder="Phone Number"
+                            style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
+                            class="w-full border rounded-lg px-3 py-2.5 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none text-sm">
+
+                        <!-- Search Suggestion Dropdown -->
+                        <div x-show="foundCustomer && foundCustomer.phone_number && foundCustomer.phone_number !== customerPhone"
+                            @mousedown.prevent="selectCustomer()"
+                            class="p-3 bg-white dark:bg-slate-800 border-2 border-orange-500 rounded-xl cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-all flex items-center gap-3 relative z-50 shadow-xl">
+                            <div
+                                class="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white shrink-0">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1 overflow-hidden">
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-gray-900 dark:text-white truncate text-sm"
+                                        x-text="foundCustomer?.name"></span>
+                                    <span
+                                        class="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Click
+                                        to Fill</span>
+                                </div>
+                                <p class="text-xs text-gray-500 font-mono"
+                                    x-text="'Full Number: ' + (foundCustomer?.phone_number || '')"></p>
+                            </div>
+                        </div>
+
+                        <div x-show="customerPhone.length > 2" x-transition>
+                            <div class="relative">
+                                <input type="text" x-model="customerName"
+                                    :placeholder="isNewCustomer ? 'Customer Name *' : 'Customer Name'"
+                                    :required="isNewCustomer"
+                                    style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
+                                    :class="{'border-red-500 ring-1 ring-red-500': isNewCustomer && !customerName}"
+                                    class="w-full border rounded-lg px-3 py-2.5 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none transition-colors text-sm">
+
+                                <div x-show="customerInfo" class="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+                                        :style="{ backgroundColor: 'var(--accent-color)' }"
+                                        x-text="isNewCustomer ? 'NEW' : 'FOUND'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                <div>
+                    <label class="text-xs font-bold uppercase opacity-60 mb-2 block">Payment Method</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="pos-cash-method-btn" @click="paymentMethod = 'Cash'"
+                            :class="{'shadow-lg border-transparent': paymentMethod === 'Cash', 'bg-transparent border-gray-600 hover:border-gray-500': paymentMethod !== 'Cash'}"
+                            :style="paymentMethod === 'Cash' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font); opacity: 0.6;'"
+                            class="py-2.5 rounded-xl font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+                            <span>💵</span> Cash
+                        </button>
+                        <button @click="paymentMethod = 'UPI'"
+                            :class="{'shadow-lg border-transparent': paymentMethod === 'UPI', 'bg-transparent border-gray-600 hover:border-gray-500': paymentMethod !== 'UPI'}"
+                            :style="paymentMethod === 'UPI' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font); opacity: 0.6;'"
+                            class="py-2.5 rounded-xl font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+                            <span>📱</span> UPI
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Cash Calculator (dynamic — controlled by feature store) -->
+                <div x-show="$store.features['cash_calculator'] && paymentMethod === 'Cash'" x-transition
+                    class="p-4 rounded-xl border-2 border-dashed border-green-500/30 bg-green-500/5">
+                    <label class="text-xs font-bold uppercase opacity-60 mb-2 block flex items-center justify-between">
+                        <span id="pos-cash-calc-label" class="flex items-center gap-2">💵 Cash Received</span>
+
+                        <!-- Suggestions -->
+                        <div class="flex gap-2" x-show="totalPrice > 0">
+                            <button @click="cashReceived = totalPrice"
+                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
+                                Exact
+                            </button>
+                            <button @click="cashReceived = Math.ceil(totalPrice / 10) * 10"
+                                x-show="Math.ceil(totalPrice/10)*10 !== totalPrice"
+                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
+                                <span x-text="formatMoney(Math.ceil(totalPrice / 10) * 10)"></span>
+                            </button>
+                            <button @click="cashReceived = Math.ceil(totalPrice / 50) * 50"
+                                x-show="Math.ceil(totalPrice/50)*50 !== totalPrice && Math.ceil(totalPrice/50)*50 !== Math.ceil(totalPrice/10)*10"
+                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
+                                <span x-text="formatMoney(Math.ceil(totalPrice / 50) * 50)"></span>
+                            </button>
+                            <button @click="cashReceived = Math.ceil(totalPrice / 100) * 100"
+                                x-show="Math.ceil(totalPrice/100)*100 !== totalPrice && Math.ceil(totalPrice/100)*100 !== Math.ceil(totalPrice/50)*50"
+                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
+                                <span x-text="formatMoney(Math.ceil(totalPrice / 100) * 100)"></span>
+                            </button>
+                        </div>
+                    </label>
+                    <input id="pos-cash-amount-input" type="number" x-model.number="cashReceived" placeholder="Amount"
+                        style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
+                        class="w-full border rounded-lg px-4 py-3 text-lg font-bold placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:outline-none text-right">
+
+                    <div x-show="cashReceived > 0" x-transition class="mt-4">
+                        <div class="flex flex-col gap-2 p-3 rounded-xl"
+                            :class="changeAmount >= 0 ? 'bg-green-500/20 border border-green-500/50' : 'bg-red-500/20 border border-red-500/50'">
+                            <div class="flex justify-between items-center">
+                                <span class="font-medium text-xs"
+                                    x-text="changeAmount >= 0 ? 'Return Change:' : 'Short:'"></span>
+                                <span id="pos-cash-change-amount" class="text-lg font-black tracking-tight"
+                                    :class="changeAmount >= 0 ? 'text-green-400' : 'text-red-400'"
+                                    x-text="formatMoney(Math.abs(changeAmount))"></span>
+                            </div>
+
+                            <!-- Change Breakdown -->
+                            <div class="flex flex-wrap gap-1 mt-1 justify-end" x-show="changeAmount > 0">
+                                <template x-for="item in changeDenominations" :key="item.value">
+                                    <span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-mono"
+                                        x-text="item.count + 'x ' + formatMoney(item.value)"></span>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fixed Footer (Total & Pay) -->
+        <div
+            class="shrink-0 p-4 sm:p-6 border-t border-[var(--border-color)] bg-[var(--sidebar-bg)] backdrop-blur-sm z-10 shadow-inner">
+            <div class="flex justify-between text-lg mb-4">
+                <span class="opacity-70 font-medium">Total Amount</span>
+                <span class="font-bold text-3xl tracking-tight" x-text="formatMoney(totalPrice)"></span>
+            </div>
+
+            <button id="pos-print-bill-btn" @click="submitBill()" :disabled="cart.length === 0 || loading"
+                class="w-full bg-[var(--accent-color)] text-white font-bold py-4 rounded-xl shadow-lg transform active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center text-lg">
+                <span x-show="!loading" class="flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                        </path>
+                    </svg>
+                    PRINT BILL
+                </span>
+                <span x-show="loading" class="flex items-center gap-2">
+                    <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+                        </circle>
+                        <path class="opacity-75" fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                        </path>
+                    </svg>
+                    Processing...
+                </span>
+            </button>
+        </div>
+        </aside>
+    </div>
+
+    <!-- ===== UNIT QTY MODAL ===== -->
+    <div x-show="unitModal.open" x-cloak x-transition
+        class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+        @keydown.escape.window="unitModal = { open: false, item: null, cartIndex: null, inputQty: '' }">
+        <div class="bg-slate-900 border border-white/10 w-full max-w-sm rounded-3xl p-8 shadow-2xl"
+            @click.away="unitModal = { open: false, item: null, cartIndex: null, inputQty: '' }">
+
+            <!-- Header -->
+            <div class="mb-6">
+                <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-1"
+                    x-text="unitModal.cartIndex !== null ? 'Edit Quantity' : 'Enter Quantity'"></p>
+                <h2 class="text-2xl font-black text-white tracking-tight" x-text="unitModal.item?.name"></h2>
+                <p class="text-sm text-gray-400 mt-1">
+                    Rate: <span class="text-orange-400 font-bold" x-text="'{{ currency }}' + (unitModal.item?.price || 0).toFixed(2)"></span>
+                    <span class="opacity-60" x-text="' / ' + (unitModal.item?.unit || '')"></span>
+                </p>
+            </div>
+
+            <!-- Qty Input -->
+            <div class="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
+                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-2"
+                    x-text="'Quantity (' + (unitModal.item?.unit || '') + ')'"></label>
+                <input type="number" step="0.001" min="0.001"
+                    x-model="unitModal.inputQty"
+                    x-ref="unitQtyInput"
+                    @keydown.enter="confirmUnitQty()"
+                    x-effect="if(unitModal.open) $nextTick(() => $refs.unitQtyInput?.focus())"
+                    placeholder="e.g. 2.5"
+                    class="w-full bg-transparent border-0 text-white font-black text-3xl p-0 focus:ring-0 placeholder-white/20">
+            </div>
+
+            <!-- Live total preview -->
+            <div class="bg-orange-500/10 border border-orange-500/20 rounded-xl px-4 py-3 mb-6 flex justify-between items-center"
+                x-show="unitModal.inputQty > 0">
+                <span class="text-xs text-orange-300 font-bold uppercase tracking-wider">Total</span>
+                <span class="text-xl font-black text-orange-400"
+                    x-text="'{{ currency }}' + ((parseFloat(unitModal.inputQty) || 0) * (unitModal.item?.price || 0)).toFixed(2)"></span>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+                <button @click="unitModal = { open: false, item: null, cartIndex: null, inputQty: '' }"
+                    class="flex-1 py-3 rounded-2xl bg-white/5 text-gray-400 font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all">
+                    Cancel
+                </button>
+                <button @click="confirmUnitQty()" :disabled="!(unitModal.inputQty > 0)"
+                    class="flex-1 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all text-white"
+                    :class="unitModal.inputQty > 0 ? 'bg-orange-500 hover:bg-orange-400 shadow-lg shadow-orange-500/30' : 'bg-white/10 opacity-50 cursor-not-allowed'"
+                    x-text="unitModal.cartIndex !== null ? 'Update' : 'Add to Cart'">
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Data Island for POS Items -->
+<script id="pos-items-data" type="application/json">
+    {{ items | tojson | safe }}
+</script>
+
+<!-- Data Island for Features (DB-driven via FeatureService) -->
+<script id="pos-features-data" type="application/json">
+    {{ features | tojson | safe }}
+</script>
+
+<!-- Data Island for shop currency symbol -->
+<script id="pos-currency-data" type="application/json">"{{ currency | e }}"</script>
+
+<script>
+// Initialize Alpine feature store BEFORE posApp() runs
+document.addEventListener('alpine:init', () => {
+    const raw = JSON.parse(document.getElementById('pos-features-data')?.textContent || '{}');
+    // Normalize: FeatureService returns {KEY: {enabled: bool, ...}} — flatten to {KEY: bool}
+    const flat = {};
+    for (const [k, v] of Object.entries(raw)) {
+        flat[k] = (typeof v === 'object' && v !== null) ? (v.enabled === true) : Boolean(v);
+    }
+    Alpine.store('features', flat);
+});
+
+/**
+ * Burger POS - Industrial Service-Oriented Architecture
+ * Layers: Infrastructure (API) -> Domain (Logic) -> Controller (Alpine)
+ */
+
+// --- 1. INFRASTRUCTURE LAYER: API SERVICE ---
+const ApiService = {
+    _abortController: null,
+
+    async request(url, options = {}) {
+        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+        const defaultOptions = {
+            headers: {
+                'Content-Type': 'application/json',
+                'x-csrf-token': csrfToken
+            }
+        };
+
+        try {
+            const response = await fetch(url, { ...defaultOptions, ...options });
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Network error occurred');
+            }
+            return await response.json();
+        } catch (e) {
+            if (e.name === 'AbortError') return null;
+            throw e;
+        }
+    },
+
+    async searchCustomer(phone, signal) {
+        return this.request(`/billing/customer/search?phone=${encodeURIComponent(phone)}`, { signal });
+    },
+
+    async createBill(payload) {
+        return this.request('/billing/create', {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+    }
+};
+
+// --- 2. DOMAIN LAYER: BUSINESS SERVICES ---
+const CartService = {
+    addItem(cart, product) {
+        // Unit-based items (kg/g/liter/ml) never merge — each weighed qty is a separate line
+        if (product.unit && product.unit !== 'piece') {
+            return [...cart, { ...product }];
+        }
+        const existing = cart.find(i => i.id === product.id && !i.unit);
+        if (existing) {
+            existing.qty++;
+            return [...cart];
+        }
+        return [...cart, { ...product, qty: 1 }];
+    },
+
+    calculateTotal(cart) {
+        return cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    }
+};
+
+const CashService = {
+    DENOMINATIONS: [500, 200, 100, 50, 20, 10, 5, 2, 1],
+    
+    getDenominations(changeAmount) {
+        let remaining = Math.round(changeAmount);
+        if (remaining <= 0) return [];
+        
+        return this.DENOMINATIONS.map(d => {
+            const count = Math.floor(remaining / d);
+            remaining %= d;
+            return count > 0 ? { value: d, count } : null;
+        }).filter(Boolean);
+    }
+};
+
+// --- 3. CONTROLLER LAYER: ALPINE COMPONENT ---
+function posApp() {
+    // Load static data from islands
+    const itemsData = JSON.parse(document.getElementById('pos-items-data').textContent);
+    const features = JSON.parse(document.getElementById('pos-features-data')?.textContent || '{}');
+    // Currency symbol from server — safe, from DB shop config
+    const currencySymbol = JSON.parse(document.getElementById('pos-currency-data')?.textContent || '"\u20b9"');
+
+    return {
+        // --- View State ---
+        itemsData,
+        features,
+        cart: [],
+        loading: false,
+        mobileCartOpen: false,
+        selectedCategory: 'All',
+        paymentMethod: 'Cash',
+        cashReceived: 0,
+        isMobile: window.innerWidth < 1024, // Evaluated synchronously before DOM parse
+
+        // Customer State
+        customerPhone: '',
+        customerName: '',
+        customerInfo: '',
+        foundCustomer: null, // Resolves 'foundCustomer is not defined'
+        customerId: null,
+        isNewCustomer: false,
+
+        // Infrastructure State
+        _searchTimeout: null,
+        _searchToken: 0,
+        _resizeHandler: null,
+
+        // --- Lifecycle ---
+        init() {
+            this.itemsData = typeof itemsData !== 'undefined' ? itemsData : [];
+            this.setupResizeListener();
+
+            this.$nextTick(() => {
+                this.isMobile = window.innerWidth < 1024;
+            });
+        },
+
+        destroy() {
+            window.removeEventListener('resize', this._resizeHandler);
+            if (this._searchTimeout) clearTimeout(this._searchTimeout);
+        },
+
+        setupResizeListener() {
+            this._resizeHandler = () => { this.isMobile = window.innerWidth < 1024; };
+            window.addEventListener('resize', this._resizeHandler);
+        },
+
+        // --- Computed Properties ---
+        get categories() {
+            // Extracts unique categories from itemsData
+            const cats = this.itemsData.map(i => i.category.toUpperCase());
+            return [...new Set(cats)];
+        },
+        get hasCart() { 
+            return this.cart.length > 0; 
+        },
+        get totalPrice() { 
+            const trigger = this.cart; // Explicit reactivity hook
+            return CartService.calculateTotal(trigger); 
+        },
+        get changeAmount() { 
+            const total = this.totalPrice; 
+            const received = this.cashReceived; 
+            return received - total; 
+        },
+        get changeDenominations() { 
+            if (this.changeAmount <= 0) return [];
+            return CashService.getDenominations(this.changeAmount); 
+        },
+        get showSidebar() { 
+            return !this.isMobile || this.mobileCartOpen; 
+        },
+        get showFloatingCart() { 
+            return this.isMobile && !this.mobileCartOpen; 
+        },
+        get isCash() { 
+            return this.paymentMethod === 'Cash'; 
+        },
+
+        // Unit quantity modal state
+        unitModal: {
+            open: false,
+            item: null,
+            cartIndex: null,   // null = new item, number = editing existing
+            inputQty: '',
+        },
+
+        // --- Actions ---
+        // Route item click: fixed → add directly, unit-based → open qty modal
+        openItem(id) {
+            const item = this.itemsData.find(i => i.id === id);
+            if (!item) return;
+            const isUnitBased = item.unit && item.unit !== 'piece';
+            if (isUnitBased) {
+                this.openUnitModal({ id: item.id, name: item.name, price: parseFloat(item.price), unit: item.unit }, null);
+            } else {
+                this.addToCartById(id);
+            }
+        },
+
+        // Open modal for a new unit item (cartIndex=null) or editing existing (cartIndex=number)
+        openUnitModal(item, cartIndex) {
+            this.unitModal = {
+                open: true,
+                item: { ...item },
+                cartIndex,
+                inputQty: cartIndex !== null ? String(this.cart[cartIndex].qty) : '',
+            };
+        },
+
+        confirmUnitQty() {
+            const qty = parseFloat(this.unitModal.inputQty);
+            if (!qty || qty <= 0) return;
+            if (this.unitModal.cartIndex !== null) {
+                // Edit existing cart line
+                this.cart = this.cart.map((c, i) =>
+                    i === this.unitModal.cartIndex ? { ...c, qty } : c
+                );
+            } else {
+                // Add new line
+                this.cart = CartService.addItem(this.cart, { ...this.unitModal.item, qty });
+            }
+            this.unitModal = { open: false, item: null, cartIndex: null, inputQty: '' };
+            if (!this.isMobile) this.showSidebarForced = true;
+        },
+
+        addToCartById(id) {
+            const item = this.itemsData.find(i => i.id === id);
+            if (item) {
+                this.cart = CartService.addItem(this.cart, { 
+                    id: item.id, 
+                    name: item.name, 
+                    price: parseFloat(item.price),
+                    unit: item.unit || null
+                });
+            }
+        },
+
+        changeQty(index, delta) {
+            this.cart = this.cart.map((item, idx) => 
+                idx === index ? { ...item, qty: Math.max(1, item.qty + delta) } : item
+            );
+        },
+
+        removeFromCart(index) {
+            this.cart.splice(index, 1);
+            if (!this.hasCart) this.mobileCartOpen = false;
+        },
+
+        clearCart() {
+            this.cart = [];
+            this.mobileCartOpen = false;
+            this.cashReceived = 0;
+            this.paymentMethod = 'Cash';
+            this.customerPhone = '';
+            this.customerName = '';
+            this.customerInfo = '';
+            this.customerId = null;
+        },
+
+        // --- Async Workflows ---
+        async searchCustomer() {
+            const token = ++this._searchToken;
+            if (this._searchTimeout) clearTimeout(this._searchTimeout);
+
+            if (this.customerPhone.length < 3) {
+                this.resetCustomer();
+                return;
+            }
+
+            this._searchTimeout = setTimeout(async () => {
+                try {
+                    const controller = new AbortController();
+                    const data = await ApiService.searchCustomer(this.customerPhone, controller.signal);
+                    
+                    if (token === this._searchToken && data) {
+                        this.handleCustomerFound(data);
+                    }
+                } catch (e) {
+                    console.error('Customer search failed', e);
+                }
+            }, 300);
+        },
+
+        handleCustomerFound(data) {
+            if (data.found) {
+                this.foundCustomer = data; // Satisfies template expressions
+                this.customerInfo = `✓ ${data.name}`;
+                this.customerId = data.id;
+                this.customerName = data.name;
+                this.isNewCustomer = false;
+            } else {
+                this.foundCustomer = null;
+                this.customerInfo = '+ New customer';
+                this.customerId = null;
+                this.customerName = '';
+                this.isNewCustomer = true;
+            }
+        },
+
+        selectCustomer() {
+            if (this.foundCustomer) {
+                this.customerPhone = this.foundCustomer.phone_number;
+                this.customerName = this.foundCustomer.name;
+                this.customerId = this.foundCustomer.id;
+                this.isNewCustomer = false;
+                this.customerInfo = `✓ ${this.foundCustomer.name}`;
+            }
+        },
+
+        resetCustomer() {
+            this.customerInfo = '';
+            this.customerId = null;
+            this.isNewCustomer = false;
+        },
+
+        async submitBill() {
+            if (!this.validateSubmission()) return;
+
+            this.loading = true;
+            try {
+                const payload = this.preparePayload();
+                const data = await ApiService.createBill(payload);
+                
+                this.handleSuccess(data);
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        validateSubmission() {
+            if (!this.hasCart) return false;
+            // If cashier hasn't entered a cash amount, default to exact total (most common case)
+            if (this.isCash && this.cashReceived === 0) {
+                this.cashReceived = this.totalPrice;
+            }
+            if (this.isCash && this.cashReceived < this.totalPrice) {
+                alert('Cash received is less than the total amount');
+                return false;
+            }
+            if (this.isNewCustomer && !this.customerName) {
+                alert('Please enter customer name for new customer');
+                return false;
+            }
+            return true;
+        },
+
+        preparePayload() {
+            return {
+                items: this.cart.map(i => ({ id: i.id, qty: i.qty })),
+                payment_method: this.paymentMethod,
+                customer_phone: this.customerPhone,
+                customer_name: this.customerName
+            };
+        },
+
+        handleSuccess(data) {
+            const phone = this.customerPhone;
+            const billNum = data.bill_number;
+            this.clearCart();
+
+            // Always confirm bill creation first
+            alert(`✅ Bill #${billNum} created successfully!`);
+
+            // Then offer WhatsApp if phone is present
+            if (phone && phone.length >= 10) {
+                const wantsWhatsApp = confirm(`Send WhatsApp receipt to ${phone}?`);
+                if (wantsWhatsApp) {
+                    const url = `/admin/bill/${data.bill_id}/whatsapp-redirect?phone=${phone}`;
+                    window.open(url, '_blank');
+                }
+            }
+        },
+
+        formatMoney(value) {
+            return currencySymbol + parseFloat(value).toFixed(2);
+        }
+    };
+}
+</script>
+{% endblock %}

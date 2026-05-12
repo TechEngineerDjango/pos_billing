@@ -1,7 +1,14 @@
-import pytest
+import os
 import re
+import pytest
 from playwright.sync_api import Page, expect
-from .test_browser_e2e import BASE_URL, _login_owner, server, browser_page
+from dotenv import load_dotenv
+
+load_dotenv()
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
+
+from .test_browser_e2e import _login_owner, server, browser_page, BASE_URL
+
 
 @pytest.mark.usefixtures("server")
 class TestPasswordSecurity:
@@ -26,12 +33,9 @@ class TestPasswordSecurity:
         # 1. Navigate to Security Page
         self._navigate_to_password_page(browser_page)
 
-        # 1. Navigate to Security Page
-        self._navigate_to_password_page(browser_page)
-
         # 3. Test: Successful Change (Standard POST)
         new_pass = "SecureP@ssword2024!"
-        browser_page.fill("input[name='current_password']", "owner")
+        browser_page.fill("input[name='current_password']", OWNER_PASSWORD)
         browser_page.fill("input[name='new_password']", new_pass)
         browser_page.fill("input[name='confirm_password']", new_pass)
         
@@ -47,7 +51,7 @@ class TestPasswordSecurity:
         browser_page.wait_for_url("**/auth/login")
         
         browser_page.fill("input[name='username']", "owner")
-        browser_page.fill("input[name='password']", "owner") 
+        browser_page.fill("input[name='password']", "InvalidPass123!") 
         browser_page.click("button[type='submit']")
         expect(browser_page.locator("text=Not authenticated")).to_be_visible()
         print("✅ Old credentials successfully invalidated")
@@ -61,8 +65,8 @@ class TestPasswordSecurity:
         # 5. RESET: Change back to 'owner' for other tests
         self._navigate_to_password_page(browser_page)
         browser_page.fill("input[name='current_password']", new_pass)
-        browser_page.fill("input[name='new_password']", "Owner123!")
-        browser_page.fill("input[name='confirm_password']", "Owner123!")
+        browser_page.fill("input[name='new_password']", OWNER_PASSWORD)
+        browser_page.fill("input[name='confirm_password']", OWNER_PASSWORD)
         browser_page.click("button:has-text('Update Password')")
         expect(browser_page).to_have_url(re.compile(r".*/(admin|superadmin|billing)/"))
         print("⚠️ Environment state restored")

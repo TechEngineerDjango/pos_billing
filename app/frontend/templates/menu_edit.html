@@ -1,0 +1,124 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="h-[calc(100vh-4rem)] bg-[#F5F5F7] dark:bg-[#0a0f1c] overflow-y-auto p-6 lg:p-12">
+    <div class="max-w-3xl mx-auto">
+
+        <!-- Header -->
+        <div class="mb-10 flex justify-between items-end">
+            <div>
+                <a href="/admin/?tab=menu{% if shop %}&shop_id={{ shop.id }}{% endif %}"
+                    class="text-orange-500 font-black uppercase tracking-[0.2em] text-[10px] flex items-center gap-2 mb-4 hover:gap-3 transition-all">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 19l-7-7 7-7">
+                        </path>
+                    </svg>
+                    Return to Control Center
+                </a>
+                <h1
+                    class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase leading-none">
+                    Modify Entry</h1>
+                <p class="text-gray-500 dark:text-gray-400 mt-2 font-medium">Updating catalog item meta for <span
+                        class="text-gray-900 dark:text-white font-bold">#{{ item.id }}</span></p>
+            </div>
+        </div>
+
+        <!-- Edit Card -->
+        <div
+            class="bg-white dark:bg-slate-900 rounded-[3rem] shadow-2xl p-10 lg:p-12 border border-white/5 relative overflow-hidden">
+            <!-- Decorative Accent -->
+            <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 blur-3xl rounded-full -mr-16 -mt-16"></div>
+
+            <form action="/admin/menu/update/{{ item.id }}" method="POST" enctype="multipart/form-data"
+                class="space-y-8 relative z-10">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <input type="hidden" name="shop_id" value="{{ shop.id }}">
+
+                <!-- Preview & Upload Section -->
+                <div class="flex flex-col md:flex-row gap-10 items-center">
+                    <div class="group relative">
+                        <div
+                            class="w-48 h-48 rounded-[2rem] overflow-hidden border-4 border-gray-100 dark:border-white/5 shadow-inner bg-gray-50 dark:bg-slate-800 flex items-center justify-center">
+                            {% if item.image_url %}
+                            <img src="{{ item.image_url }}" alt="{{ item.name }}"
+                                class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                            {% else %}
+                            <span class="text-6xl group-hover:scale-110 transition-transform duration-700">🍔</span>
+                            {% endif %}
+                        </div>
+                        <div class="absolute -bottom-2 -right-2 bg-orange-500 text-white p-3 rounded-2xl shadow-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z">
+                                </path>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 space-y-4 w-full">
+                        <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest block">Update
+                            Visual Media</label>
+                        <input type="file" id="image" name="image" accept="image/*"
+                            class="w-full bg-gray-50 dark:bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-white focus:ring-2 focus:ring-orange-500 outline-none file:mr-6 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-orange-500/20 file:text-orange-500 hover:file:bg-orange-500/30">
+                        <p class="text-[10px] text-gray-500 font-bold italic">Leave empty to preserve current asset</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6" x-data="{ selectedUnit: '{{ item.unit or '' }}' }">
+                    <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Product Title</label>
+                        <input type="text" name="name" value="{{ item.name }}" required
+                            class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-black text-2xl p-0 focus:ring-0 placeholder-white/20">
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1"
+                            x-text="selectedUnit && selectedUnit !== 'piece' ? 'Price / ' + selectedUnit + ' ({{ shop.currency_symbol }})' : 'Market Price ({{ shop.currency_symbol }})'">
+                            Market Price ({{ shop.currency_symbol }})
+                        </label>
+                        <input type="number" name="price" value="{{ item.price }}" step="0.01" required
+                            class="w-full bg-transparent border-0 text-orange-500 font-black text-2xl p-0 focus:ring-0">
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Taxonomy / Category</label>
+                        <input type="text" name="category" value="{{ item.category or '' }}"
+                            class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-bold p-0 focus:ring-0">
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Pricing Unit</label>
+                        <select name="unit" x-model="selectedUnit"
+                            class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0 cursor-pointer appearance-none">
+                            <option value="">Fixed Price (no unit)</option>
+                            <option value="piece" {% if item.unit == 'piece' %}selected{% endif %}>piece</option>
+                            <option value="kg" {% if item.unit == 'kg' %}selected{% endif %}>kg — per kilogram</option>
+                            <option value="g" {% if item.unit == 'g' %}selected{% endif %}>g — per gram</option>
+                            <option value="liter" {% if item.unit == 'liter' %}selected{% endif %}>liter — per litre</option>
+                            <option value="ml" {% if item.unit == 'ml' %}selected{% endif %}>ml — per millilitre</option>
+                        </select>
+                        <p class="text-[10px] text-gray-400 mt-2 font-medium"
+                            x-show="selectedUnit && selectedUnit !== 'piece'" x-cloak>
+                            Cashier enters actual quantity at billing — rate × qty = total
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-100 dark:border-white/5">
+                    <button type="submit"
+                        class="flex-1 bg-orange-500 text-white font-black uppercase tracking-widest py-5 rounded-[2rem] hover:bg-orange-600 transition-all shadow-xl shadow-orange-500/20 text-sm">
+                        Commit Variations
+                    </button>
+                    <a href="/admin/?tab=menu{% if shop %}&shop_id={{ shop.id }}{% endif %}"
+                        class="flex-1 bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest py-5 rounded-[2rem] hover:bg-gray-200 dark:hover:bg-white/10 transition-all text-center text-sm border border-transparent dark:border-white/5">
+                        Discard Changes
+                    </a>
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

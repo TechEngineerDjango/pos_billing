@@ -1,7 +1,13 @@
+import os
 import pytest
+from dotenv import load_dotenv
+
+load_dotenv()
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
 from httpx import AsyncClient
 
-from database.models import MenuItem
+from app.shared.models import MenuItem
 
 @pytest.mark.asyncio
 async def test_dashboard_shows_menu_items(async_client: AsyncClient, db_session):
@@ -9,9 +15,9 @@ async def test_dashboard_shows_menu_items(async_client: AsyncClient, db_session)
     # Create a menu item
     # Fetch user to get valid shop_id
     from sqlalchemy import select
-    from database.models import User
+    from app.shared.models import User
     
-    result = await db_session.execute(select(User).where(User.username == "admin"))
+    result = await db_session.execute(select(User).where(User.username == "owner"))
     admin_user = result.scalars().first()
     
     item = MenuItem(name="Classic Burger", price=10.0, category="Burgers", shop_id=admin_user.shop_id)
@@ -21,7 +27,7 @@ async def test_dashboard_shows_menu_items(async_client: AsyncClient, db_session)
     # Login as admin user (owner role in test setup)
     response = await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=True
     )
     
@@ -41,7 +47,7 @@ async def test_superadmin_has_customization_controls(async_client: AsyncClient, 
     # Login as standard seeded superadmin
     await async_client.post(
         "/auth/login",
-        data={"username": "superadmin", "password": "superadmin"},
+        data={"username": "superadmin", "password": SUPERADMIN_PASSWORD},
         follow_redirects=True
     )
     
@@ -57,7 +63,7 @@ async def test_pos_shows_menu_items(async_client: AsyncClient):
     """Test that POS page shows menu items"""
     response = await async_client.post(
         "/auth/login",
-        data={"username": "cashier", "password": "cashier"},
+        data={"username": "Cashier@123", "password": "Cashier@123"},
         follow_redirects=False
     )
     

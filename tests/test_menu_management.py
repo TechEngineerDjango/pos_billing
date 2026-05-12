@@ -1,7 +1,12 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select, func
-from database.models import MenuItem
+from app.shared.models import MenuItem
 
 # =============================================================================
 # MENU MANAGEMENT TESTS - FUNCTIONAL & INTEGRATION
@@ -260,7 +265,7 @@ async def test_menu_add_with_auth(async_client: AsyncClient, db_session):
     # Login first
     login_res = await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=False
     )
     assert login_res.status_code == 303
@@ -293,7 +298,7 @@ async def test_menu_edit_page_with_auth(async_client: AsyncClient, db_session):
     # Login
     await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"}
+        data={"username": "owner", "password": OWNER_PASSWORD}
     )
     
     # Access edit page
@@ -316,7 +321,7 @@ async def test_menu_update_with_auth(async_client: AsyncClient, db_session):
     # Login
     await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"}
+        data={"username": "owner", "password": OWNER_PASSWORD}
     )
     
     # Update item
@@ -345,7 +350,7 @@ async def test_menu_delete_with_auth(async_client: AsyncClient, db_session):
     # Login
     await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"}
+        data={"username": "owner", "password": OWNER_PASSWORD}
     )
     
     # Delete item

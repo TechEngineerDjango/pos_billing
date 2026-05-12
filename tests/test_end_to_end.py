@@ -1,8 +1,15 @@
+import os
 import pytest
+from dotenv import load_dotenv
+
+load_dotenv()
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
+CASHIER_PASSWORD = os.getenv("TEST_CASHIER_PASSWORD")
 from httpx import AsyncClient
-from database.models import User, Shop, MenuItem, Bill
+from app.shared.models import User, Shop, MenuItem, Bill
 from sqlalchemy import select
-from routers.auth import get_password_hash
+from app.domains.auth.router import get_password_hash
 
 @pytest.mark.asyncio
 async def test_full_platform_lifecycle_e2e(async_client: AsyncClient, db_session):
@@ -17,7 +24,7 @@ async def test_full_platform_lifecycle_e2e(async_client: AsyncClient, db_session
     
     # --- PHASE 1: SUPERADMIN CONTROL ---
     # Login as Superadmin
-    await async_client.post("/auth/login", data={"username": "superadmin", "password": "superadmin"}, follow_redirects=True)
+    await async_client.post("/auth/login", data={"username": "superadmin", "password": SUPERADMIN_PASSWORD}, follow_redirects=True)
     
     # Create a new shop via API
     shop_data = {
@@ -37,7 +44,7 @@ async def test_full_platform_lifecycle_e2e(async_client: AsyncClient, db_session
     # Create Owner for this shop
     owner_data = {
         "username": "galaxy_owner",
-        "password": "galaxy_password",
+        "password": "Galaxy@Pass123!",
         "role": "owner",
         "shop_id": new_shop.id
     }
@@ -48,7 +55,7 @@ async def test_full_platform_lifecycle_e2e(async_client: AsyncClient, db_session
 
     # --- PHASE 2: SHOP OWNER OPERATIONS ---
     # Login as New Owner
-    login_resp = await async_client.post("/auth/login", data={"username": "galaxy_owner", "password": "galaxy_password"}, follow_redirects=True)
+    login_resp = await async_client.post("/auth/login", data={"username": "galaxy_owner", "password": "Galaxy@Pass123!"}, follow_redirects=True)
     assert login_resp.status_code == 200
     assert "Catalog Control" in login_resp.text # Landing page for owner
     

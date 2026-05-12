@@ -1,7 +1,12 @@
+import os
 import pytest
+from dotenv import load_dotenv
+
+load_dotenv()
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
 from httpx import AsyncClient
 from sqlalchemy import select, func
-from database.models import MenuItem, Bill
+from app.shared.models import MenuItem, Bill
 
 # --- AUTH TESTS ---
 @pytest.mark.asyncio
@@ -9,7 +14,7 @@ async def test_login_success(async_client: AsyncClient):
     """Test successful login with cookie-based authentication"""
     response = await async_client.post(
         "/auth/login", 
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=False
     )
     # Current implementation returns 303 redirect with cookie
@@ -22,7 +27,7 @@ async def test_login_success(async_client: AsyncClient):
 async def test_login_failure(async_client: AsyncClient):
     response = await async_client.post(
         "/auth/login", 
-        data={"username": "admin", "password": "wrongpassword"}
+        data={"username": "owner", "password": "wrongpassword"}
     )
     assert response.status_code == 401
 
@@ -43,7 +48,7 @@ async def test_create_bill_flow(async_client: AsyncClient, db_session):
     # 1. Login first (billing requires auth)
     login_res = await async_client.post(
         "/auth/login", 
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=False
     )
     assert login_res.status_code == 303
@@ -83,7 +88,7 @@ async def test_pos_page_load(async_client: AsyncClient):
     # 1. Login first
     login_res = await async_client.post(
         "/auth/login", 
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=False
     )
     assert login_res.status_code == 303

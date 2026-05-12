@@ -1,0 +1,1345 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="h-[calc(100vh-4rem)] flex overflow-hidden bg-[#0a0f1c]" x-data="superAdminApp()">
+
+    <!-- Sidebar Navigation -->
+    <aside
+        class="hidden lg:flex w-20 lg:w-64 bg-slate-900/80 backdrop-blur-xl border-r border-white/10 flex-col justify-between py-6 z-20 transition-all duration-300">
+        <div class="space-y-2 px-3">
+            <button id="nav-fleet-tab" @click="switchTab('fleet')"
+                :class="{'bg-blue-600 text-white shadow-lg shadow-blue-600/30': activeTab === 'fleet', 'text-gray-400 hover:bg-white/5': activeTab !== 'fleet'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center text-lg">🏪</div>
+                <span class="font-medium hidden lg:block">Shop Fleet</span>
+            </button>
+
+            <button @click="switchTab('design')"
+                :class="{'bg-purple-600 text-white shadow-lg shadow-purple-600/30': activeTab === 'design', 'text-gray-400 hover:bg-white/5': activeTab !== 'design'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center text-lg">🎨</div>
+                <span class="font-medium hidden lg:block">Branding Studio</span>
+            </button>
+
+            <button @click="switchTab('plans')"
+                :class="{'bg-teal-600 text-white shadow-lg shadow-teal-600/30': activeTab === 'plans', 'text-gray-400 hover:bg-white/5': activeTab !== 'plans'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center text-lg">💳</div>
+                <span class="font-medium hidden lg:block">Subscription Plans</span>
+            </button>
+
+            <button @click="switchTab('features')"
+                :class="{'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30': activeTab === 'features', 'text-gray-400 hover:bg-white/5': activeTab !== 'features'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center text-lg">⚙️</div>
+                <span class="font-medium hidden lg:block">Feature Catalog</span>
+            </button>
+
+            <button @click="switchTab('planfeatures')"
+                :class="{'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30': activeTab === 'planfeatures', 'text-gray-400 hover:bg-white/5': activeTab !== 'planfeatures'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center text-lg">🔗</div>
+                <span class="font-medium hidden lg:block">Plan Features</span>
+            </button>
+
+            <button id="nav-users-tab" @click="switchTab('users')"
+                :class="{'bg-orange-600 text-white shadow-lg shadow-orange-600/30': activeTab === 'users', 'text-gray-400 hover:bg-white/5': activeTab !== 'users'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center text-lg">👥</div>
+                <span class="font-medium hidden lg:block">Personnel</span>
+            </button>
+        </div>
+
+        <div class="px-3">
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div
+                    class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-400 to-purple-500 flex items-center justify-center text-xs font-bold text-white">
+                    {{ user.username[:2].upper() if user and user.username else 'SA' }}
+                </div>
+                <div class="hidden lg:block overflow-hidden">
+                    <p class="text-sm font-bold text-white truncate">{{ user.username if user else 'Super Admin' }}</p>
+                    <p class="text-xs text-gray-500 capitalize">{{ user.role if user else 'superadmin' }}</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Mobile Bottom Navigation -->
+    <div
+        class="lg:hidden fixed bottom-6 left-4 right-4 z-50 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 flex justify-between items-center overflow-x-auto">
+        <button @click="switchTab('fleet')"
+            :class="{'text-blue-500 bg-white/10': activeTab === 'fleet', 'text-gray-400': activeTab !== 'fleet'}"
+            class="p-3 rounded-xl transition-all flex flex-col items-center">
+            <span class="text-2xl">🏪</span>
+        </button>
+        <button @click="switchTab('design')"
+            :class="{'text-purple-500 bg-white/10': activeTab === 'design', 'text-gray-400': activeTab !== 'design'}"
+            class="p-3 rounded-xl transition-all flex flex-col items-center">
+            <span class="text-2xl">🎨</span>
+        </button>
+        <button @click="switchTab('plans')"
+            :class="{'text-teal-500 bg-white/10': activeTab === 'plans', 'text-gray-400': activeTab !== 'plans'}"
+            class="p-3 rounded-xl transition-all flex flex-col items-center">
+            <span class="text-2xl">💳</span>
+        </button>
+        <button @click="switchTab('features')"
+            :class="{'text-emerald-500 bg-white/10': activeTab === 'features', 'text-gray-400': activeTab !== 'features'}"
+            class="p-3 rounded-xl transition-all flex flex-col items-center">
+            <span class="text-2xl">⚙️</span>
+        </button>
+        <button @click="switchTab('planfeatures')"
+            :class="{'text-indigo-500 bg-white/10': activeTab === 'planfeatures', 'text-gray-400': activeTab !== 'planfeatures'}"
+            class="p-3 rounded-xl transition-all flex flex-col items-center">
+            <span class="text-2xl">🔗</span>
+        </button>
+        <button @click="switchTab('users')"
+            :class="{'text-orange-500 bg-white/10': activeTab === 'users', 'text-gray-400': activeTab !== 'users'}"
+            class="p-3 rounded-xl transition-all flex flex-col items-center">
+            <span class="text-2xl">👥</span>
+        </button>
+    </div>
+
+    <main class="flex-1 relative overflow-hidden flex flex-col">
+
+        <!-- FLEET TAB -->
+        <div x-show="activeTab === 'fleet'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+            <div class="flex justify-between items-center w-full">
+                <div>
+                    <h1 class="text-4xl font-black text-white mb-2 italic tracking-tighter">FLEET OVERVIEW</h1>
+                    <p class="text-gray-400">Total operational control over all shops.</p>
+                </div>
+                <button @click="showShopModal = true"
+                    class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20">
+                    + Deploy Shop
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {% for shop in shops %}
+                <div data-shop-card="{{ shop.name }}" class="bg-slate-900/50 border border-white/10 rounded-[2rem] p-6 hover:border-blue-500/50 transition-all group relative overflow-hidden"
+                    x-data="{ showPlanChange: false }">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h3 class="text-2xl font-bold text-white mb-1">{{ shop.name }}</h3>
+                            <p class="text-gray-500 font-mono text-xs italic">SHOP_ID: #{{ shop.id }}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button @click="selectForDesign(shopsData.find(s => s.id === {{ shop.id }}))"
+                                class="bg-purple-500/10 text-purple-400 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all">
+                                Branding
+                            </button>
+                            <a href="/admin/?shop_id={{ shop.id }}"
+                                class="bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">
+                                Manage
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2 mb-6">
+                        <div class="flex items-center gap-2 text-sm text-gray-400">
+                            <span class="opacity-50">📍</span> {{ shop.address or 'No location set' }}
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-gray-400">
+                            <span class="opacity-50">💰</span> Currency: {{ shop.currency_symbol }}
+                        </div>
+                        <!-- Subscription Plan Display -->
+                        <div class="flex items-center gap-2 text-sm">
+                            <span class="opacity-50">📋</span>
+                            <span
+                                class="{% if shop.subscription %}text-teal-400{% else %}text-gray-500{% endif %} font-medium">
+                                {{ shop.subscription.name if shop.subscription else 'No Plan' }}
+                            </span>
+                            {% if shop.subscription %}
+                            <span class="text-xs text-gray-600">(₹{{ shop.subscription.price }}/mo)</span>
+                            {% endif %}
+                            <button @click="showPlanChange = !showPlanChange"
+                                class="ml-auto text-[10px] text-teal-500 hover:text-teal-400 font-bold uppercase">
+                                Change
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Plan Change (Inline) -->
+                    <div x-show="showPlanChange" x-transition
+                        class="mb-4 p-3 bg-teal-500/10 border border-teal-500/30 rounded-xl">
+                        <form action="/superadmin/subscriptions/assign" method="POST" class="flex items-center gap-3">
+                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                            <input type="hidden" name="shop_id" value="{{ shop.id }}">
+                            <select name="subscription_id"
+                                class="flex-1 bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:ring-teal-500">
+                                <option value="">No Plan (Free Tier)</option>
+                                {% for sub in subscriptions %}
+                                <option value="{{ sub.id }}" {% if shop.subscription and shop.subscription.id==sub.id
+                                    %}selected{% endif %}>
+                                    {{ sub.name }} (₹{{ sub.price }}/mo)
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit"
+                                class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">
+                                Apply
+                            </button>
+                            <button type="button" @click="showPlanChange = false"
+                                class="text-gray-500 hover:text-white text-sm">✕</button>
+                        </form>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-6 border-t border-white/5">
+                        <div class="flex items-center gap-2">
+                            <div
+                                class="w-2 h-2 rounded-full {% if shop.is_active %}bg-green-500 animate-pulse{% else %}bg-red-500{% endif %}">
+                            </div>
+                            <span id="superadmin-shop-status" class="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                                {{ 'System Active' if shop.is_active else 'Deactivated' }}
+                            </span>
+                        </div>
+                        <form action="/superadmin/shops/toggle/{{ shop.id }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                            <button id="superadmin-toggle-shop-btn"
+                                class="bg-white/5 hover:bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold text-gray-300 transition-colors">
+                                TOGGLE STATUS
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- BRANDING STUDIO TAB -->
+        <div x-show="activeTab === 'design'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+            <div class="flex justify-between items-center mb-10">
+                <div>
+                    <h2 class="text-4xl font-black text-white italic tracking-tighter uppercase">Branding Studio</h2>
+                    <p class="text-gray-400">Configure global layout and visual signatures for shop nodes.</p>
+                </div>
+                <div class="flex gap-4">
+                    <!-- Shop Selector -->
+                    <select id="branding-shop-selector" x-model="selectedShopId" @change="onShopSelect"
+                        class="bg-white/5 border border-white/10 rounded-2xl px-6 py-3 text-white font-bold outline-none focus:border-purple-500 transition-all cursor-pointer">
+                        <option value="">-- SELECT SHOP --</option>
+                        {% for shop in shops %}
+                        <option value="{{ shop.id }}">{{ shop.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <a :href="'/billing/?shop_id=' + selectedShopId" target="_blank" x-show="selectedShopId"
+                        class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-600/20 flex items-center gap-2">
+                        Open Window ↗️
+                    </a>
+                </div>
+            </div>
+
+            <!-- Split Layout: Form & Preview -->
+            <div x-show="selectedShopId"
+                class="flex flex-col lg:flex-row gap-6 h-[calc(100%-8rem)] animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                <!-- Left: Compact Control Panel (Scrollable) -->
+                <div class="w-full lg:w-80 xl:w-96 flex-shrink-0 overflow-y-auto pr-2 pb-20">
+                    <form @submit.prevent="saveDesign" class="space-y-10">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+
+                        <!-- Section: Typography & Global -->
+                        <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
+                            <h3
+                                class="text-xl font-bold text-blue-400 uppercase tracking-widest mb-8 flex items-center gap-4">
+                                <span class="w-8 h-[2px] bg-blue-400/30"></span> Store Profile
+                            </h3>
+                            <div class="flex flex-col gap-3">
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-2">Business
+                                        Name</label>
+                                    <input type="text" x-model="designConfig.name"
+                                        class="w-full bg-transparent border-0 text-2xl text-white font-black p-0 focus:ring-0">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-2">Store
+                                        Address</label>
+                                    <input type="text" x-model="designConfig.address"
+                                        class="w-full bg-transparent border-0 text-lg text-white font-bold p-0 focus:ring-0">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-2">Currency
+                                        Symbol</label>
+                                    <input type="text" x-model="designConfig.currency_symbol"
+                                        class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-3">Shop Logo
+                                        (Upload)</label>
+                                    <input type="file" x-ref="logoInput"
+                                        class="text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-blue-600 file:text-white cursor-pointer">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-3">Menu Icon
+                                        (Upload)</label>
+                                    <input type="file" x-ref="menuIconInput"
+                                        class="text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-blue-600 file:text-white cursor-pointer">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Typography & Header -->
+                        <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
+                            <h3
+                                class="text-xl font-bold text-indigo-400 uppercase tracking-widest mb-8 flex items-center gap-4">
+                                <span class="w-8 h-[2px] bg-indigo-400/30"></span> Typography & Header
+                            </h3>
+                            <div class="flex flex-col gap-3">
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-2">Navigation
+                                        Font</label>
+                                    <select x-model="designConfig.nav_font_family"
+                                        class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0 appearance-none cursor-pointer">
+                                        <option value="'Outfit', sans-serif">Outfit</option>
+                                        <option value="'Inter', sans-serif">Inter</option>
+                                        <option value="'Roboto', sans-serif">Roboto</option>
+                                        <option value="'System-ui', sans-serif">System UI</option>
+                                    </select>
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-2">Header
+                                        Background</label>
+                                    <div class="flex items-center gap-4">
+                                        <input type="color" @input="liveUpdate()" x-model="designConfig.header_color"
+                                            class="w-12 h-12 rounded-xl border-0 bg-transparent cursor-pointer">
+                                        <input type="text" x-model="designConfig.header_color"
+                                            class="bg-transparent border-0 text-white font-mono text-sm focus:ring-0">
+                                    </div>
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-2">Header Text
+                                        Color</label>
+                                    <div class="flex items-center gap-4">
+                                        <input type="color" @input="liveUpdate()"
+                                            x-model="designConfig.header_text_color"
+                                            class="w-12 h-12 rounded-xl border-0 bg-transparent cursor-pointer">
+                                        <input type="text" x-model="designConfig.header_text_color"
+                                            class="bg-transparent border-0 text-white font-mono text-sm focus:ring-0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section: Surface Colors -->
+                        <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
+                            <h3
+                                class="text-xl font-bold text-purple-400 uppercase tracking-widest mb-8 flex items-center gap-4">
+                                <span class="w-8 h-[2px] bg-purple-400/30"></span> Interface Palette
+                            </h3>
+                            <div class="flex flex-col gap-3">
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Main
+                                        Canvas</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.background_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Panel
+                                        BG</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.panel_bg_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Panel
+                                        Font</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.panel_font_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Card
+                                        Surface</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.card_bg_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Accent
+                                        Color</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.accent_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Base
+                                        Font</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.font_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section: POS Grid Engineering -->
+                        <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
+                            <h3
+                                class="text-xl font-bold text-orange-400 uppercase tracking-widest mb-6 flex items-center gap-4">
+                                <span class="w-8 h-[2px] bg-orange-400/30"></span> POS Grid Engineering
+                            </h3>
+                            <div class="flex flex-col gap-4">
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="text-xs text-gray-400 font-bold uppercase">Card Width</label>
+                                        <span class="text-xs text-orange-400 font-mono"
+                                            x-text="designConfig.pos_card_width"></span>
+                                    </div>
+                                    <input type="range" min="50" max="100" x-model="designConfig.pos_card_width_num"
+                                        @input="designConfig.pos_card_width = $event.target.value + '%'; liveUpdate()"
+                                        class="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-orange-500">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="text-xs text-gray-400 font-bold uppercase">Card Height</label>
+                                        <span class="text-xs text-orange-400 font-mono"
+                                            x-text="designConfig.pos_card_height"></span>
+                                    </div>
+                                    <input type="range" min="100" max="400" step="10"
+                                        x-model="designConfig.pos_card_height_num"
+                                        @input="designConfig.pos_card_height = $event.target.value + 'px'; liveUpdate()"
+                                        class="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-orange-500">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="text-xs text-gray-400 font-bold uppercase">Image Width</label>
+                                        <span class="text-xs text-orange-400 font-mono"
+                                            x-text="designConfig.pos_card_image_width"></span>
+                                    </div>
+                                    <input type="range" min="50" max="100"
+                                        x-model="designConfig.pos_card_image_width_num"
+                                        @input="designConfig.pos_card_image_width = $event.target.value + '%'; liveUpdate()"
+                                        class="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-orange-500">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="text-xs text-gray-400 font-bold uppercase">Image Height</label>
+                                        <span class="text-xs text-orange-400 font-mono"
+                                            x-text="designConfig.pos_card_image_height"></span>
+                                    </div>
+                                    <input type="range" min="4" max="16"
+                                        x-model="designConfig.pos_card_image_height_num"
+                                        @input="designConfig.pos_card_image_height = $event.target.value + 'rem'; liveUpdate()"
+                                        class="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-orange-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Section: Billing & Interaction -->
+                        <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
+                            <h3
+                                class="text-xl font-bold text-teal-400 uppercase tracking-widest mb-6 flex items-center gap-4">
+                                <span class="w-8 h-[2px] bg-teal-400/30"></span> Billing & Interaction
+                            </h3>
+                            <div class="flex flex-col gap-3">
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Cart BG</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.cart_bg_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Billing Font</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.billing_font_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Bill Card BG</label>
+                                    <input type="color" @input="liveUpdate()"
+                                        x-model="designConfig.billing_card_bg_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Bill Card Font</label>
+                                    <input type="color" @input="liveUpdate()"
+                                        x-model="designConfig.billing_card_font_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Price Tag BG</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.price_card_bg"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Qty Button</label>
+                                    <input type="color" @input="liveUpdate()"
+                                        x-model="designConfig.inc_dec_button_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Payment BG</label>
+                                    <input type="color" @input="liveUpdate()"
+                                        x-model="designConfig.cash_upi_option_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Sidebar BG</label>
+                                    <input type="color" @input="liveUpdate()" x-model="designConfig.sidebar_bg_color"
+                                        class="w-16 h-10 rounded-lg border-2 border-white/20 cursor-pointer flex-shrink-0">
+                                </div>
+                                <div
+                                    class="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                                    <label class="text-xs font-bold text-gray-400 uppercase">Border Color</label>
+                                    <input type="text" x-model="designConfig.border_color"
+                                        class="w-24 bg-transparent border border-white/20 rounded-lg text-white text-xs font-mono p-2 focus:ring-0 text-right">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Brand Infrastructure -->
+                        <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
+                            <h3
+                                class="text-xl font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-4">
+                                <span class="w-8 h-[2px] bg-gray-400/30"></span> Brand Infrastructure
+                            </h3>
+                            <div class="flex flex-col gap-4">
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="text-xs text-gray-400 font-bold uppercase">Logo Size</label>
+                                        <span class="text-xs text-gray-300 font-mono"
+                                            x-text="designConfig.logo_size + 'px'"></span>
+                                    </div>
+                                    <input type="range" min="20" max="150" x-model="designConfig.logo_size"
+                                        @input="liveUpdate()"
+                                        class="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-gray-400">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <label class="text-xs text-gray-400 font-bold uppercase">Watermark
+                                            Opacity</label>
+                                        <span class="text-xs text-gray-300 font-mono"
+                                            x-text="(designConfig.watermark_opacity * 100).toFixed(0) + '%'"></span>
+                                    </div>
+                                    <input type="range" min="0" max="1" step="0.05"
+                                        x-model="designConfig.watermark_opacity" @input="liveUpdate()"
+                                        class="w-full h-2 bg-white/10 rounded-full appearance-none cursor-pointer accent-gray-400">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pt-8 flex justify-end">
+                            <button type="submit" id="branding-finalize-btn" :disabled="saving"
+                                class="bg-white text-black font-black uppercase tracking-widest px-12 py-6 rounded-[2rem] hover:bg-purple-600 hover:text-white transition-all shadow-[0_0_50px_rgba(255,255,255,0.1)] disabled:opacity-50">
+                                <span x-show="!saving">Finalize & Sync</span>
+                                <span x-show="saving">Deploying...</span>
+                            </button>
+                        </div>
+
+                    </form>
+                </div>
+
+                <!-- Right: Live Preview (Expanded) -->
+                <div
+                    class="hidden lg:flex flex-1 flex-col bg-slate-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
+                    <div class="bg-slate-800 p-4 border-b border-white/5 flex justify-between items-center">
+                        <div class="flex gap-2">
+                            <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                        </div>
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">Live POS Terminal</span>
+                        <button @click="$refs.previewFrame.contentWindow.location.reload()"
+                            class="text-gray-400 hover:text-white">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                                </path>
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Iframe Container -->
+                    <div class="flex-1 bg-white relative">
+                        <iframe x-ref="previewFrame" :src="previewUrl"
+                            @load="$nextTick(() => { setTimeout(() => liveUpdate(), 300); })"
+                            class="w-full h-full border-0"></iframe>
+
+                        <!-- Loading Overlay for Iframe -->
+                        <div x-show="saving"
+                            class="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Empty State -->
+            <div x-show="!selectedShopId"
+                class="h-full flex flex-col items-center justify-center text-center p-20 border-2 border-dashed border-white/5 rounded-[3rem]">
+                <div class="text-8xl mb-8 opacity-20">🎨</div>
+                <h4 class="text-3xl font-black text-white mb-4 uppercase italic">Branding Engine Offline</h4>
+                <p class="text-gray-500 max-w-md mx-auto">Please select a Target Shop from the header dropdown to
+                    initialize the visual configuration suite.</p>
+            </div>
+        </div>
+
+        <!-- SUBSCRIPTION PLANS TAB -->
+        <div x-show="activeTab === 'plans'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+            <div class="flex justify-between items-center mb-12">
+                <div>
+                    <h1 class="text-4xl font-black text-white italic tracking-tighter">SERVICE PLANS</h1>
+                    <p class="text-gray-400 mt-2">{{ subscriptions|length }} plan(s) configured</p>
+                </div>
+                <button @click="showPlanModal = true"
+                    class="bg-teal-500 hover:bg-teal-400 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-teal-500/20">
+                    + Design Plan
+                </button>
+            </div>
+
+            {% if subscriptions %}
+            <div class="flex flex-col gap-3">
+                {% for sub in subscriptions %}
+                <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6 flex flex-col relative group"
+                    x-data="{ showEdit: false }">
+                    <div
+                        class="absolute inset-0 bg-teal-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[2.5rem]">
+                    </div>
+                    <div class="flex justify-between items-start mb-2 relative">
+                        <h3 class="text-2xl font-bold text-white">{{ sub.name }}</h3>
+                        <div class="flex items-center gap-4">
+                            <button @click="showEdit = true"
+                                class="text-xs font-black text-teal-500/50 hover:text-teal-500 transition-colors uppercase tracking-widest">Edit</button>
+                            <form action="/superadmin/subscriptions/delete/{{ sub.id }}" method="POST"
+                                onsubmit="return confirm('Kill this plan forever?')">
+                                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                                <button
+                                    class="text-xs font-black text-red-500/50 hover:text-red-500 transition-colors uppercase tracking-widest">Terminate</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="text-5xl font-black text-teal-400 mb-4 relative">₹{{ sub.price }}<span
+                            class="text-sm text-gray-600 font-bold italic tracking-normal ml-2">/month</span></div>
+
+                    <!-- Shop count using this plan -->
+                    <div class="text-xs text-gray-500 mb-6 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        {{ sub.shops|length if sub.shops else 0 }} shop(s) subscribed
+                    </div>
+
+                    <div class="space-y-3 flex-1 relative">
+                        <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">Features
+                            Included:</p>
+                        {% if sub.enabled_features %}
+                        {% for feature in sub.enabled_features %}
+                        <div class="flex items-center gap-3 text-sm text-gray-300">
+                            <div
+                                class="w-5 h-5 rounded-full bg-teal-500/20 flex items-center justify-center text-[10px] text-teal-400">
+                                ✓</div>
+                            {{ feature }}
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <p class="text-gray-500 text-sm italic">No features configured</p>
+                        {% endif %}
+                    </div>
+
+                    <!-- Inline Edit Modal -->
+                    <div x-show="showEdit" x-transition
+                        class="absolute inset-0 bg-slate-900/95 backdrop-blur-sm rounded-2xl p-6 z-10 flex flex-col">
+                        <h4 class="text-lg font-bold text-white mb-4">Edit Plan: {{ sub.name }}</h4>
+                        <form action="/superadmin/subscriptions/update/{{ sub.id }}" method="POST"
+                            class="flex-1 flex flex-col gap-4">
+                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                            <div class="flex gap-4">
+                                <div class="flex-1">
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Name</label>
+                                    <input type="text" name="name" value="{{ sub.name }}" required
+                                        class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-teal-500">
+                                </div>
+                                <div class="w-32">
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Price
+                                        (₹)</label>
+                                    <input type="number" name="price" value="{{ sub.price }}" step="0.01"
+                                        class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-teal-500">
+                                </div>
+                            </div>
+                            <div class="flex-1">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Features
+                                    (comma-separated)</label>
+                                <textarea name="features" rows="3"
+                                    class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:ring-teal-500 resize-none">{{ sub.enabled_features | join(', ') if sub.enabled_features else '' }}</textarea>
+                                <p class="text-[10px] text-gray-600 mt-1">Available: pos_basic, menu_management,
+                                    cash_calculator, customer_management, sales_reports, staff_management,
+                                    whatsapp_billing, branding_studio, custom_logo, advanced_analytics</p>
+                            </div>
+                            <div class="flex gap-3">
+                                <button type="button" @click="showEdit = false"
+                                    class="flex-1 border border-white/10 text-white py-2 rounded-xl font-bold text-sm hover:bg-white/5 transition-all">Cancel</button>
+                                <button type="submit"
+                                    class="flex-1 bg-teal-600 text-white py-2 rounded-xl font-bold text-sm hover:bg-teal-500 transition-all">Save
+                                    Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                {% endfor %}
+            </div>
+            {% else %}
+            <div
+                class="flex flex-col items-center justify-center h-64 border-2 border-dashed border-white/10 rounded-[2rem]">
+                <div class="text-6xl mb-4 opacity-20">💳</div>
+                <h3 class="text-xl font-bold text-white mb-2">No Service Plans</h3>
+                <p class="text-gray-500 text-center max-w-md">Create your first subscription plan to assign to
+                    shops. Click "+ Design Plan" to get started.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- USERS TAB -->
+        <div x-show="activeTab === 'users'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+            <div class="flex justify-between items-center mb-12">
+                <h1 class="text-4xl font-black text-white italic tracking-tighter"> PERSONNEL GRID</h1>
+                <button @click="showUserModal = true"
+                    class="bg-orange-600 hover:bg-orange-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-orange-600/20">
+                    + Provision User
+                </button>
+            </div>
+            <div class="bg-slate-900 border border-white/10 rounded-[2rem] overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-gray-500 text-[10px] uppercase font-black tracking-widest">
+                            <th class="p-8 border-b border-white/5">Identity</th>
+                            <th class="p-8 border-b border-white/5">Permission level</th>
+                            <th class="p-8 border-b border-white/5">Deployment</th>
+                            <th class="p-8 border-b border-white/5">Operations</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-list" class="divide-y divide-white/5">
+                        {% for u in users %}
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="p-8 font-black text-white uppercase tracking-tighter flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-xl">
+                                    👤</div>
+                                {{ u.username }}
+                            </td>
+                            <td class="p-8">
+                                <span
+                                    class="px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 text-gray-400">
+                                    {{ u.role }}
+                                </span>
+                            </td>
+                            <td class="p-8 text-gray-500 font-bold lowercase tracking-tighter italic">
+                                @{{ u.shop.name if u.shop else 'platform_level' }}
+                            </td>
+                            <td class="p-8">
+                                <div class="flex gap-2">
+                                    <form action="/superadmin/users/toggle/{{ u.id }}" method="POST">
+                                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                                        <button
+                                            class="p-2 hover:bg-white/10 rounded-lg text-xs font-bold {% if u.is_active %}text-green-500{% else %}text-red-500{% endif %}">
+                                            {{ 'DEACTIVATE' if u.is_active else 'ACTIVATE' }}
+                                        </button>
+                                    </form>
+                                    <form action="/superadmin/users/purge/{{ u.id }}" method="POST"
+                                        onsubmit="return confirm('Purge this identity from the database?')">
+                                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                                        <button id="superadmin-purge-user-btn"
+                                            class="p-2 hover:bg-white/10 rounded-lg text-xs font-bold text-gray-600 hover:text-red-500 transition-colors uppercase">Purge</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <!-- FEATURE CATALOG TAB —— DB-driven, zero hardcode                 -->
+        <!-- ================================================================ -->
+        <div x-show="activeTab === 'features'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+            <div class="flex justify-between items-center mb-10">
+                <div>
+                    <h1 class="text-4xl font-black text-white italic tracking-tighter">⚙️ FEATURE CATALOG</h1>
+                    <p class="text-gray-400 mt-1">All features are DB-driven. Keys are immutable after creation.</p>
+                </div>
+            </div>
+
+            <!-- Add Feature Form -->
+            <div class="bg-slate-900/60 border border-emerald-500/20 rounded-2xl p-6 mb-8">
+                <h2 class="text-sm font-black text-emerald-400 uppercase tracking-widest mb-4">➕ Create New Feature</h2>
+                <form action="/superadmin/features/create" method="POST"
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Feature Key <span
+                                class="text-red-400">*</span></label>
+                        <input type="text" name="key" required placeholder="e.g. cash_calculator"
+                            class="w-full bg-transparent border-0 text-white font-mono text-sm p-0 focus:ring-0 placeholder-gray-700">
+                    </div>
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Display Name <span
+                                class="text-red-400">*</span></label>
+                        <input type="text" name="name" required placeholder="e.g. Cash Calculator"
+                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0 placeholder-gray-700">
+                    </div>
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
+                        <select name="category"
+                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0 appearance-none cursor-pointer">
+                            <option value="billing">Billing</option>
+                            <option value="reports">Reports</option>
+                            <option value="ops">Operations</option>
+                            <option value="analytics">Analytics</option>
+                            <option value="compliance">Compliance</option>
+                            <option value="customization">Customization</option>
+                        </select>
+                    </div>
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Description</label>
+                        <input type="text" name="description" placeholder="Short description"
+                            class="w-full bg-transparent border-0 text-white text-sm p-0 focus:ring-0 placeholder-gray-700">
+                    </div>
+                    <div class="md:col-span-2 lg:col-span-4 flex justify-end">
+                        <button type="submit"
+                            class="bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-3 rounded-xl font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-600/20">
+                            Create Feature
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Features Table -->
+            <div class="bg-slate-900 border border-white/10 rounded-2xl overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr
+                            class="text-gray-500 text-[10px] uppercase font-black tracking-widest border-b border-white/5">
+                            <th class="p-5">Key</th>
+                            <th class="p-5">Display Name</th>
+                            <th class="p-5">Category</th>
+                            <th class="p-5">Description</th>
+                            <th class="p-5">Status</th>
+                            <th class="p-5">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-white/5">
+                        {% for f in all_features %}
+                        <tr class="hover:bg-white/5 transition-colors">
+                            <td class="p-5 font-mono text-emerald-400 text-sm">{{ f.key }}</td>
+                            <td class="p-5 font-bold text-white">{{ f.name }}</td>
+                            <td class="p-5">
+                                <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
+                                    {% if f.category == 'billing' %}bg-blue-500/10 text-blue-400
+                                    {% elif f.category == 'reports' %}bg-purple-500/10 text-purple-400
+                                    {% elif f.category == 'analytics' %}bg-teal-500/10 text-teal-400
+                                    {% elif f.category == 'compliance' %}bg-yellow-500/10 text-yellow-400
+                                    {% elif f.category == 'ops' %}bg-orange-500/10 text-orange-400
+                                    {% else %}bg-gray-500/10 text-gray-400{% endif %}">
+                                    {{ f.category or '—' }}
+                                </span>
+                            </td>
+                            <td class="p-5 text-gray-400 text-sm">{{ f.description or '—' }}</td>
+                            <td class="p-5">
+                                <span
+                                    class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider
+                                    {% if f.is_active %}bg-emerald-500/10 text-emerald-400{% else %}bg-red-500/10 text-red-400{% endif %}">
+                                    {{ 'Active' if f.is_active else 'Disabled' }}
+                                </span>
+                            </td>
+                            <td class="p-5">
+                                <form action="/superadmin/features/{{ f.id }}/toggle" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                                    <button type="submit"
+                                        class="text-[10px] font-black uppercase tracking-wider px-4 py-2 rounded-lg transition-all
+                                        {% if f.is_active %}bg-red-500/10 text-red-400 hover:bg-red-500/20{% else %}bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20{% endif %}">
+                                        {{ 'Disable' if f.is_active else 'Enable' }}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="p-10 text-center text-gray-600">
+                                No features yet. Create your first feature above.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- ================================================================ -->
+        <!-- PLAN → FEATURE M2M TAB —— assigns features to plans via DB      -->
+        <!-- ================================================================ -->
+        <div x-show="activeTab === 'planfeatures'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+            <div class="mb-10">
+                <h1 class="text-4xl font-black text-white italic tracking-tighter">🔗 PLAN FEATURES</h1>
+                <p class="text-gray-400 mt-1">Assign features to each plan. Saves to M2M table — replaces legacy JSON
+                    column.</p>
+            </div>
+
+            {% if not all_features %}
+            <div class="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-6 text-yellow-400">
+                ⚠️ No features defined yet. Go to <strong>Feature Catalog</strong> tab and create features first.
+            </div>
+            {% else %}
+            <div class="space-y-6">
+                {% for plan in subscriptions %}
+                {% set plan_feature_ids = plan.plan_feature_links | map(attribute='feature_id') | list %}
+                <div class="bg-slate-900/60 border border-indigo-500/20 rounded-2xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-xl font-black text-white">{{ plan.name }}</h2>
+                            <p class="text-gray-500 text-sm">₹{{ plan.price }} / {{ plan.billing_cycle or 'monthly' }}
+                                &nbsp;·&nbsp; {{ plan.shops | length }} shop(s)</p>
+                        </div>
+                        <span
+                            class="px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest
+                            {{ 'bg-emerald-500/10 text-emerald-400' if plan.is_active else 'bg-gray-500/10 text-gray-400' }}">
+                            {{ 'Active' if plan.is_active else 'Inactive' }}
+                        </span>
+                    </div>
+                    <form action="/superadmin/plans/{{ plan.id }}/features" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+                            {% for f in all_features %}
+                            {% if f.is_active %}
+                            <label
+                                class="flex items-center gap-3 bg-white/5 hover:bg-white/10 p-3 rounded-xl cursor-pointer transition-all border border-white/5 hover:border-indigo-500/30">
+                                <input type="checkbox" name="feature_ids" value="{{ f.id }}" {% if f.id in
+                                    plan_feature_ids or f.key in (plan.enabled_features or []) %}checked{% endif %}
+                                    class="w-4 h-4 accent-indigo-500 rounded">
+                                <div>
+                                    <p class="text-xs font-bold text-white">{{ f.name }}</p>
+                                    <p class="text-[10px] text-gray-500 font-mono">{{ f.key }}</p>
+                                </div>
+                            </label>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="submit"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-2 rounded-xl font-black uppercase tracking-widest text-sm transition-all shadow-lg shadow-indigo-600/20">
+                                Save Plan Features
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+
+    </main>
+
+    <!-- MODALS (Outside main to fix fixed positioning) -->
+    <!-- Shop Creation Modal -->
+    <div x-show="showShopModal" class="fixed inset-0 z-[60] flex items-center justify-center p-6" x-cloak>
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-xl" @click="showShopModal = false"></div>
+        <div
+            class="bg-slate-900 border border-white/10 w-full max-w-xl rounded-[3rem] p-10 relative z-10 animate-in fade-in zoom-in duration-300">
+            <h2 class="text-3xl font-black text-white italic tracking-tighter mb-8 uppercase">Deploy New Asset
+            </h2>
+            <form action="/superadmin/shops/create" method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <div class="space-y-4">
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Trading
+                            Name</label>
+                        <input type="text" name="name" required
+                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
+                    </div>
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Headquarters</label>
+                        <input type="text" name="address"
+                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Currency
+                                Code</label>
+                            <input type="text" name="currency_symbol" value="₹"
+                                class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Service
+                                Tier</label>
+                            <select name="subscription_id"
+                                class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0 appearance-none">
+                                <option value="">No Active Tier</option>
+                                {% for sub in subscriptions %}
+                                <option value="{{ sub.id }}">{{ sub.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-6 flex gap-4">
+                    <button type="button" @click="showShopModal = false"
+                        class="flex-1 border border-white/10 text-white py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-white/5 transition-all">Abort</button>
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20">Init
+                        Node</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Plan Creation Modal -->
+    <div x-show="showPlanModal" class="fixed inset-0 z-[60] flex items-center justify-center p-6" x-cloak>
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-xl" @click="showPlanModal = false"></div>
+        <div
+            class="bg-slate-900 border border-white/10 w-full max-w-2xl rounded-[3rem] p-10 relative z-10 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-3xl font-black text-white italic tracking-tighter mb-8 uppercase">Design Service
+                Schema
+            </h2>
+            <script id="tier-features-data" type="application/json">{}</script>
+            <form action="/superadmin/subscriptions/create" method="POST" class="space-y-6" x-data="{
+                selectedFeatures: [],
+                csrf_token: '{{ request.state.csrf_token }}',
+                selectTier(tier) {
+                    const tiers = JSON.parse(document.getElementById('tier-features-data').textContent);
+                    this.selectedFeatures = tiers[tier] || [];
+                }
+            }">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <div class="space-y-4">
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Plan
+                            Identifier</label>
+                        <input type="text" name="name" required
+                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
+                    </div>
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Monthly Yield
+                            (Price)</label>
+                        <input type="number" step="0.01" name="price" value="0.00"
+                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
+                    </div>
+
+                    <!-- Quick Tier Presets -->
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-3">Quick Tier
+                            Presets</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" id="plan-free-preset" @click="selectTier('free')"
+                                class="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-gray-600 hover:bg-gray-500 text-white transition-all">
+                                🆓 Free
+                            </button>
+                            <button type="button" id="plan-basic-preset" @click="selectTier('basic')"
+                                class="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-blue-600 hover:bg-blue-500 text-white transition-all">
+                                ⚡ Basic
+                            </button>
+                            <button type="button" id="plan-pro-preset" @click="selectTier('pro')"
+                                class="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-purple-600 hover:bg-purple-500 text-white transition-all">
+                                💎 Pro
+                            </button>
+                            <button type="button" id="plan-enterprise-preset" @click="selectTier('enterprise')"
+                                class="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-amber-600 hover:bg-amber-500 text-white transition-all">
+                                🏢 Enterprise
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Feature Selection — DB-driven via all_features catalog -->
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-3">Select Features</label>
+                        <div class="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-2">
+                            {% for f in all_features %}
+                            {% if f.is_active %}
+                            <label
+                                class="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors group">
+                                <input type="checkbox" name="feature_keys" value="{{ f.key }}"
+                                    x-model="selectedFeatures"
+                                    class="w-4 h-4 rounded border-white/20 bg-white/5 text-teal-500 focus:ring-teal-500 focus:ring-offset-0">
+                                <div class="flex-1 min-w-0">
+                                    <span
+                                        class="text-sm text-white font-medium group-hover:text-teal-400 transition-colors truncate block">{{
+                                        f.name }}</span>
+                                    <p class="text-[10px] text-gray-500 font-mono">{{ f.key }}</p>
+                                </div>
+                            </label>
+                            {% endif %}
+                            {% else %}
+                            <p class="text-gray-600 text-sm col-span-2">No features yet — create them in Feature Catalog
+                                first.</p>
+                            {% endfor %}
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-white/5 text-xs text-gray-500">
+                            <span x-text="selectedFeatures.length"></span> feature(s) selected
+                        </div>
+                    </div>
+
+                    <!-- Hidden input for legacy compatibility -->
+                    <input type="hidden" name="features" :value="selectedFeatures.join(',')">
+                </div>
+                <div class="pt-6 flex gap-4">
+                    <button type="button" @click="showPlanModal = false"
+                        class="flex-1 border border-white/10 text-white py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-white/5 transition-all">Abort</button>
+                    <button type="submit"
+                        class="flex-1 bg-teal-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-teal-500 transition-all shadow-lg shadow-teal-600/20">Bake
+                        Schema</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- User Provisioning Modal -->
+    <div x-show="showUserModal" class="fixed inset-0 z-[60] flex items-center justify-center p-6" x-cloak>
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-xl" @click="showUserModal = false"></div>
+        <div class="bg-slate-900 border border-white/10 w-full max-w-xl rounded-[3rem] p-10 relative z-10">
+            <h2 class="text-3xl font-black text-white italic tracking-tighter mb-8 uppercase">Provision
+                Personnel
+            </h2>
+            <form action="/superadmin/users/create" method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <div class="space-y-4">
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Access Identity
+                            (Username)</label>
+                        <input type="text" name="username" required
+                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
+                    </div>
+                    <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Secure Key
+                            (Password)</label>
+                        <input type="password" name="password" required
+                            pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[!@#$%^&*()_+\-=\[\]{};':\\|,.<>/?]).{8,}"
+                            title="Must contain at least one number and one uppercase and lowercase letter, one special character, and at least 8 or more characters"
+                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Permission
+                                Level</label>
+                            <select name="role"
+                                class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0 appearance-none">
+                                <option value="cashier">Operator (Cashier)</option>
+                                <option value="owner">Asset Controller (Owner)</option>
+                            </select>
+                        </div>
+                        <div class="bg-white/5 p-4 rounded-2xl border border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Target Node
+                                (Shop)</label>
+                            <select name="shop_id" required
+                                class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0 appearance-none">
+                                {% for shop in shops %}
+                                <option value="{{ shop.id }}">{{ shop.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="pt-6 flex gap-4">
+                    <button type="button" @click="showUserModal = false"
+                        class="flex-1 border border-white/10 text-white py-4 rounded-2xl font-bold uppercase tracking-widest hover:bg-white/5 transition-all">Abort</button>
+                    <button type="submit"
+                        class="flex-1 bg-orange-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-orange-500 transition-all shadow-lg shadow-orange-600/20">Deploy
+                        Member</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<!-- Data Island for Shop Fleet -->
+<script id="superadmin-shops-data" type="application/json">
+    {{ shops | tojson | safe }}
+</script>
+
+<script>
+    function superAdminApp() {
+        return {
+            activeTab: new URLSearchParams(window.location.search).get('tab') || 'fleet',
+            selectedShopId: new URLSearchParams(window.location.search).get('shop_id') || '',
+            showShopModal: false,
+            showPlanModal: false,
+            showUserModal: false,
+            saving: false,
+
+            init() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const errorMsg = urlParams.get('error');
+                if (errorMsg) {
+                    setTimeout(() => alert(decodeURIComponent(errorMsg)), 100);
+                }
+
+                if (this.selectedShopId) {
+                    this.onShopSelect();
+                }
+            },
+
+            designConfig: {
+                id: null,
+                name: '',
+                accent_color: '#f97316',
+                header_color: '#1e293b',
+                header_text_color: '#ffffff',
+                font_color: '#ffffff',
+                background_color: '#0f172a',
+                card_bg_color: '#1e293b',
+                cart_bg_color: '#0f172a',
+                logo_size: 40,
+                watermark_opacity: 0.1,
+                currency_symbol: '₹',
+                nav_font_family: "'Outfit', sans-serif",
+                pos_card_width: '100%',
+                pos_card_width_num: 100,
+                pos_card_height: '200px',
+                pos_card_height_num: 200,
+                pos_card_image_width: '100%',
+                pos_card_image_width_num: 100,
+                pos_card_image_height: '8rem',
+                pos_card_image_height_num: 8,
+                panel_font_color: '#ffffff',
+                panel_bg_color: '#1e293b',
+                billing_font_color: '#ffffff',
+                billing_card_bg_color: '#1e293b',
+                billing_card_font_color: '#ffffff',
+                inc_dec_button_color: '#f97316',
+                cash_upi_option_color: '#1e293b',
+                cash_upi_font_color: '#ffffff'
+            },
+            shopsData: JSON.parse(document.getElementById('superadmin-shops-data').textContent),
+            previewUrl: 'about:blank',
+
+
+            switchTab(t) {
+                this.activeTab = t;
+                const url = new URL(window.location);
+                url.searchParams.set('tab', t);
+                window.history.replaceState({}, '', url);
+            },
+
+            selectForDesign(shop) {
+                this.selectedShopId = shop.id;
+                this.onShopSelect();
+                this.activeTab = 'design';
+            },
+
+            onShopSelect() {
+                if (!this.selectedShopId) {
+                    this.designConfig = { id: null };
+                    this.previewUrl = 'about:blank';
+                    return;
+                }
+                const shop = this.shopsData.find(s => s.id == this.selectedShopId);
+                if (shop) {
+                    this.designConfig = { ...shop };
+                    // Parse numeric values for sliders
+                    this.designConfig.pos_card_width_num = parseInt(shop.pos_card_width) || 100;
+                    this.designConfig.pos_card_height_num = parseInt(shop.pos_card_height) || 200;
+                    this.designConfig.pos_card_image_width_num = parseInt(shop.pos_card_image_width) || 100;
+                    this.designConfig.pos_card_image_height_num = parseInt(shop.pos_card_image_height) || 8;
+                    this.previewUrl = '/billing/?shop_id=' + shop.id + '&preview=1';
+                }
+            },
+
+            // Live preview - sends updates to iframe
+            liveUpdate() {
+                if (!this.$refs.previewFrame || !this.$refs.previewFrame.contentWindow) return;
+                if (!this.designConfig || !this.designConfig.id) return;
+
+                try {
+                    const doc = this.$refs.previewFrame.contentDocument || this.$refs.previewFrame.contentWindow.document;
+                    if (!doc || !doc.body) return;
+
+                    // Target body element since layout.html sets CSS variables there via inline styles
+                    const target = doc.body;
+                    const cfg = this.designConfig;
+
+                    // Apply CSS variables directly (match layout.html names)
+                    target.style.setProperty('--bg-color', cfg.background_color);
+                    target.style.setProperty('--header-color', cfg.header_color);
+                    target.style.setProperty('--header-text-color', cfg.header_text_color);
+                    target.style.setProperty('--accent-color', cfg.accent_color);
+                    target.style.setProperty('--card-bg', cfg.card_bg_color);
+                    target.style.setProperty('--panel-bg', cfg.panel_bg_color);
+                    target.style.setProperty('--panel-font', cfg.panel_font_color);
+                    target.style.setProperty('--cart-bg', cfg.cart_bg_color);
+                    target.style.setProperty('--sidebar-bg', cfg.sidebar_bg_color);
+                    target.style.setProperty('--billing-font', cfg.billing_font_color);
+                    target.style.setProperty('--billing-card-bg', cfg.billing_card_bg_color);
+                    target.style.setProperty('--billing-card-font', cfg.billing_card_font_color);
+                    target.style.setProperty('--inc-dec-btn', cfg.inc_dec_button_color);
+                    target.style.setProperty('--cash-upi-bg', cfg.cash_upi_option_color);
+                    target.style.setProperty('--cash-upi-font', cfg.cash_upi_font_color);
+                    target.style.setProperty('--border-color', cfg.border_color);
+                    target.style.setProperty('--price-card-bg', cfg.price_card_bg);
+                    target.style.setProperty('--nav-font', cfg.nav_font_family);
+                    target.style.setProperty('--pos-card-w', cfg.pos_card_width);
+                    target.style.setProperty('--pos-card-h', cfg.pos_card_height);
+                    target.style.setProperty('--pos-card-img-w', cfg.pos_card_image_width);
+                    target.style.setProperty('--pos-card-img-h', cfg.pos_card_image_height);
+                    target.style.setProperty('--logo-size', cfg.logo_size + 'px');
+
+                } catch (e) {
+                    // Cross-origin or not loaded yet - silently fail
+                    console.log('Live preview not available:', e.message);
+                }
+            },
+
+            async saveDesign() {
+                this.saving = true;
+                const formData = new FormData();
+
+                // Append all text fields
+                for (const key in this.designConfig) {
+                    if (this.designConfig[key] !== null && key !== 'logo_url' && key !== 'menu_icon_url') {
+                        formData.append(key, this.designConfig[key]);
+                    }
+                }
+
+                // Handle File Upload: Logo
+                const fileInput = this.$refs.logoInput;
+                if (fileInput && fileInput.files.length > 0) {
+                    formData.append('logo', fileInput.files[0]);
+                }
+
+                // Handle File Upload: Menu Icon
+                const menuIconInput = this.$refs.menuIconInput;
+                if (menuIconInput && menuIconInput.files.length > 0) {
+                    formData.append('menu_icon', menuIconInput.files[0]);
+                }
+
+                try {
+                    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+                    const resp = await fetch('/superadmin/shops/update/' + this.designConfig.id, {
+                        method: 'POST',
+                        headers: {
+                            'x-csrf-token': csrfToken
+                        },
+                        body: formData
+                    });
+                    if (resp.ok) {
+                        const idx = this.shopsData.findIndex(s => s.id == this.designConfig.id);
+                        if (idx !== -1) {
+                            this.shopsData[idx] = { ...this.designConfig };
+                        }
+                        // Refresh iframe
+                        if (this.$refs.previewFrame) {
+                            this.$refs.previewFrame.contentWindow.location.reload();
+                        }
+                        // alert('System visuals updated successfully.'); // Optional: remove alert for smoother flow
+                    } else {
+                        const err = await resp.json();
+                        alert('Update failed: ' + (err.detail || 'Internal error'));
+                    }
+                } catch (e) {
+                    console.error(e);
+                    alert('Visual sync failed. Check network stability.');
+                } finally {
+                    this.saving = false;
+                }
+            }
+        };
+    }
+</script>
+{% endblock %}

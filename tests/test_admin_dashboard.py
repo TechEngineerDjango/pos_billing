@@ -1,6 +1,9 @@
-import pytest
+import os,pytest
 from httpx import AsyncClient
-from database.models import MenuItem, Shop
+from app.shared.models import MenuItem, Shop
+from dotenv import load_dotenv
+load_dotenv()
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
 
 @pytest.mark.asyncio
 async def test_admin_dashboard_render(async_client: AsyncClient):
@@ -8,7 +11,7 @@ async def test_admin_dashboard_render(async_client: AsyncClient):
     # Login and follow redirect
     response = await async_client.post(
         "/auth/login", 
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=True
     )
     
@@ -17,7 +20,7 @@ async def test_admin_dashboard_render(async_client: AsyncClient):
     
     # Check for key dashboard content (not specific to old UI)
     text_lower = response.text.lower()
-    assert any(word in text_lower for word in ["dashboard", "admin", "burger", "menu"]), \
+    assert any(word in text_lower for word in ["dashboard", "owner", "burger", "menu"]), \
         f"Dashboard missing expected content"
     
     # Should NOT have errors
@@ -55,7 +58,7 @@ async def test_admin_dashboard_image_rendering(async_client: AsyncClient, db_ses
     # Login and access dashboard
     response = await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=True
     )
     

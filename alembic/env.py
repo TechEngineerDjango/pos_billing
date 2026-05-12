@@ -18,8 +18,8 @@ if config.config_file_name is not None:
 
 # add your model's MetaData object here
 # for 'autogenerate' support
-from database.base import Base
-from database.models import *  # Ensure models are registered
+from app.core.base import Base
+from app.shared.models import *  # Ensure models are registered
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -40,7 +40,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    from config import settings
+    from app.core.config import settings
     context.configure(
         url=settings.DATABASE_URL,
         target_metadata=target_metadata,
@@ -69,7 +69,7 @@ async def run_async_migrations() -> None:
     and associate a connection with the context.
 
     """
-    from config import settings
+    from app.core.config import settings
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = settings.DATABASE_URL
 

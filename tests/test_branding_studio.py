@@ -1,8 +1,14 @@
+import os
 import pytest
+from dotenv import load_dotenv
+
+load_dotenv()
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
 from httpx import AsyncClient
-from database.models import User, Shop
+from app.shared.models import User, Shop
 from sqlalchemy import select
-from routers.auth import get_password_hash
+from app.domains.auth.router import get_password_hash
 
 @pytest.mark.asyncio
 async def test_superadmin_branding_studio_persistence(async_client: AsyncClient, db_session):
@@ -14,7 +20,7 @@ async def test_superadmin_branding_studio_persistence(async_client: AsyncClient,
     assert shop is not None
 
     # 3. Login as Superadmin
-    await async_client.post("/auth/login", data={"username": "superadmin", "password": "superadmin"}, follow_redirects=True)
+    await async_client.post("/auth/login", data={"username": "superadmin", "password": SUPERADMIN_PASSWORD}, follow_redirects=True)
     
     # 4. Simulate saving design choices from the Branding Studio
     design_data = {

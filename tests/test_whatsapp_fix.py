@@ -1,13 +1,18 @@
+import os
 import pytest
+from dotenv import load_dotenv
+
+load_dotenv()
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
 from httpx import AsyncClient
 import urllib.parse
-from database.models import Bill, MenuItem, Shop, Customer
+from app.shared.models import Bill, MenuItem, Shop, Customer
 from datetime import datetime
 
 @pytest.mark.asyncio
 async def test_whatsapp_url_generation(async_client: AsyncClient, db_session):
     # 1. Login
-    login_res = await async_client.post("/auth/login", data={"username": "superadmin", "password": "superadmin"}, follow_redirects=False)
+    login_res = await async_client.post("/auth/login", data={"username": "superadmin", "password": SUPERADMIN_PASSWORD}, follow_redirects=False)
     assert login_res.status_code == 303
     
     # Cookie should be set automatically in client cookie jar for subsequent requests
@@ -30,7 +35,7 @@ async def test_whatsapp_url_generation(async_client: AsyncClient, db_session):
     await db_session.refresh(bill)
 
     # 3. Test with 10 digit number
-    phone_input = "9876543210"
+    phone_input = "919094855498"
     response = await async_client.post(
         f"/admin/bill/{bill.id}/send-whatsapp",
         data={"phone_number": phone_input}
@@ -44,7 +49,7 @@ async def test_whatsapp_url_generation(async_client: AsyncClient, db_session):
     print(f"Generated URL: {url}")
     
     # Verify Country Code Addition
-    assert "https://wa.me/919876543210" in url
+    assert "https://wa.me/919094855498" in url
     
     # Verify Encoding
     # The message should be properly encoded. 
@@ -58,16 +63,16 @@ async def test_whatsapp_url_generation(async_client: AsyncClient, db_session):
     decoded_msg = urllib.parse.unquote(encoded_part)
     assert "Bill #TESTBILL" in decoded_msg
     assert "Burger" in decoded_msg
-    assert "9876543210" not in decoded_msg # Phone shouldn't be in the message text itself usually
+    assert "919094855498" not in decoded_msg # Phone shouldn't be in the message text itself usually
     
     # Test strict 10 digit logic - pass 12 digits (already has code)
-    phone_input_with_code = "919876543210"
+    phone_input_with_code = "919094855498"
     response_2 = await async_client.post(
         f"/admin/bill/{bill.id}/send-whatsapp",
         data={"phone_number": phone_input_with_code}
     )
     url_2 = response_2.json()["whatsapp_url"]
     # Should NOT add 91 again
-    assert "https://wa.me/919876543210" in url_2
+    assert "https://wa.me/919094855498" in url_2
     
     print("Test Passed!")

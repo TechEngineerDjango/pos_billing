@@ -9,11 +9,18 @@ from sqlalchemy.pool import StaticPool
 # Ensure SECRET_KEY is set before importing app/config
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-testing-only")
 
-from database.base import Base
-from database.session import get_db
-from main import app
-from routers.auth import get_password_hash
-from database.models import User, Shop
+# Load environment for passwords
+from dotenv import load_dotenv
+load_dotenv()
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
+CASHIER_PASSWORD = os.getenv("TEST_CASHIER_PASSWORD")
+
+from app.core.base import Base
+from app.core.database import get_db
+from app.main import app
+from app.domains.auth.router import get_password_hash
+from app.shared.models import User, Shop
 
 # TEST DATABASE
 # Use in-memory SQLite for speed and isolation
@@ -46,13 +53,13 @@ async def db_session():
 
     async with TestingSessionLocal() as session:
         # Seed Superadmin
-        hashed_pw_super = get_password_hash("superadmin")
+        hashed_pw_super = get_password_hash(SUPERADMIN_PASSWORD)
         superadmin = User(username="superadmin", hashed_password=hashed_pw_super, role="superadmin")
         session.add(superadmin)
 
         # Seed Owner
-        hashed_pw = get_password_hash("admin")
-        admin_user = User(username="admin", hashed_password=hashed_pw, role="owner")
+        hashed_pw = get_password_hash(OWNER_PASSWORD)
+        admin_user = User(username="owner", hashed_password=hashed_pw, role="owner")
         shop = Shop(name="Test Shop", printer_ip="mock")
         session.add(admin_user)
         session.add(shop)
@@ -62,6 +69,12 @@ async def db_session():
         # Link user to shop
         admin_user.shop_id = shop.id
         session.add(admin_user)
+
+        # Seed Cashier
+        hashed_pw_cashier = get_password_hash(CASHIER_PASSWORD)
+        cashier_user = User(username="cashier", hashed_password=hashed_pw_cashier, role="cashier", shop_id=shop.id)
+        session.add(cashier_user)
+
         await session.commit()
 
         yield session
@@ -78,4 +91,3 @@ async def async_client(db_session):
         client.cookies.set("csrf_token", "test-csrf-token")
         client.headers.update({"x-csrf-token": "test-csrf-token"})
         yield client
-

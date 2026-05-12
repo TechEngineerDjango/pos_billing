@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burger Shop POS</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700&display=swap"
+        rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] {
+            display: none !important;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        h1,
+        h2,
+        h3,
+        .logo-font {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--sidebar-bg, #0f172a);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color, #334155);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color, #475569);
+            opacity: 0.8;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#f97316', // Orange-500
+                        secondary: '#14b8a6', // Teal-500
+                        darkbg: '#0f172a', // Slate-900
+                        glass: 'rgba(255, 255, 255, 0.05)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* CSS Variables will be set inline on body */
+        body {
+            color: var(--font-color, #e2e8f0);
+            background-color: var(--bg-color, #0f172a);
+        }
+
+        /* Override Tailwind bg classes if needed, or rely on base body style */
+        /* Applying header color to nav */
+        nav {
+            background-color: var(--header-color, #1e293b) !important;
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+
+        nav a,
+        nav span {
+            color: var(--header-text-color, #ffffff) !important;
+        }
+
+        .custom-logo {
+            height: var(--logo-size, 40px);
+            width: auto;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen w-full flex flex-col selection:bg-orange-500 selection:text-white overflow-x-hidden" style="--font-color: {{ shop.font_color if shop and shop.font_color else '#e2e8f0' }}; 
+           --bg-color: {{ shop.background_color if shop and shop.background_color else '#0f172a' }}; 
+           --header-color: {{ shop.header_color if shop and shop.header_color else '#1e293b' }}; 
+           --logo-size: {{ shop.logo_size if shop and shop.logo_size else 40 }}px; 
+           --card-bg: {{ shop.card_bg_color if shop and shop.card_bg_color else '#1e293b' }}; 
+           --sidebar-bg: {{ shop.sidebar_bg_color if shop and shop.sidebar_bg_color else '#0f172a' }}; 
+           --accent-color: {{ shop.accent_color if shop and shop.accent_color else '#f97316' }}; 
+           --border-color: {{ shop.border_color if shop and shop.border_color else 'rgba(255, 255, 255, 0.1)' }}; 
+           --price-card-bg: {{ shop.price_card_bg if shop and shop.price_card_bg else '#1e293b' }}; 
+           --header-text-color: {{ shop.header_text_color if shop and shop.header_text_color else '#ffffff' }}; 
+           --cart-bg: {{ shop.cart_bg_color if shop and shop.cart_bg_color else '#0f172a' }};
+           --nav-font: {{ shop.nav_font_family if shop and shop.nav_font_family else 'Outfit, sans-serif' }};
+           --pos-card-w: {{ shop.pos_card_width if shop and shop.pos_card_width else '100%' }};
+           --pos-card-h: {{ shop.pos_card_height if shop and shop.pos_card_height else 'auto' }};
+           --pos-card-img-w: {{ shop.pos_card_image_width if shop and shop.pos_card_image_width else '100%' }};
+           --pos-card-img-h: {{ shop.pos_card_image_height if shop and shop.pos_card_image_height else '8rem' }};
+           --panel-font: {{ shop.panel_font_color if shop and shop.panel_font_color else '#ffffff' }};
+           --panel-bg: {{ shop.panel_bg_color if shop and shop.panel_bg_color else '#1e293b' }};
+           --billing-font: {{ shop.billing_font_color if shop and shop.billing_font_color else '#ffffff' }};
+           --billing-card-bg: {{ shop.billing_card_bg_color if shop and shop.billing_card_bg_color else '#1e293b' }};
+           --billing-card-font: {{ shop.billing_card_font_color if shop and shop.billing_card_font_color else '#ffffff' }};
+           --inc-dec-btn: {{ shop.inc_dec_button_color if shop and shop.inc_dec_button_color else '#f97316' }};
+           --cash-upi-bg: {{ shop.cash_upi_option_color if shop and shop.cash_upi_option_color else '#1e293b' }};
+           --cash-upi-font: {{ shop.cash_upi_font_color if shop and shop.cash_upi_font_color else '#ffffff' }};">
+
+    <!-- Glassmorphism Navbar -->
+    <nav class="sticky top-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-white/10 shadow-lg"
+        x-data="{ mobileMenuOpen: false }">
+        <div class="px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-14 sm:h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center gap-2">
+                        {% if shop and shop.logo_url %}
+                        <img id="shop-logo-img" src="{{ shop.logo_url }}" alt="Shop Logo"
+                            class="custom-logo rounded-lg object-cover">
+                        {% else %}
+                        <span id="shop-logo-span"
+                            class="text-2xl sm:text-3xl custom-logo flex items-center justify-center">🍔</span>
+                        {% endif %}
+                        <span id="shop-name-text"
+                            class="logo-font font-bold text-lg sm:text-2xl bg-gradient-to-r from-orange-400 to-red-500 text-transparent bg-clip-text truncate max-w-[150px] sm:max-w-none">{{
+                            shop.name if shop and shop.name else 'BurgerPOS' }}</span>
+                    </div>
+                </div>
+
+                {% if user %}
+                <!-- Desktop Navigation -->
+                <div class="hidden sm:flex items-center space-x-1">
+                    <a href="/billing/"
+                        class="text-gray-300 hover:text-white hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200">{%
+                        if user and user.role == 'cashier' %}Billing{% else %}POS{% endif %}</a>
+                    <a href="{% if user and user.role == 'superadmin' %}/superadmin/{% else %}/admin/{% endif %}"
+                        class="text-gray-300 hover:text-white hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200">{%
+                        if user and user.role == 'superadmin' %}Control Center{% else %}Dashboard{% endif %}</a>
+                    <a href="/auth/change-password"
+                        class="text-gray-300 hover:text-white hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200">Change
+                        Password</a>
+                    <form action="/auth/logout" method="post" class="inline">
+                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                        <button id="nav-logout-btn" type="submit"
+                            class="text-gray-300 hover:text-red-400 hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200 ml-2">Logout</button>
+                    </form>
+                </div>
+
+                <!-- Mobile Menu Button -->
+                <div class="sm:hidden flex items-center">
+                    <button id="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen"
+                        class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all">
+                        <svg x-show="!mobileMenuOpen" class="w-6 h-6" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 6h16M4 12h16M4 18h16"></path>
+                        </svg>
+                        <svg x-show="mobileMenuOpen" x-cloak class="w-6 h-6" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Mobile Menu Dropdown -->
+        {% if user %}
+        <div x-show="mobileMenuOpen" x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 -translate-y-2"
+            class="sm:hidden border-t border-white/10 bg-slate-900/95 backdrop-blur-md" x-cloak>
+            <div class="px-4 py-3 space-y-2">
+                <a href="/billing/"
+                    class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">{%
+                    if user and user.role == 'cashier' %}📋 Billing{% else %}🍔 POS{% endif %}</a>
+                <a href="{% if user and user.role == 'superadmin' %}/superadmin/{% else %}/admin/{% endif %}"
+                    class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">{%
+                    if user and user.role == 'superadmin' %}🛡️ Control Center{% else %}📊 Dashboard{% endif %}</a>
+                <a href="/auth/change-password"
+                    class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">🔑
+                    Change Password</a>
+                <form action="/auth/logout" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <button id="mobile-logout-btn" type="submit"
+                        class="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-3 rounded-xl font-medium transition-all text-center">🚪
+                        Logout</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </nav>
+
+    <main class="flex-1 relative flex flex-col overflow-x-hidden">
+        <!-- Background Ambient Glow -->
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-[128px] pointer-events-none">
+        </div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[128px] pointer-events-none">
+        </div>
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% block scripts %}{% endblock %}
+
+    <script src="/static/js/auth.js"></script>
+</body>
+
+</html>

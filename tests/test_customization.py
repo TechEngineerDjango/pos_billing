@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.future import select
-from database.models import Shop
+from app.shared.models import Shop
 
 @pytest.mark.asyncio
 async def test_customization_fields_persistence(async_client: AsyncClient, db_session):

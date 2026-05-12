@@ -1,3 +1,8 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
 import pytest
 from httpx import AsyncClient
 
@@ -8,7 +13,7 @@ async def test_logout_functionality(async_client: AsyncClient):
     # 1. Login first to get a cookie
     login_res = await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=False
     )
     assert login_res.status_code == 303

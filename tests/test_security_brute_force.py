@@ -1,3 +1,8 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
+SUPERADMIN_PASSWORD = os.getenv("TEST_SUPERADMIN_PASSWORD")
 import pytest
 from httpx import AsyncClient
 import time
@@ -9,7 +14,7 @@ async def test_security_login_flow(async_client: AsyncClient):
     # 1. Successful Login initially
     first_success = await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=False
     )
     assert first_success.status_code == 303
@@ -18,7 +23,7 @@ async def test_security_login_flow(async_client: AsyncClient):
     for i in range(5):
         response = await async_client.post(
             "/auth/login",
-            data={"username": "admin", "password": "bad_password"},
+            data={"username": "owner", "password": "bad_password"},
             follow_redirects=False
         )
         assert response.status_code == 401
@@ -26,7 +31,7 @@ async def test_security_login_flow(async_client: AsyncClient):
     # 3. 6th attempt should be 429
     lockout = await async_client.post(
         "/auth/login",
-        data={"username": "admin", "password": "admin"},
+        data={"username": "owner", "password": OWNER_PASSWORD},
         follow_redirects=False
     )
     assert lockout.status_code == 429
