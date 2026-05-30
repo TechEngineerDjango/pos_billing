@@ -17,7 +17,11 @@ logger = logging.getLogger(__name__)
 # Whitelist of allowed image extensions
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp"}
 MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
-UPLOAD_DIR = "app/frontend/static/uploads"
+from pathlib import Path
+
+# Calculate absolute base directory (points to the 'app' directory)
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+UPLOAD_DIR = str(BASE_DIR / "frontend" / "static" / "uploads")
 
 
 def _validate_extension(filename: str) -> str:

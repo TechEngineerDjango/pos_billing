@@ -10,22 +10,27 @@ from typing import List, Optional
 import uuid
 import datetime as dt
 from datetime import timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import json
 import re
 
 from app.core.database import get_db
-from app.shared.models import Bill, MenuItem, Shop, User, Customer, Subscription, PlanFeature
+from app.shared.models import Bill, MenuItem, Shop, User, Customer, Subscription, PlanFeature, StockMovement
 from app.domains.features.service import FeatureService
 from app.core.redis import get_redis
 from app.infrastructure.integrations.printer import print_bill_bg
+from app.infrastructure.integrations.notifications import get_notification_service
 from app.domains.auth.router import get_current_user, get_optional_current_user
 from app.shared.schemas import CartItem, BillCreate
 from app.core.dependencies.csrf import verify_csrf
 from app.core.dependencies.features import require_feature
 
 router = APIRouter(prefix="/billing", tags=["Billing"], dependencies=[Depends(verify_csrf)])
-templates = Jinja2Templates(directory="app/frontend/templates")
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
 
 class DecimalEncoder(json.JSONEncoder):
     """Custom encoder that converts Decimal to float for JSON serialization."""
@@ -54,7 +59,7 @@ async def pos_page(
     db: AsyncSession = Depends(get_db),
     redis=Depends(get_redis),
     current_user: User = Depends(get_current_user),
-    shop_id: Optional[int] = None
+    shop_slug: Optional[str] = None
 ):
     """
     Serves the POS UI with Menu Items loaded for the user's shop.
@@ -63,29 +68,35 @@ async def pos_page(
     from sqlalchemy.orm import selectinload
     
     all_shops = []
-    target_shop_id = shop_id
+    target_shop_id = current_user.shop_id
     
     # 1. Access Control & Shop Selection
+    if shop_slug:
+        shop_res = await db.execute(select(Shop).where(Shop.slug == shop_slug).options(selectinload(Shop.subscription)))
+        requested_shop = shop_res.scalars().first()
+        if requested_shop:
+            target_shop_id = requested_shop.id
+            if current_user.role != "superadmin" and target_shop_id != current_user.shop_id:
+                target_shop_id = current_user.shop_id # Fallback to own shop if unauthorized
+
     if current_user.role == "superadmin":
-        # Superadmins see all active shops for switching
         shops_res = await db.execute(
             select(Shop).where(Shop.is_active == True).options(selectinload(Shop.subscription))
         )
         all_shops = shops_res.scalars().all()
-        # Default to first shop if none selected via query param
         if not target_shop_id and all_shops:
             target_shop_id = all_shops[0].id
-    else:
-        # Owners and Staff are restricted to their assigned shop
-        target_shop_id = current_user.shop_id
 
     # 2. Fetch Shop with Subscription (Unified)
     shop = None
     if target_shop_id:
-        shop_res = await db.execute(
-            select(Shop).where(Shop.id == target_shop_id).options(selectinload(Shop.subscription))
-        )
-        shop = shop_res.scalars().first()
+        if shop_slug and locals().get("requested_shop") and requested_shop.id == target_shop_id:
+            shop = requested_shop
+        else:
+            shop_res = await db.execute(
+                select(Shop).where(Shop.id == target_shop_id).options(selectinload(Shop.subscription))
+            )
+            shop = shop_res.scalars().first()
     
     # 3. Feature Gating — DB-driven via FeatureService (Redis-cached)
     feature_service = FeatureService(db=db, redis=redis)
@@ -102,7 +113,7 @@ async def pos_page(
                 MenuItem.shop_id == shop.id
             )
         )
-        items = items_res.scalars().all()
+        items = [item.to_dict() for item in items_res.scalars().all()]
         currency = shop.currency_symbol
     else:
         error_msg = "No shop available. Please contact admin."
@@ -121,134 +132,71 @@ async def pos_page(
 
 @router.post("/create")
 async def create_bill(
-    bill_in: BillCreate, 
-    background_tasks: BackgroundTasks, 
+    bill_in: BillCreate,
+    background_tasks: BackgroundTasks,
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Receives cart [ {id, qty}, ... ], calculates total, saves bill, triggers print.
-    Associates bill with the current user's shop.
-    """
-    # Get current user from cookie
     try:
         current_user = await get_current_user(request, db)
     except Exception:
         raise HTTPException(status_code=401, detail="Not authenticated")
+        
+    from app.domains.billing.service import BillingService
+    billing_svc = BillingService(db)
     
-    if not bill_in.items:
-        raise HTTPException(status_code=400, detail="Cart is empty")
+    # Delegate logic to service layer
+    result = await billing_svc.create_bill(bill_in, current_user)
     
-    # Get user's shop
-    shop = None
-    if current_user.shop_id:
-        shop_res = await db.execute(select(Shop).where(Shop.id == current_user.shop_id))
-        shop = shop_res.scalars().first()
-
-    total_amount = Decimal("0.00")
-    items_snapshot = []
+    # Trigger background print
+    background_tasks.add_task(
+        print_bill_bg, 
+        result["bill_data"], 
+        result["shop_data"], 
+        result["printer_ip"]
+    )
     
-    # 1. Fetch Items and Calculate Total
-    for cart_item in bill_in.items:
-        # Only allow items from user's shop
-        query = select(MenuItem).where(MenuItem.id == cart_item.id)
-        if shop:
-            query = query.where(MenuItem.shop_id == shop.id)
-        
-        result = await db.execute(query)
-        menu_item = result.scalars().first()
-        
-        if not menu_item:
-            continue
-            
-        line_total = menu_item.price * Decimal(str(cart_item.qty))
-        total_amount += line_total
-        
-        items_snapshot.append({
-            "id": menu_item.id,
-            "name": menu_item.name,
-            "category": menu_item.category,
-            "price": float(menu_item.price),
-            "unit": menu_item.unit,
-            "qty": cart_item.qty,
-            "line_total": float(line_total)
-        })
-
-    if not items_snapshot:
-        raise HTTPException(status_code=400, detail="No valid items found")
-
-    # Handle customer if phone number provided
-    customer_id = None
-    if bill_in.customer_phone and current_user.shop_id:
-        phone = re.sub(r'\D', '', bill_in.customer_phone)
-        if phone:
-            # Check if customer exists
-            customer_res = await db.execute(
-                select(Customer).where(
-                    Customer.shop_id == current_user.shop_id,
-                    Customer.phone_number == phone
-                )
-            )
-            customer = customer_res.scalars().first()
-            
-            if not customer:
-                # Create new customer with provided name or placeholder
-                customer_name = bill_in.customer_name if bill_in.customer_name else f"Customer {phone[-4:]}"
-                
-                customer = Customer(
-                    name=customer_name,
-                    phone_number=phone,
-                    shop_id=current_user.shop_id
-                )
-                db.add(customer)
-                await db.flush()  # Get ID without committing
-            
-            customer_id = customer.id
-
-    # Prepare Shop Data (Do this before commit prevents lazy load errors)
-    shop_data = {
-        "name": shop.name if shop else "Burger Shop",
-        "address": shop.address if shop else "Local Branch",
-    }
-    printer_ip = shop.printer_ip if shop else None
-
-    # 2. Save Bill with shop_id and customer_id
-    try:
-        new_bill = Bill(
-            bill_number=str(uuid.uuid4())[:8].upper(),
-            total_amount=total_amount,
-            payment_method=bill_in.payment_method,
-            items_snapshot=items_snapshot,
-            timestamp=dt.datetime.now(timezone.utc),
-            shop_id=shop.id if shop else None,
-            customer_id=customer_id
-        )
-        
-        db.add(new_bill)
-        await db.commit()
-        await db.refresh(new_bill)
-    except Exception:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to create bill. Please try again.")
-
-    # 3. Trigger Print Task
-
-    bill_data = {
-        "bill_number": new_bill.bill_number,
-        "items_snapshot": items_snapshot,
-        "total_amount": total_amount,
-        "date": new_bill.timestamp.strftime("%Y-%m-%d %H:%M:%S")
-    }
-
-    background_tasks.add_task(print_bill_bg, bill_data, shop_data, printer_ip)
-
     return {
-        "status": "success",
-        "bill_number": new_bill.bill_number,
-        "bill_id": new_bill.id,
-        "total": total_amount,
-        "message": "Bill created and printing"
+        "status": result["status"],
+        "bill_number": result["bill_number"],
+        "bill_id": result["bill_id"],
+        "total": result["total"],
+        "message": result["message"]
     }
+
+
+@router.get("/item-by-sku/{sku}", response_class=JSONResponse)
+async def get_item_by_sku_for_pos(
+    sku: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Scanner endpoint for POS screen.
+    Returns item details so Alpine.js can add it to the cart.
+    Always scoped to the requesting user's shop.
+    """
+    if not current_user.shop_id:
+        raise HTTPException(status_code=403, detail="No shop assigned")
+
+    result = await db.execute(
+        select(MenuItem).where(
+            MenuItem.shop_id == current_user.shop_id,
+            MenuItem.sku == sku.upper().strip(),
+            MenuItem.is_active == True,
+        )
+    )
+    item = result.scalars().first()
+    if not item:
+        raise HTTPException(status_code=404, detail=f"No item found with SKU '{sku}'")
+
+    threshold = item.low_stock_threshold or 5.0
+    return JSONResponse({
+        **item.to_dict(),
+        "is_tracked": item.stock_quantity is not None,
+        "is_low_stock": item.stock_quantity is not None and item.stock_quantity <= threshold,
+        "is_out_of_stock": item.stock_quantity is not None and item.stock_quantity <= 0,
+    })
 
 
 @router.get("/customer/search")

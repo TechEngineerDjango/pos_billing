@@ -6,6 +6,7 @@ from sqlalchemy import (
     JSON, ForeignKey, Index, UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
+import uuid
 from app.core.base import Base
 
 
@@ -115,6 +116,7 @@ class Shop(Base):
     __tablename__ = "shops"
 
     id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(36), unique=True, index=True, default=lambda: uuid.uuid4().hex)
     name = Column(String, nullable=False)
     address = Column(String, nullable=True)
     contact = Column(String, nullable=True)
@@ -227,6 +229,7 @@ class Customer(Base):
     __tablename__ = "customers"
     
     id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(36), unique=True, index=True, default=lambda: uuid.uuid4().hex)
     name = Column(String, nullable=False)
     phone_number = Column(String, nullable=False, index=True)
     
@@ -249,6 +252,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(36), unique=True, index=True, default=lambda: uuid.uuid4().hex)
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     
@@ -276,23 +280,38 @@ class MenuItem(Base):
     __tablename__ = "menu_items"
     __table_args__ = (
         Index("ix_menuitems_shop_active", "shop_id", "is_active"),
+        Index("ix_menuitems_shop_sku", "shop_id", "sku"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(36), unique=True, index=True, default=lambda: uuid.uuid4().hex)
     name = Column(String, index=True, nullable=False)
     price = Column(Numeric(10, 2), nullable=False)     # Rate per unit when unit is set
     category = Column(String, index=True, default="General")
     image_url = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
 
+    # SKU — industrial standard: SHOP-CAT-SEQ, auto-generated, owner-overridable
+    sku = Column(String(64), nullable=True, index=True)
+
+    # Inventory tracking — NULL means this item is NOT tracked
+    stock_quantity = Column(Float, nullable=True, default=None)
+    low_stock_threshold = Column(Float, nullable=True, default=5.0)
+
     # Unit-based pricing:
     # None / 'piece' = fixed price (qty is whole numbers)
     # 'kg' / 'g' / 'liter' / 'ml' = price is per-unit; cashier enters actual qty at sale
     unit = Column(String(10), nullable=True, default=None)
 
+    # Tax Configuration
+    tax_rate = Column(Numeric(5, 2), nullable=True, default=0.00)
+
     # Multi-tenancy: Each menu item belongs to a shop
     shop_id = Column(Integer, ForeignKey("shops.id"), nullable=True)
     shop = relationship("Shop", back_populates="menu_items")
+
+    # Inventory movements
+    stock_movements = relationship("StockMovement", back_populates="menu_item", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {
@@ -304,6 +323,10 @@ class MenuItem(Base):
             "is_active": self.is_active,
             "shop_id": self.shop_id,
             "unit": self.unit,   # None → fixed price; 'kg'/'g'/'liter'/'ml' → rate-based
+            "sku": self.sku,
+            "stock_quantity": self.stock_quantity,
+            "low_stock_threshold": self.low_stock_threshold,
+            "tax_rate": float(self.tax_rate) if self.tax_rate is not None else 0.0,
         }
 
 
@@ -321,7 +344,10 @@ class Bill(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(36), unique=True, index=True, default=lambda: uuid.uuid4().hex)
     bill_number = Column(String, index=True, nullable=False)
+    subtotal_amount = Column(Numeric(10, 2), nullable=True)  # Added for tax module
+    tax_amount = Column(Numeric(10, 2), nullable=True)       # Added for tax module
     total_amount = Column(Numeric(10, 2), nullable=False)
     payment_method = Column(String, default="Cash")  # Cash, UPI
     timestamp = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
@@ -362,3 +388,67 @@ class LoginAttempt(Base):
     ip_address = Column(String, index=True, nullable=False, unique=True)
     attempt_count = Column(Integer, default=0)
     last_attempt = Column(DateTime(timezone=True), nullable=False)
+
+
+# ============================================================================
+# STOCK MOVEMENT (Inventory audit log)
+# ============================================================================
+
+class StockMovement(Base):
+    """
+    Immutable audit log of every stock change.
+    Reasons: 'sale' (auto), 'restock' (owner/scanner), 'adjustment' (manual correction).
+    """
+    __tablename__ = "stock_movements"
+    __table_args__ = (
+        Index("ix_stock_movements_shop_created", "shop_id", "created_at"),
+        Index("ix_stock_movements_item_created", "menu_item_id", "created_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    menu_item_id = Column(Integer, ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False)
+    shop_id = Column(Integer, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False)
+    change_qty = Column(Float, nullable=False)   # positive = stock added, negative = stock removed
+    # reason: 'sale' | 'restock' | 'adjustment' | 'scanner_restock'
+    reason = Column(String(32), nullable=False, default="adjustment")
+    note = Column(String, nullable=True)          # e.g. "Bill #BS-1748440000" or "Received delivery"
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
+
+    menu_item = relationship("MenuItem", back_populates="stock_movements")
+    created_by = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "menu_item_id": self.menu_item_id,
+            "shop_id": self.shop_id,
+            "change_qty": self.change_qty,
+            "reason": self.reason,
+            "note": self.note,
+            "created_by_user_id": self.created_by_user_id,
+            "created_by_username": self.created_by.username if self.created_by else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+# ============================================================================
+# NOTIFICATION LOG (provision for future SMS/WhatsApp/email alerts)
+# ============================================================================
+
+class NotificationLog(Base):
+    """
+    Records all notifications sent by the system.
+    channel: 'in_app' (active) | 'whatsapp' | 'sms' | 'email' (future).
+    """
+    __tablename__ = "notification_log"
+    __table_args__ = (
+        Index("ix_notification_log_shop_sent", "shop_id", "sent_at"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    shop_id = Column(Integer, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False)
+    channel = Column(String(32), nullable=False, default="in_app")  # in_app | whatsapp | sms | email
+    message = Column(String, nullable=False)
+    status = Column(String(16), nullable=False, default="sent")     # sent | failed | pending
+    sent_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))

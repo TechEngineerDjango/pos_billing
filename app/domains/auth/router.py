@@ -17,7 +17,11 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 router = APIRouter(prefix="/auth", tags=["Authentication"], dependencies=[Depends(verify_csrf)])
-templates = Jinja2Templates(directory="app/frontend/templates")
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")

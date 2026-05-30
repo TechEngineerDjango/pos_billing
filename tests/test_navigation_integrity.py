@@ -67,8 +67,8 @@ async def test_superadmin_pos_shop_switching(async_client: AsyncClient, db_sessi
 
     await async_client.post("/auth/login", data={"username": "superadmin", "password": SUPERADMIN_PASSWORD}, follow_redirects=True)
     
-    # Access POS with shop_id
-    response = await async_client.get(f"/billing/?shop_id={new_shop.id}")
+    # Access POS with shop_slug
+    response = await async_client.get(f"/billing/?shop_slug={new_shop.slug}")
     assert response.status_code == 200
     assert "Secondary Shop" in response.text
     # Ensure currency symbol changes

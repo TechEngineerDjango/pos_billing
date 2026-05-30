@@ -25,7 +25,11 @@ from app.core.redis import get_redis
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/superadmin", tags=["SuperAdmin"], dependencies=[Depends(verify_csrf)])
-templates = Jinja2Templates(directory="app/frontend/templates")
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
 
 def json_serializer(obj):
     if isinstance(obj, list):

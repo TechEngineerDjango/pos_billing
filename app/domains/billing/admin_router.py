@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Request, Form, UploadFile, File, HTTPExc
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, cast, String, func
+from sqlalchemy import select, delete, cast, String, func, and_
 
 from app.core.database import get_db
 from app.shared.models import User, MenuItem, Bill, Shop, Customer
@@ -17,32 +17,50 @@ from app.shared.schemas import UserCreate, MenuItemCreate, CustomerCreate, ShopC
 from app.infrastructure.integrations.image import save_uploaded_image
 from app.domains.auth.services import require_owner_or_above, require_any_staff
 from app.core.dependencies.csrf import verify_csrf
+from app.domains.inventory.sku import generate_sku
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(verify_csrf)])
-templates = Jinja2Templates(directory="app/frontend/templates")
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
 
 
 @router.get("/")
 async def admin_overview(
     request: Request,
-    shop_id: Optional[int] = None,
+    shop_slug: Optional[str] = None,
     period: Optional[str] = "7d",  # 7d, 1m, 6m, 1y
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     from sqlalchemy.orm import selectinload
     from app.shared.features import get_shop_features
+    from app.domains.features.service import FeatureService
     
     if current_user.role not in ["owner", "superadmin"]:
         return RedirectResponse(url="/auth/login")
     
     # Get target shop ID
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = current_user.shop_id
     
-    # If superadmin and no shop_id provided, default to first active shop
-    if current_user.role == "superadmin" and not shop_id:
-        shop_res = await db.execute(select(Shop).where(Shop.is_active == True).limit(1))
-        target_shop_id = getattr(shop_res.scalars().first(), "id", None)
+    if shop_slug:
+        shop_res = await db.execute(select(Shop).where(Shop.slug == shop_slug).options(selectinload(Shop.subscription)))
+        requested_shop = shop_res.scalars().first()
+        if not requested_shop:
+            raise HTTPException(status_code=404, detail="Shop not found")
+        target_shop_id = requested_shop.id
+        
+        # IDOR protection
+        if current_user.role == "owner" and target_shop_id != current_user.shop_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden: You do not own this shop")
+            
+    # If superadmin and no shop_slug provided, default to first active shop
+    if current_user.role == "superadmin" and not target_shop_id:
+        shop_res = await db.execute(select(Shop).where(Shop.is_active == True).limit(1).options(selectinload(Shop.subscription)))
+        first_shop = shop_res.scalars().first()
+        target_shop_id = getattr(first_shop, "id", None)
 
     # Get user's shop
     shop = None
@@ -54,10 +72,13 @@ async def admin_overview(
     analytics = {}
     
     if target_shop_id:
-        shop_res = await db.execute(
-            select(Shop).where(Shop.id == target_shop_id).options(selectinload(Shop.subscription))
-        )
-        shop = shop_res.scalars().first()
+        if shop_slug and requested_shop:
+            shop = requested_shop
+        else:
+            shop_res = await db.execute(
+                select(Shop).where(Shop.id == target_shop_id).options(selectinload(Shop.subscription))
+            )
+            shop = shop_res.scalars().first()
         
         # Fetch Data for Dashboard Tabs
         if shop:
@@ -238,9 +259,25 @@ async def admin_overview(
                 "avg_order_value": round(current_period_total / period_orders_count, 2) if period_orders_count > 0 else 0,
             }
     
-    # Get shop features based on subscription
-    shop_features = get_shop_features(shop) if shop else {}
-    
+    # Get shop features based on subscription (Using FeatureService to get M2M features correctly)
+    feature_service = FeatureService(db=db)
+    shop_features = await feature_service.get_all_features_for_shop(shop) if shop else {}
+
+    # Inventory: low stock count for badge (only if feature enabled)
+    low_stock_count = 0
+    if shop and shop_features.get("inventory_management"):
+        low_res = await db.execute(
+            select(MenuItem).where(
+                and_(
+                    MenuItem.shop_id == shop.id,
+                    MenuItem.is_active == True,
+                    MenuItem.stock_quantity.isnot(None),
+                    MenuItem.stock_quantity <= MenuItem.low_stock_threshold,
+                )
+            )
+        )
+        low_stock_count = len(low_res.scalars().all())
+
     # Render the new SPA Dashboard
     return templates.TemplateResponse(request, "dashboard.html", {
         "user": current_user,
@@ -253,7 +290,8 @@ async def admin_overview(
         "analytics": analytics,
         "selected_period": period,
         "features": shop_features,
-        "active_page": "overview"
+        "active_page": "overview",
+        "low_stock_count": low_stock_count,
     })
 
 
@@ -286,18 +324,17 @@ async def add_staff(
     return RedirectResponse(url=f"/admin/?shop_id={target_shop_id}&tab=staff", status_code=303)
 
 
-@router.post("/staff/delete/{staff_id}")
+@router.post("/staff/delete/{staff_slug}")
 async def delete_staff(
-    staff_id: int,
-    shop_id: Optional[int] = Form(None),
+    staff_slug: str,
     current_user: User = Depends(require_owner_or_above),
     db: AsyncSession = Depends(get_db)
 ):
     
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = current_user.shop_id
     
-    query = select(User).where(User.id == staff_id, User.role == "cashier")
-    if target_shop_id:
+    query = select(User).where(User.slug == staff_slug, User.role == "cashier")
+    if current_user.role != "superadmin":
         query = query.where(User.shop_id == target_shop_id)
         
     res = await db.execute(query)
@@ -367,23 +404,40 @@ async def add_menu_item(
 
     image_url = await save_uploaded_image(image, max_size=(300, 300), prefix="menu")
 
+    # Auto-generate SKU for new item
+    shop_res = await db.execute(select(Shop).where(Shop.id == target_shop_id))
+    shop = shop_res.scalars().first()
+    shop_name = shop.name if shop else "SHOP"
+    if data.sku and data.sku.strip():
+        final_sku = data.sku.upper().strip()
+    else:
+        final_sku = await generate_sku(
+            shop_name=shop_name,
+            category=data.category,
+            shop_id=target_shop_id,
+            db=db,
+        )
+
     new_item = MenuItem(
-        name=data.name, 
-        price=data.price, 
-        category=data.category, 
+        name=data.name,
+        price=data.price,
+        category=data.category,
         image_url=image_url,
         shop_id=target_shop_id,
-        unit=data.unit
+        unit=data.unit,
+        sku=final_sku,
+        low_stock_threshold=data.low_stock_threshold,
+        tax_rate=data.tax_rate,
     )
     db.add(new_item)
     await db.commit()
     return RedirectResponse(url=f"/admin/?shop_id={target_shop_id}&tab=menu", status_code=303)
 
 
-@router.get("/menu/edit/{item_id}")
+@router.get("/menu/edit/{item_slug}")
 async def menu_edit_page(
     request: Request,
-    item_id: int,
+    item_slug: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -392,8 +446,8 @@ async def menu_edit_page(
         return RedirectResponse(url="/auth/login")
     
     # Fetch the menu item
-    query = select(MenuItem).where(MenuItem.id == item_id)
-    if current_user.shop_id:
+    query = select(MenuItem).where(MenuItem.slug == item_slug)
+    if current_user.role == "owner":
         query = query.where(MenuItem.shop_id == current_user.shop_id)
     
     result = await db.execute(query)
@@ -418,9 +472,9 @@ async def menu_edit_page(
     })
 
 
-@router.post("/menu/update/{item_id}")
+@router.post("/menu/update/{item_slug}")
 async def update_menu_item(
-    item_id: int,
+    item_slug: str,
     image: UploadFile = File(None),
     current_user: User = Depends(require_owner_or_above),
     db: AsyncSession = Depends(get_db),
@@ -429,9 +483,9 @@ async def update_menu_item(
     target_shop_id = data.shop_id or current_user.shop_id
     
     # Only update items from user's shop
-    query = select(MenuItem).where(MenuItem.id == item_id)
-    if target_shop_id and current_user.role != "superadmin":
-        query = query.where(MenuItem.shop_id == target_shop_id)
+    query = select(MenuItem).where(MenuItem.slug == item_slug)
+    if current_user.role != "superadmin":
+        query = query.where(MenuItem.shop_id == current_user.shop_id)
     
     result = await db.execute(query)
     item = result.scalars().first()
@@ -443,37 +497,41 @@ async def update_menu_item(
         item.category = data.category
         item.price = data.price
         item.unit = data.unit
-        
+        item.low_stock_threshold = data.low_stock_threshold
+        item.tax_rate = data.tax_rate
+        # Only update SKU if owner explicitly provides one (override)
+        if data.sku and data.sku.strip():
+            item.sku = data.sku.upper().strip()
+
         image_url = await save_uploaded_image(image, max_size=(300, 300), prefix="menu")
         if image_url:
             item.image_url = image_url
-        
+
         await db.commit()
-    
+
     return RedirectResponse(url=f"/admin/?shop_id={effective_shop_id}&tab=menu", status_code=303)
 
 
-@router.post("/menu/delete/{item_id}")
+@router.post("/menu/delete/{item_slug}")
 async def delete_menu_item(
-    item_id: int,
-    shop_id: Optional[int] = Form(None),
+    item_slug: str,
     current_user: User = Depends(require_owner_or_above),
     db: AsyncSession = Depends(get_db)
 ):
     
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = current_user.shop_id
     
     # Only allow deleting items from user's shop
-    if target_shop_id and current_user.role != "superadmin":
+    if current_user.role != "superadmin":
         await db.execute(
             delete(MenuItem).where(
-                MenuItem.id == item_id,
+                MenuItem.slug == item_slug,
                 MenuItem.shop_id == target_shop_id
             )
         )
     else:
         # Superadmin or no specific shop constraint
-        await db.execute(delete(MenuItem).where(MenuItem.id == item_id))
+        await db.execute(delete(MenuItem).where(MenuItem.slug == item_slug))
     
     await db.commit()
     redirect_url = f"/admin/?tab=menu"
@@ -552,10 +610,10 @@ async def add_customer(
     return RedirectResponse(url=f"/admin/?shop_id={target_shop_id}&tab=customers", status_code=303)
 
 
-@router.get("/customer/edit/{customer_id}")
+@router.get("/customer/edit/{customer_slug}")
 async def customer_edit_page(
     request: Request,
-    customer_id: int,
+    customer_slug: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -564,8 +622,8 @@ async def customer_edit_page(
         return RedirectResponse(url="/auth/login")
     
     # Fetch the customer
-    query = select(Customer).where(Customer.id == customer_id)
-    if current_user.shop_id:
+    query = select(Customer).where(Customer.slug == customer_slug)
+    if current_user.role != "superadmin":
         query = query.where(Customer.shop_id == current_user.shop_id)
     
     result = await db.execute(query)
@@ -590,9 +648,9 @@ async def customer_edit_page(
     })
 
 
-@router.post("/customer/update/{customer_id}")
+@router.post("/customer/update/{customer_slug}")
 async def update_customer(
-    customer_id: int,
+    customer_slug: str,
     current_user: User = Depends(require_owner_or_above),
     db: AsyncSession = Depends(get_db),
     data: CustomerCreate = Depends(CustomerCreate.as_form)
@@ -600,9 +658,9 @@ async def update_customer(
     
     target_shop_id = data.shop_id or current_user.shop_id
     
-    query = select(Customer).where(Customer.id == customer_id)
-    if target_shop_id and current_user.role != "superadmin":
-        query = query.where(Customer.shop_id == target_shop_id)
+    query = select(Customer).where(Customer.slug == customer_slug)
+    if current_user.role != "superadmin":
+        query = query.where(Customer.shop_id == current_user.shop_id)
     
     result = await db.execute(query)
     customer = result.scalars().first()
@@ -617,18 +675,17 @@ async def update_customer(
     return RedirectResponse(url=f"/admin/?shop_id={effective_shop_id}&tab=customers", status_code=303)
 
 
-@router.post("/customer/delete/{customer_id}")
+@router.post("/customer/delete/{customer_slug}")
 async def delete_customer(
-    customer_id: int,
-    shop_id: Optional[int] = Form(None),
+    customer_slug: str,
     current_user: User = Depends(require_owner_or_above),
     db: AsyncSession = Depends(get_db)
 ):
     
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = current_user.shop_id
     
-    query = select(Customer).where(Customer.id == customer_id)
-    if target_shop_id and current_user.role != "superadmin":
+    query = select(Customer).where(Customer.slug == customer_slug)
+    if current_user.role != "superadmin":
         query = query.where(Customer.shop_id == target_shop_id)
     
     result = await db.execute(query)
@@ -647,10 +704,9 @@ async def delete_customer(
 # BILL DETAILS & WHATSAPP
 # ============================================================================
 
-@router.get("/bill/{bill_id}")
+@router.get("/bill/{bill_slug}")
 async def get_bill_detail(
-    bill_id: int,
-    shop_id: Optional[int] = None,
+    bill_slug: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -659,10 +715,10 @@ async def get_bill_detail(
     if current_user.role not in ["owner", "superadmin", "cashier"]:
          return JSONResponse({"error": "Unauthorized"}, status_code=403)
     
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = current_user.shop_id
     
-    query = select(Bill).where(Bill.id == bill_id).options(selectinload(Bill.customer))
-    if target_shop_id and current_user.role != "superadmin":
+    query = select(Bill).where(Bill.slug == bill_slug).options(selectinload(Bill.customer))
+    if current_user.role != "superadmin":
         query = query.where(Bill.shop_id == target_shop_id)
     
     result = await db.execute(query)
@@ -688,11 +744,10 @@ async def get_bill_detail(
     })
 
 
-@router.post("/bill/{bill_id}/send-whatsapp")
+@router.post("/bill/{bill_slug}/send-whatsapp")
 async def send_bill_whatsapp(
-    bill_id: int,
+    bill_slug: str,
     phone_number: str = Form(None),
-    shop_id: Optional[int] = Form(None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -701,10 +756,10 @@ async def send_bill_whatsapp(
     if current_user.role not in ["owner", "superadmin", "cashier"]:
          return JSONResponse({"error": "Unauthorized"}, status_code=403)
     
-    target_shop_id = shop_id or current_user.shop_id
+    target_shop_id = current_user.shop_id
     
-    query = select(Bill).where(Bill.id == bill_id).options(selectinload(Bill.customer))
-    if target_shop_id and current_user.role != "superadmin":
+    query = select(Bill).where(Bill.slug == bill_slug).options(selectinload(Bill.customer))
+    if current_user.role != "superadmin":
         query = query.where(Bill.shop_id == target_shop_id)
     
     result = await db.execute(query)
@@ -750,9 +805,9 @@ Thank you for your order! \U0001f354"""
         "message": "Bill formatted for WhatsApp"
     })
 
-@router.get("/bill/{bill_id}/whatsapp-redirect", response_class=HTMLResponse)
+@router.get("/bill/{bill_slug}/whatsapp-redirect", response_class=HTMLResponse)
 async def whatsapp_redirect_page(
-    bill_id: int,
+    bill_slug: str,
     phone: str,
     request: Request,
     db: AsyncSession = Depends(get_db)
@@ -765,7 +820,7 @@ async def whatsapp_redirect_page(
     from sqlalchemy.orm import selectinload
     import urllib.parse
     
-    query = select(Bill).where(Bill.id == bill_id).options(selectinload(Bill.customer))
+    query = select(Bill).where(Bill.slug == bill_slug).options(selectinload(Bill.customer))
     result = await db.execute(query)
     bill = result.scalars().first()
     

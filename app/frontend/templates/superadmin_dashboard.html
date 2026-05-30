@@ -121,14 +121,14 @@
                     <div class="flex justify-between items-start mb-6">
                         <div>
                             <h3 class="text-2xl font-bold text-white mb-1">{{ shop.name }}</h3>
-                            <p class="text-gray-500 font-mono text-xs italic">SHOP_ID: #{{ shop.id }}</p>
+                            <p class="text-gray-500 font-mono text-xs italic">SHOP_ID: #{{ shop.slug }}</p>
                         </div>
                         <div class="flex gap-2">
                             <button @click="selectForDesign(shopsData.find(s => s.id === {{ shop.id }}))"
                                 class="bg-purple-500/10 text-purple-400 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all">
                                 Branding
                             </button>
-                            <a href="/admin/?shop_id={{ shop.id }}"
+                            <a href="/admin/?shop_slug={{ shop.slug }}"
                                 class="bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">
                                 Manage
                             </a>
@@ -224,7 +224,7 @@
                         {% endfor %}
                     </select>
 
-                    <a :href="'/billing/?shop_id=' + selectedShopId" target="_blank" x-show="selectedShopId"
+                    <a :href="'/billing/?shop_slug=' + selectedShopId" target="_blank" x-show="selectedShopId"
                         class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest transition-all shadow-lg shadow-purple-600/20 flex items-center gap-2">
                         Open Window ↗️
                     </a>
@@ -1238,7 +1238,7 @@
                     this.designConfig.pos_card_height_num = parseInt(shop.pos_card_height) || 200;
                     this.designConfig.pos_card_image_width_num = parseInt(shop.pos_card_image_width) || 100;
                     this.designConfig.pos_card_image_height_num = parseInt(shop.pos_card_image_height) || 8;
-                    this.previewUrl = '/billing/?shop_id=' + shop.id + '&preview=1';
+                    this.previewUrl = '/billing/?shop_slug=' + shop.id + '&preview=1';
                 }
             },
 

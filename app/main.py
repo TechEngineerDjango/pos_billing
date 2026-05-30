@@ -13,12 +13,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import engine, AsyncSessionLocal, get_db
 from app.core.base import Base
-from app.shared.models import User, Shop, Subscription, Feature, PlanFeature, TenantFeatureOverride, LoginAttempt
+from app.shared.models import User, Shop, Subscription, Feature, PlanFeature, TenantFeatureOverride, LoginAttempt, StockMovement, NotificationLog
 from app.core.redis import close_redis
 from app.domains.billing import router as billing
 from app.domains.auth import router as auth
 from app.domains.billing import admin_router as admin
 from app.domains.tenancy import router as superadmin
+from app.domains.inventory import router as inventory
 from app.core.config import settings
 from app.domains.auth.router import get_password_hash
 from app.core.middleware.request_id import RequestIDMiddleware
@@ -106,6 +107,7 @@ app.include_router(auth.router)
 app.include_router(billing.router)
 app.include_router(admin.router)
 app.include_router(superadmin.router)
+app.include_router(inventory.router)
 
 
 @app.get("/")

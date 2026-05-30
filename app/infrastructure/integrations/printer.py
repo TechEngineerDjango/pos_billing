@@ -1,8 +1,24 @@
 import logging
+import ipaddress
 from escpos.printer import Network, Dummy
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+def is_safe_ip(ip: str) -> bool:
+    if ip == "mock":
+        return True
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        # Block localhost (127.0.0.1) and link-local (169.254.x.x - AWS Metadata)
+        if ip_obj.is_loopback or ip_obj.is_link_local:
+            return False
+        # Block 0.0.0.0 or broadcast
+        if ip_obj.is_unspecified or ip_obj.is_multicast:
+            return False
+        return True
+    except ValueError:
+        return False
 
 class ThermalPrinter:
     def __init__(self, ip=None):
@@ -10,6 +26,9 @@ class ThermalPrinter:
         self.printer = None
 
     def connect(self):
+        if not self.ip or not is_safe_ip(self.ip):
+            logger.error(f"Printer Connection Failed: Invalid or unsafe IP address -> {self.ip}")
+            return False
         try:
             if self.ip == "mock":
                  logger.info("Connecting to MOCK printer")
@@ -69,7 +88,16 @@ class ThermalPrinter:
             
             self.printer.text("--------------------------------\n")
             self.printer.set(align='right')
-            self.printer.text(f"TOTAL: {bill_data.get('total_amount', 0.0):.2f}\n")
+            
+            subtotal = bill_data.get('subtotal_amount')
+            tax = bill_data.get('tax_amount')
+            total = bill_data.get('total_amount', 0.0)
+
+            if tax is not None and tax > 0:
+                self.printer.text(f"SUBTOTAL: {subtotal:.2f}\n")
+                self.printer.text(f"TAX: {tax:.2f}\n")
+            
+            self.printer.text(f"TOTAL: {total:.2f}\n")
             self.printer.text("--------------------------------\n")
             
             self.printer.set(align='center')

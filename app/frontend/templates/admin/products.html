@@ -65,7 +65,7 @@
                 <tbody class="divide-y divide-white/5">
                     {% for item in menu_items %}
                     <tr class="group hover:bg-white/5 transition-colors">
-                        <form action="/admin/menu/update/{{ item.id }}" method="POST" class="contents">
+                        <form action="/admin/menu/update/{{ item.slug }}" method="POST" class="contents">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <td class="p-3">
                                 {% if item.image_url %}
@@ -99,7 +99,7 @@
                                     </svg>
                                 </button>
                         </form>
-                        <form action="/admin/menu/delete/{{ item.id }}" method="POST"
+                        <form action="/admin/menu/delete/{{ item.slug }}" method="POST"
                             onsubmit="return confirm('Delete?');" class="inline">
                             <button
                                 class="text-gray-500 hover:text-red-400 transition-colors p-1 hover:bg-red-500/10 rounded">

@@ -789,7 +789,14 @@ class TestExhaustiveFunctionalitySuite:
         # [Admin] Update Item Price
         browser_page.goto(f"{BASE_URL}/admin/?tab=menu")
         time.sleep(1)
-        browser_page.locator("#admin-edit-item-btn").first.click()
+        edit_btn = browser_page.locator("#admin-edit-item-btn").first
+        href = edit_btn.get_attribute("href")
+        print(f"DIAGNOSTIC: edit button href is {href}")
+        print(f"DIAGNOSTIC: current url is {browser_page.url}")
+        edit_btn.click()
+        time.sleep(1)
+        print(f"DIAGNOSTIC: url after click is {browser_page.url}")
+        print(f"DIAGNOSTIC: body text after click is: {browser_page.locator('body').text_content()[:300]}")
         browser_page.wait_for_url(re.compile(r".*/admin/menu/edit/.*"))
         browser_page.fill("input[name='price']", "300.00")
         browser_page.locator("button:has-text('Commit Variations')").click()

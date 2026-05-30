@@ -37,7 +37,7 @@ async def test_whatsapp_url_generation(async_client: AsyncClient, db_session):
     # 3. Test with 10 digit number
     phone_input = "919094855498"
     response = await async_client.post(
-        f"/admin/bill/{bill.id}/send-whatsapp",
+        f"/admin/bill/{bill.slug}/send-whatsapp",
         data={"phone_number": phone_input}
     )
     
@@ -68,7 +68,7 @@ async def test_whatsapp_url_generation(async_client: AsyncClient, db_session):
     # Test strict 10 digit logic - pass 12 digits (already has code)
     phone_input_with_code = "919094855498"
     response_2 = await async_client.post(
-        f"/admin/bill/{bill.id}/send-whatsapp",
+        f"/admin/bill/{bill.slug}/send-whatsapp",
         data={"phone_number": phone_input_with_code}
     )
     url_2 = response_2.json()["whatsapp_url"]

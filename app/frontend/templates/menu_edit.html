@@ -19,7 +19,7 @@
                     class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase leading-none">
                     Modify Entry</h1>
                 <p class="text-gray-500 dark:text-gray-400 mt-2 font-medium">Updating catalog item meta for <span
-                        class="text-gray-900 dark:text-white font-bold">#{{ item.id }}</span></p>
+                        class="text-gray-900 dark:text-white font-bold">#{{ item.slug }}</span></p>
             </div>
         </div>
 
@@ -29,7 +29,7 @@
             <!-- Decorative Accent -->
             <div class="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 blur-3xl rounded-full -mr-16 -mt-16"></div>
 
-            <form action="/admin/menu/update/{{ item.id }}" method="POST" enctype="multipart/form-data"
+            <form action="/admin/menu/update/{{ item.slug }}" method="POST" enctype="multipart/form-data"
                 class="space-y-8 relative z-10">
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="shop_id" value="{{ shop.id }}">
@@ -101,6 +101,30 @@
                             x-show="selectedUnit && selectedUnit !== 'piece'" x-cloak>
                             Cashier enters actual quantity at billing — rate × qty = total
                         </p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+                    <!-- Low Stock Threshold (Inventory feature) -->
+                    <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Low Stock Threshold</label>
+                        <input type="number" name="low_stock_threshold" value="{{ item.low_stock_threshold or 5.0 }}" step="0.01"
+                            class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                        <p class="text-[10px] text-gray-400 mt-2 font-medium">Alert triggers when stock falls below this amount</p>
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">SKU Override</label>
+                        <input type="text" name="sku" value="{{ item.sku or '' }}"
+                            class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                        <p class="text-[10px] text-gray-400 mt-2 font-medium">Change this to match printed barcode labels</p>
+                    </div>
+
+                    <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Tax (%)</label>
+                        <input type="number" name="tax_rate" value="{{ item.tax_rate or 0.0 }}" step="0.01" required
+                            class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                        <p class="text-[10px] text-gray-400 mt-2 font-medium">Tax percentage applied to this item</p>
                     </div>
                 </div>
 

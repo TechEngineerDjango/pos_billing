@@ -46,7 +46,7 @@
                 <tbody class="divide-y divide-white/5">
                     {% for customer in customers %}
                     <tr class="group hover:bg-white/5 transition-colors">
-                        <form action="/admin/customer/update/{{ customer.id }}" method="POST" class="contents">
+                        <form action="/admin/customer/update/{{ customer.slug }}" method="POST" class="contents">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                             <td class="p-3">
                                 <input type="text" name="name" value="{{ customer.name }}"
@@ -66,7 +66,7 @@
                                     </svg>
                                 </button>
                         </form>
-                        <form action="/admin/customer/delete/{{ customer.id }}" method="POST"
+                        <form action="/admin/customer/delete/{{ customer.slug }}" method="POST"
                             onsubmit="return confirm('Delete customer?');" class="inline">
                             <button
                                 class="text-gray-500 hover:text-red-400 transition-colors p-1 hover:bg-red-500/10 rounded">

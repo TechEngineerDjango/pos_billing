@@ -5,7 +5,7 @@ from decimal import Decimal
 
 class CartItem(BaseModel):
     id: int
-    qty: float  # float accepts whole (2) and fractional (1.6 kg) quantities; JSON-serializable
+    qty: float = Field(..., gt=0)  # float accepts whole (2) and fractional (1.6 kg) quantities; JSON-serializable
 
 class BillCreate(BaseModel):
     items: List[CartItem]
@@ -43,10 +43,13 @@ class UserCreate(BaseModel):
 
 class MenuItemCreate(BaseModel):
     name: str
-    price: Decimal
+    price: Decimal = Field(..., ge=0)
     category: str = "General"
     shop_id: Optional[int] = None
     unit: Optional[str] = None  # None/'piece' = fixed price; 'kg'/'g'/'liter'/'ml' = rate per unit
+    sku: Optional[str] = None   # If provided, overrides auto-generated SKU
+    low_stock_threshold: Optional[float] = Field(default=5.0, ge=0)
+    tax_rate: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0, le=100)
 
     @classmethod
     def as_form(
@@ -55,10 +58,14 @@ class MenuItemCreate(BaseModel):
         price: Decimal = Form(...),
         category: str = Form("General"),
         shop_id: Optional[int] = Form(None),
-        unit: Optional[str] = Form(None)
+        unit: Optional[str] = Form(None),
+        sku: Optional[str] = Form(None),
+        low_stock_threshold: Optional[float] = Form(5.0),
+        tax_rate: Optional[Decimal] = Form(0.0),
     ):
         unit = unit if unit and unit.strip() else None
-        return cls(name=name, price=price, category=category, shop_id=shop_id, unit=unit)
+        sku = sku.upper().strip() if sku and sku.strip() else None
+        return cls(name=name, price=price, category=category, shop_id=shop_id, unit=unit, sku=sku, low_stock_threshold=low_stock_threshold, tax_rate=tax_rate)
 
 class CustomerCreate(BaseModel):
     name: str
@@ -194,3 +201,28 @@ class PasswordChangeRequest(BaseModel):
         new_password: str = Form(...)
     ):
         return cls(current_password=current_password, new_password=new_password)
+
+
+class StockRestockRequest(BaseModel):
+    """Used by owner to add stock — via manual form or QR scanner."""
+    qty: float = Field(gt=0, description="Quantity to add (must be positive)")
+    note: Optional[str] = Field(None, max_length=255)
+    source: str = Field(default="manual", description="'manual' or 'scanner'")
+
+    @classmethod
+    def as_form(
+        cls,
+        qty: float = Form(...),
+        note: Optional[str] = Form(None),
+        source: str = Form("manual"),
+    ):
+        return cls(qty=qty, note=note, source=source)
+
+
+class SkuUpdateRequest(BaseModel):
+    """Used by owner to manually override an auto-generated SKU."""
+    sku: str = Field(min_length=3, max_length=64, description="Alphanumeric + hyphens only, uppercase")
+
+    @classmethod
+    def as_form(cls, sku: str = Form(...)):
+        return cls(sku=sku.upper().strip())

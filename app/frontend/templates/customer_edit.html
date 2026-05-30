@@ -19,7 +19,7 @@
                     class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase leading-none">
                     Modify Identity</h1>
                 <p class="text-gray-500 dark:text-gray-400 mt-2 font-medium">Updating metadata for <span
-                        class="text-gray-900 dark:text-white font-bold">CUST_{{ customer.id }}</span></p>
+                        class="text-gray-900 dark:text-white font-bold">CUST_{{ customer.slug }}</span></p>
             </div>
         </div>
 
@@ -29,7 +29,7 @@
             <!-- Decorative Accent -->
             <div class="absolute top-0 right-0 w-32 h-32 bg-green-500/10 blur-3xl rounded-full -mr-16 -mt-16"></div>
 
-            <form action="/admin/customer/update/{{ customer.id }}" method="POST" class="space-y-8 relative z-10">
+            <form action="/admin/customer/update/{{ customer.slug }}" method="POST" class="space-y-8 relative z-10">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="shop_id" value="{{ shop.id }}">
 

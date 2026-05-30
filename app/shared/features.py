@@ -67,6 +67,12 @@ FEATURES = {
         "tier": "pro",
         "category": "reports"
     },
+    "inventory_management": {
+        "name": "Inventory Management",
+        "description": "Stock tracking, low stock alerts, QR/barcode scanner for restocking and billing",
+        "tier": "pro",
+        "category": "ops"
+    },
     
     # Enterprise Features
     "multi_location": {
@@ -101,8 +107,8 @@ TIER_HIERARCHY = {
 DEFAULT_TIER_FEATURES = {
     "free": ["pos_basic", "menu_management"],
     "basic": ["pos_basic", "menu_management", "cash_calculator", "customer_management", "sales_reports", "staff_management"],
-    "pro": ["pos_basic", "menu_management", "cash_calculator", "customer_management", "sales_reports", "staff_management", 
-            "whatsapp_billing", "branding_studio", "custom_logo", "advanced_analytics"],
+    "pro": ["pos_basic", "menu_management", "cash_calculator", "customer_management", "sales_reports", "staff_management",
+            "whatsapp_billing", "branding_studio", "custom_logo", "advanced_analytics", "inventory_management"],
     "enterprise": list(FEATURES.keys())  # All features
 }
 

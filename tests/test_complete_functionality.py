@@ -5,6 +5,11 @@ Tests using actual database state
 import pytest
 from httpx import AsyncClient
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+OWNER_PASSWORD = os.getenv("TEST_OWNER_PASSWORD")
 
 # These tests use the actual database with existing users
 
@@ -144,7 +149,7 @@ async def test_pos_page_accessible(async_client: AsyncClient):
     # Login
     await async_client.post(
         "/auth/login",
-        data={"username": "Owner@123", "password": "Owner@123"}
+        data={"username": "owner", "password": OWNER_PASSWORD}
     )
     # Access POS
     pos = await async_client.get("/billing/")

@@ -49,10 +49,10 @@
         <div
             class="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl">
             <span class="text-purple-400 font-medium text-sm">🛡️ Superadmin:</span>
-            <select onchange="window.location.href='/billing/?shop_id=' + this.value"
+            <select onchange="window.location.href='/billing/?shop_slug=' + this.value"
                 class="flex-1 bg-slate-800 border border-purple-500/50 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none">
                 {% for s in all_shops %}
-                <option value="{{ s.id }}" {% if shop and s.id==shop.id %}selected{% endif %}>{{ s.name }}</option>
+                <option value="{{ s.slug }}" {% if shop and s.slug==shop.slug %}selected{% endif %}>{{ s.name }}</option>
                 {% endfor %}
             </select>
             <a href="/superadmin/"
@@ -61,15 +61,24 @@
         </div>
         {% endif %}
 
-        <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 flex items-center gap-2"
-            style="font-family: var(--nav-font); color: var(--panel-font);">
-            {% if shop.menu_icon_url %}
-            <img src="{{ shop.menu_icon_url }}" class="w-8 h-8 object-contain">
-            {% else %}
-            <span>🍔</span>
-            {% endif %}
-            Menu
-        </h2>
+        <div class="flex justify-between items-center mb-4 sm:mb-6">
+            <h2 class="text-xl sm:text-2xl font-bold flex items-center gap-2"
+                style="font-family: var(--nav-font); color: var(--panel-font);">
+                {% if shop.menu_icon_url %}
+                <img src="{{ shop.menu_icon_url }}" class="w-8 h-8 object-contain">
+                {% else %}
+                <span>🍔</span>
+                {% endif %}
+                Menu
+            </h2>
+            <button x-show="features['inventory_management']" @click="openScannerModal()"
+                class="flex items-center gap-2 bg-[var(--accent-color)] text-white px-4 py-2 rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all text-sm font-bold">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+                </svg>
+                Scan SKU
+            </button>
+        </div>
 
         <!-- Category Filter Tabs (Horizontal Scroll on Mobile) -->
         <div
@@ -90,8 +99,9 @@
             {% for item in items %}
             <div x-show="selectedCategory === 'All' || '{{ item.category }}'.toUpperCase() === selectedCategory.toUpperCase()"
                 @click="openItem({{ item.id }})"
+                :class="isOutOfStock({{ item.id }}) ? 'opacity-50 cursor-not-allowed grayscale' : 'cursor-pointer hover:shadow-xl transform hover:-translate-y-1 active:scale-95'"
                 style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--font-color);"
-                class="relative z-10 group backdrop-blur-md border p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 select-none flex flex-col items-center">
+                class="relative z-10 group backdrop-blur-md border p-3 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg transition-all duration-300 select-none flex flex-col items-center">
 
                 {% if item.image_url %}
                 <img src="{{ item.image_url }}" alt="{{ item.name }}"
@@ -102,6 +112,15 @@
                     <span class="text-3xl sm:text-5xl filter drop-shadow-lg">🍔</span>
                 </div>
                 {% endif %}
+                
+                <!-- Stock Badge -->
+                <div x-show="features['inventory_management']" class="absolute top-2 right-2">
+                    <span x-show="isOutOfStock({{ item.id }})" class="bg-red-500 text-white text-[9px] font-black uppercase px-2 py-1 rounded-md shadow">Out of Stock</span>
+                    <span x-show="!isOutOfStock({{ item.id }}) && getStock({{ item.id }}) !== null" 
+                          :class="getAvailableStock({{ item.id }}) <= {{ item.low_stock_threshold or 0 }} ? 'bg-orange-500' : 'bg-emerald-500'"
+                          class="text-white text-[9px] font-black uppercase px-2 py-1 rounded-md shadow"
+                          x-text="getAvailableStock({{ item.id }}) + ' left'"></span>
+                </div>
 
                 <h3 class="font-bold text-sm sm:text-lg mb-0.5 sm:mb-1 text-center truncate w-full group-hover:text-[var(--accent-color)] transition-colors"
                     style="font-family: var(--nav-font);">
@@ -341,9 +360,19 @@
         <!-- Fixed Footer (Total & Pay) -->
         <div
             class="shrink-0 p-4 sm:p-6 border-t border-[var(--border-color)] bg-[var(--sidebar-bg)] backdrop-blur-sm z-10 shadow-inner">
-            <div class="flex justify-between text-lg mb-4">
-                <span class="opacity-70 font-medium">Total Amount</span>
-                <span class="font-bold text-3xl tracking-tight" x-text="formatMoney(totalPrice)"></span>
+            <div class="flex flex-col gap-2 mb-4">
+                <div class="flex justify-between text-sm opacity-70">
+                    <span>Subtotal</span>
+                    <span x-text="formatMoney(subtotalPrice)"></span>
+                </div>
+                <div class="flex justify-between text-sm opacity-70" x-show="taxAmount > 0">
+                    <span>Tax</span>
+                    <span x-text="formatMoney(taxAmount)"></span>
+                </div>
+                <div class="flex justify-between text-lg pt-2 border-t border-[var(--border-color)]">
+                    <span class="opacity-70 font-medium">Total Amount</span>
+                    <span class="font-bold text-3xl tracking-tight" x-text="formatMoney(totalPrice)"></span>
+                </div>
             </div>
 
             <button id="pos-print-bill-btn" @click="submitBill()" :disabled="cart.length === 0 || loading"
@@ -425,7 +454,20 @@
         </div>
     </div>
 
+    <!-- QR Scanner Modal (lazy-loaded) -->
+    <div x-show="showScannerModal"
+        class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" x-cloak x-transition>
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 relative shadow-2xl border border-white/5">
+            <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-4 dark:text-white">Scan Product SKU</h2>
+            <p class="text-sm text-gray-500 mb-4">Point camera at item barcode or QR code to add to cart</p>
+            <div id="pos-qr-reader" class="rounded-2xl overflow-hidden"></div>
+            <button @click="closeScannerModal()"
+                class="mt-6 w-full bg-gray-100 dark:bg-white/5 text-gray-500 font-black uppercase tracking-widest py-4 rounded-2xl text-xs">Close</button>
+        </div>
+    </div>
+
 </div>
+
 
 <!-- Data Island for POS Items -->
 <script id="pos-items-data" type="application/json">
@@ -502,16 +544,28 @@ const CartService = {
         if (product.unit && product.unit !== 'piece') {
             return [...cart, { ...product }];
         }
-        const existing = cart.find(i => i.id === product.id && !i.unit);
-        if (existing) {
-            existing.qty++;
-            return [...cart];
+        const existingIndex = cart.findIndex(i => i.id === product.id && !i.unit);
+        if (existingIndex !== -1) {
+            return cart.map((item, index) => 
+                index === existingIndex ? { ...item, qty: item.qty + 1 } : item
+            );
         }
         return [...cart, { ...product, qty: 1 }];
     },
 
-    calculateTotal(cart) {
+    calculateSubtotal(cart) {
         return cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    },
+
+    calculateTax(cart) {
+        return cart.reduce((sum, item) => {
+            const taxRate = parseFloat(item.tax_rate) || 0;
+            return sum + (item.price * item.qty) * (taxRate / 100);
+        }, 0);
+    },
+
+    calculateTotal(cart) {
+        return this.calculateSubtotal(cart) + this.calculateTax(cart);
     }
 };
 
@@ -558,6 +612,10 @@ function posApp() {
         customerId: null,
         isNewCustomer: false,
 
+        // Scanner State
+        showScannerModal: false,
+        _scanner: null,
+
         // Infrastructure State
         _searchTimeout: null,
         _searchToken: 0,
@@ -589,8 +647,33 @@ function posApp() {
             const cats = this.itemsData.map(i => i.category.toUpperCase());
             return [...new Set(cats)];
         },
+        getStock(id) {
+            const item = this.itemsData.find(i => i.id === id);
+            return item && item.stock_quantity !== null && item.stock_quantity !== undefined ? item.stock_quantity : null;
+        },
+        getCartQty(id) {
+            return this.cart.filter(i => i.id === id).reduce((sum, i) => sum + i.qty, 0);
+        },
+        isOutOfStock(id) {
+            const available = this.getAvailableStock(id);
+            if (available === null) return false; // not tracked
+            return available <= 0;
+        },
+        getAvailableStock(id) {
+            const stock = this.getStock(id);
+            if (stock === null) return null;
+            return stock - this.getCartQty(id);
+        },
         get hasCart() { 
             return this.cart.length > 0; 
+        },
+        get subtotalPrice() {
+            const trigger = this.cart;
+            return CartService.calculateSubtotal(trigger);
+        },
+        get taxAmount() {
+            const trigger = this.cart;
+            return CartService.calculateTax(trigger);
         },
         get totalPrice() { 
             const trigger = this.cart; // Explicit reactivity hook
@@ -626,11 +709,15 @@ function posApp() {
         // --- Actions ---
         // Route item click: fixed → add directly, unit-based → open qty modal
         openItem(id) {
+            if (this.features['inventory_management'] && this.isOutOfStock(id)) {
+                alert("This item is out of stock.");
+                return;
+            }
             const item = this.itemsData.find(i => i.id === id);
             if (!item) return;
             const isUnitBased = item.unit && item.unit !== 'piece';
             if (isUnitBased) {
-                this.openUnitModal({ id: item.id, name: item.name, price: parseFloat(item.price), unit: item.unit }, null);
+                this.openUnitModal({ id: item.id, name: item.name, price: parseFloat(item.price), unit: item.unit, tax_rate: item.tax_rate || 0.0 }, null);
             } else {
                 this.addToCartById(id);
             }
@@ -649,6 +736,18 @@ function posApp() {
         confirmUnitQty() {
             const qty = parseFloat(this.unitModal.inputQty);
             if (!qty || qty <= 0) return;
+            
+            if (this.features['inventory_management']) {
+                const stock = this.getStock(this.unitModal.item.id);
+                if (stock !== null) {
+                    const existingQty = this.unitModal.cartIndex !== null ? 0 : this.getCartQty(this.unitModal.item.id);
+                    if (existingQty + qty > stock) {
+                        alert(`Cannot add more. Only ${stock} units available.`);
+                        return;
+                    }
+                }
+            }
+
             if (this.unitModal.cartIndex !== null) {
                 // Edit existing cart line
                 this.cart = this.cart.map((c, i) =>
@@ -669,19 +768,81 @@ function posApp() {
                     id: item.id, 
                     name: item.name, 
                     price: parseFloat(item.price),
-                    unit: item.unit || null
+                    unit: item.unit || null,
+                    tax_rate: item.tax_rate || 0.0
                 });
             }
         },
 
         changeQty(index, delta) {
+            const currentItem = this.cart[index];
+            if (delta > 0 && this.features['inventory_management']) {
+                const stock = this.getStock(currentItem.id);
+                if (stock !== null && currentItem.qty + delta > stock) {
+                    alert(`Cannot increase quantity. Only ${stock} units available.`);
+                    return;
+                }
+            }
             this.cart = this.cart.map((item, idx) => 
                 idx === index ? { ...item, qty: Math.max(1, item.qty + delta) } : item
             );
         },
 
+        async openScannerModal() {
+            this.showScannerModal = true;
+            if (!window.Html5Qrcode) {
+                await new Promise((resolve, reject) => {
+                    const s = document.createElement('script');
+                    s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+                    s.onload = resolve;
+                    s.onerror = reject;
+                    document.head.appendChild(s);
+                });
+            }
+            await this.$nextTick();
+            try {
+                this._scanner = new Html5Qrcode('pos-qr-reader');
+                await this._scanner.start(
+                    { facingMode: 'environment' },
+                    { fps: 10, qrbox: { width: 250, height: 180 } },
+                    (decodedText) => {
+                        this._scanner.stop();
+                        this.showScannerModal = false;
+                        // Lookup SKU
+                        fetch(`/billing/item-by-sku/${encodeURIComponent(decodedText)}`)
+                            .then(r => {
+                                if (!r.ok) throw new Error("Not Found");
+                                return r.json();
+                            })
+                            .then(item => {
+                                // Find item in itemsData to get actual ID mapped in pos
+                                const posItem = this.itemsData.find(i => i.id === item.id);
+                                if (posItem) {
+                                    this.openItem(posItem.id);
+                                } else {
+                                    alert(`Item '${item.name}' found but not loaded in current menu.`);
+                                }
+                            })
+                            .catch(() => alert(`SKU '${decodedText}' not found or active.`));
+                    },
+                    () => {}
+                );
+            } catch (err) {
+                console.warn('Scanner start failed:', err);
+            }
+        },
+
+        closeScannerModal() {
+            if (this._scanner) {
+                this._scanner.stop().catch(() => {});
+                this._scanner = null;
+            }
+            this.showScannerModal = false;
+        },
+
+
         removeFromCart(index) {
-            this.cart.splice(index, 1);
+            this.cart = this.cart.filter((_, idx) => idx !== index);
             if (!this.hasCart) this.mobileCartOpen = false;
         },
 

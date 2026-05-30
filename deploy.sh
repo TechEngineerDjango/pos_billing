@@ -123,7 +123,7 @@ fi
 # ------------------------------------------------------------------------------
 if [ "$TESTS_PASSED" = true ]; then
     echo -e "\n${BLUE}To run the app permanently on your server, use PM2 or Systemd:${NC}"
-    echo -e "  ${YELLOW}pm2 start \"uvicorn main:app --host 0.0.0.0 --port 8000\" --name \"burger-pos\"${NC}"
+    echo -e "  ${YELLOW}pm2 start \"uvicorn app.main:app --host 0.0.0.0 --port 8000\" --name \"burger-pos\"${NC}"
     exit 0
 else
     exit 1
