@@ -38,6 +38,14 @@
                     <input type="text" name="address" value="{{ shop.address or '' }}"
                         class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
                 </div>
+
+                <!-- Google Pay UPI ID -->
+                <div class="md:col-span-2">
+                    <label class="text-sm font-medium text-gray-400 block mb-2">Google Pay UPI ID</label>
+                    <input type="text" name="upi_id" value="{{ shop.upi_id or '' }}" placeholder="e.g. yourname@okaxis"
+                        class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                    <p class="text-[10px] text-gray-500 mt-1">This will be used to generate dynamic QR codes in the POS when UPI is selected.</p>
+                </div>
                 <!-- Branding & Theme -->
                 <div class="md:col-span-2 pt-6 border-t border-white/10">
                     <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">

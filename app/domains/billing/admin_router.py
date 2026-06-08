@@ -574,6 +574,7 @@ async def update_settings(
     shop.price_card_bg = data.price_card_bg
     shop.header_text_color = data.header_text_color
     shop.cart_bg_color = data.cart_bg_color
+    shop.upi_id = data.upi_id
     
     logo_url = await save_uploaded_image(logo, max_size=(150, 150), prefix="logo")
     if logo_url:

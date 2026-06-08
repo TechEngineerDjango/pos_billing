@@ -326,6 +326,10 @@
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">
                         Customers</h1>
                 </div>
+                <button @click="showCustomerModal = true"
+                    class="bg-green-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-green-600 transition-all shadow-lg shadow-green-500/20">
+                    Add Customer
+                </button>
             </div>
 
             <div
@@ -347,9 +351,9 @@
                             </td>
                             <td class="p-6 text-right">
                                 <div class="flex justify-end gap-3">
-                                    <a href="/admin/customer/edit/{{ customer.id }}"
+                                    <a href="/admin/customer/edit/{{ customer.slug }}"
                                         class="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600">Modify</a>
-                                    <form action="/admin/customer/delete/{{ customer.id }}" method="POST" class="inline"
+                                    <form action="/admin/customer/delete/{{ customer.slug }}" method="POST" class="inline"
                                         onsubmit="return confirm('Forget this customer?')">
                                         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                                         <input type="hidden" name="shop_id" value="{{ shop.id }}">
@@ -609,14 +613,13 @@
 
         {% if features.inventory_management %}
         <!-- INVENTORY TAB -->
-        <div x-show="activeTab === 'inventory'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak
-            x-data="inventoryApp()">
+        <div x-show="activeTab === 'inventory'" x-data="inventoryApp()" @scan-success.window="handleScanResult($event.detail.result)" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-emerald-500 uppercase tracking-widest mb-1">Stock Control</p>
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Inventory</h1>
                 </div>
-                <button @click="openScannerModal()"
+                <button @click="$dispatch('open-scanner')"
                     class="flex items-center gap-2 bg-emerald-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -748,18 +751,8 @@
             </div>
 
             <!-- QR Scanner Modal (lazy-loaded) -->
-            <div x-show="showScannerModal"
-                class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" x-cloak x-transition>
-                <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 relative shadow-2xl border border-white/5">
-                    <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-4 dark:text-white">Scan SKU</h2>
-                    <p class="text-sm text-gray-500 mb-4">Point camera at item barcode or QR code</p>
-                    <div id="inv-qr-reader" class="rounded-2xl overflow-hidden"></div>
-                    <p x-show="scanResult" x-text="'Found: ' + scanResult" class="mt-4 text-emerald-500 font-bold text-sm"></p>
-                    <button @click="closeScannerModal()"
-                        class="mt-6 w-full bg-gray-100 dark:bg-white/5 text-gray-500 font-black uppercase tracking-widest py-4 rounded-2xl text-xs">Close</button>
-                </div>
-            </div>
-        </div>
+    <!-- Scanner Component Injection -->
+    {% include 'components/scanner.html' %}
         {% endif %}
 
     </main>
@@ -882,6 +875,40 @@
         </div>
     </div>
 
+    <!-- ADD CUSTOMER MODAL -->
+    <div x-show="showCustomerModal"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" x-cloak
+        x-transition>
+        <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-10 relative shadow-2xl border border-white/5"
+            @click.away="showCustomerModal = false">
+            <h2 class="text-3xl font-black italic tracking-tighter uppercase mb-6 dark:text-white">Add Customer
+            </h2>
+            <form action="/admin/customer/add" method="POST" class="space-y-6">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <input type="hidden" name="shop_id" value="{{ shop.id }}">
+                <div class="space-y-4">
+                    <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Name</label>
+                        <input type="text" name="name" required
+                            class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                    </div>
+                    <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Phone Number</label>
+                        <input type="tel" name="phone_number" required
+                            class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" @click="showCustomerModal = false"
+                        class="flex-1 bg-gray-100 dark:bg-white/5 text-gray-500 font-black uppercase tracking-widest py-4 rounded-2xl hover:bg-gray-200 dark:hover:bg-white/10 transition-all text-xs">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 bg-green-500 text-white font-black uppercase tracking-widest py-4 rounded-2xl hover:bg-green-600 transition-all text-xs shadow-lg shadow-green-500/20">Add
+                        Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </div>
 
 {% endblock %}
@@ -910,6 +937,7 @@
             activeTab: params.get('tab') || 'overview',
             showAddModal: false,
             showStaffModal: false,
+            showCustomerModal: false,
 
             switchTab(t) {
                 this.activeTab = t;
@@ -1077,9 +1105,6 @@
             restockItemId: null,
             restockItemName: '',
             restockCurrentStock: 0,
-            showScannerModal: false,
-            scanResult: '',
-            _scanner: null,
 
             openRestockModal(itemId, itemName, currentStock) {
                 this.restockItemId = itemId;
@@ -1088,54 +1113,17 @@
                 this.showRestockModal = true;
             },
 
-            async openScannerModal() {
-                this.scanResult = '';
-                this.showScannerModal = true;
-                // Lazy-load html5-qrcode only when scanner is opened
-                if (!window.Html5Qrcode) {
-                    await new Promise((resolve, reject) => {
-                        const s = document.createElement('script');
-                        s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
-                        s.onload = resolve;
-                        s.onerror = reject;
-                        document.head.appendChild(s);
-                    });
-                }
-                await this.$nextTick();
-                try {
-                    this._scanner = new Html5Qrcode('inv-qr-reader');
-                    await this._scanner.start(
-                        { facingMode: 'environment' },
-                        { fps: 10, qrbox: { width: 250, height: 180 } },
-                        (decodedText) => {
-                            // SKU scanned — look up item and open restock modal
-                            this.scanResult = decodedText;
-                            this._scanner.stop();
-                            this.showScannerModal = false;
-                            fetch(`/admin/inventory/by-sku/${encodeURIComponent(decodedText)}`)
-                                .then(r => r.json())
-                                .then(item => {
-                                    if (item.id) {
-                                        this.openRestockModal(item.id, item.name, item.stock_quantity ?? 0);
-                                    } else {
-                                        alert(`SKU '${decodedText}' not found in this shop`);
-                                    }
-                                })
-                                .catch(() => alert(`SKU '${decodedText}' not found`));
-                        },
-                        () => {}  // error callback (ignore per-frame misses)
-                    );
-                } catch (err) {
-                    console.warn('Scanner start failed:', err);
-                }
-            },
-
-            closeScannerModal() {
-                if (this._scanner) {
-                    this._scanner.stop().catch(() => {});
-                    this._scanner = null;
-                }
-                this.showScannerModal = false;
+            handleScanResult(sku) {
+                fetch(`/admin/inventory/by-sku/${encodeURIComponent(sku)}`)
+                    .then(r => r.json())
+                    .then(item => {
+                        if (item.id) {
+                            this.openRestockModal(item.id, item.name, item.stock_quantity ?? 0);
+                        } else {
+                            alert(`SKU '${sku}' not found in this shop`);
+                        }
+                    })
+                    .catch(() => alert(`SKU '${sku}' not found`));
             }
         };
     }

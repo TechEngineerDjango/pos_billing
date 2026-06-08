@@ -9,9 +9,26 @@ from typing import Optional
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.shared.models import User, LoginAttempt
+from app.shared.models import User, LoginAttempt, UserSession, SecurityLog
 from app.shared.schemas import PasswordChangeRequest
 from app.core.dependencies.csrf import verify_csrf
+
+def get_device_name(user_agent: str) -> str:
+    ua = user_agent.lower()
+    if "iphone" in ua or "ipad" in ua:
+        return "Apple iOS Device"
+    elif "android" in ua:
+        return "Android Device"
+    elif "chrome" in ua:
+        return "Google Chrome"
+    elif "firefox" in ua:
+        return "Mozilla Firefox"
+    elif "safari" in ua:
+        return "Apple Safari"
+    elif "edge" in ua:
+        return "Microsoft Edge"
+    else:
+        return "Desktop Web Browser"
 
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -106,6 +123,15 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
             wait_time = int(
                 (timedelta(minutes=15) - (now - attempt_record.last_attempt.replace(tzinfo=timezone.utc))).total_seconds() / 60
             )
+            # Log critical rate limit breach
+            lockout_log = SecurityLog(
+                event_type="RATE_LIMIT_EXCEEDED",
+                severity="critical",
+                ip_address=client_ip,
+                details=f"IP locked out due to multiple failed login attempts. Attempted username: {form_data.username}"
+            )
+            db.add(lockout_log)
+            await db.commit()
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Too many failed login attempts. Please wait {wait_time} minutes.",
@@ -130,6 +156,16 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
         else:
             attempt_record.attempt_count += 1
             attempt_record.last_attempt = now
+        
+        # Log failed login attempt
+        failed_log = SecurityLog(
+            event_type="LOGIN_FAILED",
+            severity="warning",
+            ip_address=client_ip,
+            details=f"Failed login attempt for username: {form_data.username}",
+            user_id=user.id if user else None
+        )
+        db.add(failed_log)
         await db.commit()
 
         raise HTTPException(
@@ -138,13 +174,27 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Extract user attributes to prevent greenlet/lazy-load exceptions during DB transactions
+    user_id = user.id
+    username = user.username
+    user_role = user.role
+
     # Clear failed attempts on success
     if attempt_record:
         await db.delete(attempt_record)
-        await db.commit()
 
     # Check if user is active
     if hasattr(user, 'is_active') and not user.is_active:
+        # Log deactivated access attempt
+        deactivated_log = SecurityLog(
+            event_type="DEACTIVATED_ACCESS_ATTEMPT",
+            severity="warning",
+            ip_address=client_ip,
+            details=f"Deactivated user {username} attempted to access account.",
+            user_id=user_id
+        )
+        db.add(deactivated_log)
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User account is deactivated",
@@ -152,13 +202,52 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
     
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username, "role": user.role}, expires_delta=access_token_expires
+        data={"sub": username, "role": user_role}, expires_delta=access_token_expires
     )
     
+    # Record Successful Session and Security Log
+    user_agent_str = request.headers.get("user-agent", "Unknown Device")
+    device_name = get_device_name(user_agent_str)
+
+    stmt = select(UserSession).where(
+        UserSession.user_id == user_id,
+        UserSession.ip_address == client_ip,
+        UserSession.user_agent == device_name,
+        UserSession.is_active == True
+    )
+    session_res = await db.execute(stmt)
+    existing_session = session_res.scalars().first()
+
+    if existing_session:
+        existing_session.login_count += 1
+        existing_session.last_activity = now
+        existing_session.session_token = access_token[-50:]
+    else:
+        new_session = UserSession(
+            user_id=user_id,
+            session_token=access_token[-50:],
+            ip_address=client_ip,
+            user_agent=device_name,
+            login_count=1,
+            is_active=True
+        )
+        db.add(new_session)
+
+    # Log successful login
+    success_log = SecurityLog(
+        event_type="SUCCESSFUL_LOGIN",
+        severity="info",
+        ip_address=client_ip,
+        details=f"User {username} logged in successfully from {device_name}",
+        user_id=user_id
+    )
+    db.add(success_log)
+    await db.commit()
+    
     # Determine redirect URL based on role
-    if user.role == "superadmin":
+    if user_role == "superadmin":
         redirect_url = "/superadmin/"
-    elif user.role == "owner":
+    elif user_role == "owner":
         redirect_url = "/admin/"
     else:  # cashier
         redirect_url = "/billing/"
@@ -177,9 +266,36 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
     return redirect_response
 
 @router.api_route("/logout", methods=["GET", "POST"])
-async def logout():
+async def logout(request: Request, db: AsyncSession = Depends(get_db)):
+    # Clean up database active session
+    try:
+        token = _extract_token(request)
+        if token:
+            suffix = token[-50:]
+            user = await _resolve_user(token, db)
+            if user:
+                stmt = select(UserSession).where(
+                    UserSession.user_id == user.id,
+                    UserSession.session_token == suffix,
+                    UserSession.is_active == True
+                )
+                session_res = await db.execute(stmt)
+                active_sess = session_res.scalars().first()
+                if active_sess:
+                    active_sess.is_active = False
+                
+                logout_log = SecurityLog(
+                    event_type="SUCCESSFUL_LOGOUT",
+                    ip_address=request.client.host if request.client else None,
+                    details=f"User {user.username} logged out.",
+                    user_id=user.id
+                )
+                db.add(logout_log)
+                await db.commit()
+    except Exception as e:
+        pass
+
     response = RedirectResponse(url="/auth/login", status_code=303)
-    # Explicitly clear the cookie on the response being returned
     response.delete_cookie(key="access_token", path="/")
     return response
 

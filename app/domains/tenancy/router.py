@@ -13,7 +13,7 @@ from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.shared.models import User, Shop, Subscription, Feature, PlanFeature
+from app.shared.models import User, Shop, Subscription, Feature, PlanFeature, UserSession, SecurityLog
 from app.domains.auth.router import get_current_user, get_password_hash
 from app.shared.schemas import ShopCreate, SubscriptionCreate, UserCreate
 from app.infrastructure.integrations.image import save_uploaded_image
@@ -77,12 +77,41 @@ async def superadmin_dashboard(
     features_res = await db.execute(select(Feature).order_by(Feature.category, Feature.name))
     all_features = features_res.scalars().all()
 
+    # Fetch active user sessions grouped by user
+    sessions_res = await db.execute(
+        select(UserSession)
+        .where(UserSession.is_active == True)
+        .options(selectinload(UserSession.user))
+        .order_by(UserSession.last_activity.desc())
+    )
+    active_sessions = sessions_res.scalars().all()
+    sessions_grouped = {}
+    active_users_count = 0
+    for sess in active_sessions:
+        if sess.user_id not in sessions_grouped:
+            sessions_grouped[sess.user_id] = []
+            active_users_count += 1
+        sessions_grouped[sess.user_id].append(sess)
+
+    # Fetch recent security logs
+    logs_res = await db.execute(
+        select(SecurityLog)
+        .options(selectinload(SecurityLog.user))
+        .order_by(SecurityLog.timestamp.desc())
+        .limit(100)
+    )
+    security_logs = logs_res.scalars().all()
+
     return templates.TemplateResponse(request, "superadmin_dashboard.html", {
         "user": current_user,
         "shops": shops,
         "users": all_users,
         "subscriptions": subscriptions,
-        "all_features": all_features,          # DB-driven feature catalog
+        "all_features": all_features,
+        "active_sessions": active_sessions,
+        "sessions_grouped": sessions_grouped,
+        "active_users_count": active_users_count,
+        "security_logs": security_logs,
         "active_page": "overview"
     })
 
@@ -147,6 +176,7 @@ async def update_shop(
     shop_id: int,
     logo: UploadFile = File(None),
     menu_icon: UploadFile = File(None),
+    favicon: UploadFile = File(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_superadmin),
     data: ShopCreate = Depends(ShopCreate.as_form)
@@ -187,6 +217,7 @@ async def update_shop(
     if data.inc_dec_button_color: shop.inc_dec_button_color = data.inc_dec_button_color
     if data.cash_upi_option_color: shop.cash_upi_option_color = data.cash_upi_option_color
     if data.cash_upi_font_color: shop.cash_upi_font_color = data.cash_upi_font_color
+    if data.upi_id is not None: shop.upi_id = data.upi_id
     
     if data.subscription_id:
         shop.subscription_id = data.subscription_id
@@ -200,6 +231,11 @@ async def update_shop(
     icon_url = await save_uploaded_image(menu_icon, max_size=(100, 100), prefix="menu_icon")
     if icon_url:
         shop.menu_icon_url = icon_url
+        
+    # Handle favicon upload
+    fav_url = await save_uploaded_image(favicon, max_size=(64, 64), prefix="favicon")
+    if fav_url:
+        shop.favicon_url = fav_url
     
     await db.commit()
     return RedirectResponse(url=f"/superadmin/?tab=design&shop_id={shop_id}", status_code=303)

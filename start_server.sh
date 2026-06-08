@@ -20,8 +20,18 @@ if lsof -Pi :8000 -sTCP:LISTEN -t >/dev/null 2>&1; then
 fi
 
 echo "📦 Starting FastAPI server with Uvicorn..."
-echo "   URL: http://localhost:8000"
+echo "   💻 Local URL: http://localhost:8000"
+
+# Fetch local IP (macOS/Linux)
+LOCAL_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || hostname -I 2>/dev/null | awk '{print $1}')
+if [ ! -z "$LOCAL_IP" ]; then
+    echo "   📱 Phone URL: https://${LOCAL_IP}:8000"
+else
+    echo "   📱 Phone URL: https://<your-computer-ip>:8000"
+fi
+echo ""
+echo "Note: Your browser may warn you about an 'unsafe' connection because this is a local offline certificate. You can safely click 'Advanced -> Proceed' to test the camera."
 echo ""
 
-# Start the server using the new app package
-python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Start the server using the new app package with local SSL
+python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --ssl-keyfile key.pem --ssl-certfile cert.pem

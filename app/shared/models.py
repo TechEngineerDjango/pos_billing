@@ -125,6 +125,7 @@ class Shop(Base):
     theme = Column(String, default="dark")  # dark, light
     printer_ip = Column(String, nullable=True)
     menu_icon_url = Column(String, nullable=True) # New configurable menu icon
+    favicon_url = Column(String, nullable=True) # Website Favicon
 
     # Branding / Customization
     font_color = Column(String, default="#ffffff")
@@ -166,9 +167,13 @@ class Shop(Base):
     inc_dec_button_color = Column(String, default="#f97316")
     cash_upi_option_color = Column(String, default="#1e293b")
     cash_upi_font_color = Column(String, default="#ffffff")
+    upi_id = Column(String, nullable=True)  # Added for UPI QR code
     
     subscription_id = Column(Integer, ForeignKey("subscriptions.id"), nullable=True)
     subscription = relationship("Subscription", back_populates="shops")
+    
+    billing_start_date = Column(DateTime(timezone=True), nullable=True)
+    next_billing_date = Column(DateTime(timezone=True), nullable=True)
     
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
@@ -179,6 +184,7 @@ class Shop(Base):
     bills = relationship("Bill", back_populates="shop")
     customers = relationship("Customer", back_populates="shop")
     feature_overrides = relationship("TenantFeatureOverride", back_populates="shop", cascade="all, delete-orphan")
+    invoices = relationship("ShopInvoice", back_populates="shop", cascade="all, delete-orphan")
 
     def to_dict(self):
         """Convert object to dictionary for JSON serialization."""
@@ -214,8 +220,57 @@ class Shop(Base):
             "inc_dec_button_color": self.inc_dec_button_color,
             "cash_upi_option_color": self.cash_upi_option_color,
             "cash_upi_font_color": self.cash_upi_font_color,
+            "upi_id": self.upi_id,
             "subscription_id": self.subscription_id,
             "is_active": self.is_active,
+            "subscription_name": self.subscription.name if self.subscription else None,
+            "billing_start_date": self.billing_start_date.isoformat() if self.billing_start_date else None,
+            "next_billing_date": self.next_billing_date.isoformat() if self.next_billing_date else None
+        }
+
+# ============================================================================
+# SHOP INVOICE (Platform -> Shop Fleet Billing)
+# ============================================================================
+
+class ShopInvoice(Base):
+    """Platform bill issued to a shop for their subscription."""
+    __tablename__ = "shop_invoices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    invoice_number = Column(String(36), unique=True, index=True, default=lambda: f"INV-{uuid.uuid4().hex[:8].upper()}")
+    shop_id = Column(Integer, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False)
+    subscription_id = Column(Integer, ForeignKey("subscriptions.id", ondelete="SET NULL"), nullable=True)
+    
+    amount = Column(Numeric(10, 2), nullable=False)
+    billing_cycle = Column(String(16), default="monthly")  # 'monthly', 'annual'
+    
+    period_start = Column(DateTime(timezone=True), nullable=False)
+    period_end = Column(DateTime(timezone=True), nullable=False)
+    due_date = Column(DateTime(timezone=True), nullable=False)
+    
+    status = Column(String(16), default="Pending") # Pending, Paid, Overdue, Cancelled
+    paid_at = Column(DateTime(timezone=True), nullable=True)
+    
+    created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
+    
+    shop = relationship("Shop", back_populates="invoices")
+    subscription = relationship("Subscription")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "invoice_number": self.invoice_number,
+            "shop_id": self.shop_id,
+            "subscription_id": self.subscription_id,
+            "amount": float(self.amount),
+            "billing_cycle": self.billing_cycle,
+            "period_start": self.period_start.isoformat() if self.period_start else None,
+            "period_end": self.period_end.isoformat() if self.period_end else None,
+            "due_date": self.due_date.isoformat() if self.due_date else None,
+            "status": self.status,
+            "paid_at": self.paid_at.isoformat() if self.paid_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "shop_name": self.shop.name if self.shop else None,
             "subscription_name": self.subscription.name if self.subscription else None
         }
 
@@ -350,6 +405,7 @@ class Bill(Base):
     tax_amount = Column(Numeric(10, 2), nullable=True)       # Added for tax module
     total_amount = Column(Numeric(10, 2), nullable=False)
     payment_method = Column(String, default="Cash")  # Cash, UPI
+    status = Column(String, default="Completed")     # Completed, Held, Cancelled
     timestamp = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
     
     # CRITICAL: Store exact price/name at moment of sale
@@ -366,6 +422,7 @@ class Bill(Base):
     def to_dict(self):
         return {
             "id": self.id,
+            "slug": self.slug,
             "bill_number": self.bill_number,
             "total_amount": self.total_amount,
             "payment_method": self.payment_method,
@@ -452,3 +509,84 @@ class NotificationLog(Base):
     message = Column(String, nullable=False)
     status = Column(String(16), nullable=False, default="sent")     # sent | failed | pending
     sent_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
+
+
+# ============================================================================
+# ACTIVE USER SESSIONS & SECURITY LOGS
+# ============================================================================
+
+class UserSession(Base):
+    """Tracks active user login sessions and device instances."""
+    __tablename__ = "user_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String(36), unique=True, index=True, default=lambda: uuid.uuid4().hex)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    session_token = Column(String, unique=True, index=True, nullable=False)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    login_time = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
+    last_activity = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
+    login_count = Column(Integer, default=1)
+    is_active = Column(Boolean, default=True)
+
+    user = relationship("User")
+
+    @property
+    def active_duration(self) -> str:
+        if not self.login_time:
+            return "0s"
+        now = dt.datetime.now(timezone.utc)
+        diff = now - self.login_time.replace(tzinfo=timezone.utc)
+        seconds = int(diff.total_seconds())
+        if seconds < 60:
+            return f"{seconds}s"
+        minutes = seconds // 60
+        if minutes < 60:
+            return f"{minutes}m"
+        hours = minutes // 60
+        days = hours // 24
+        if days > 0:
+            return f"{days}d {hours % 24}h"
+        return f"{hours}h {minutes % 60}m"
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "slug": self.slug,
+            "user_id": self.user_id,
+            "ip_address": self.ip_address,
+            "user_agent": self.user_agent,
+            "login_time": self.login_time.isoformat() if self.login_time else None,
+            "last_activity": self.last_activity.isoformat() if self.last_activity else None,
+            "login_count": self.login_count,
+            "is_active": self.is_active,
+            "active_duration": self.active_duration
+        }
+
+
+class SecurityLog(Base):
+    """Tracks suspicious events, failed logins, and potential security intrusions."""
+    __tablename__ = "security_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String(64), nullable=False)      # e.g., 'CSRF_FAILURE', 'LOGIN_FAILED', 'SQL_INJECTION_SUSPICION', 'RATE_LIMIT_EXCEEDED'
+    severity = Column(String(16), nullable=False, default="info")  # info, warning, critical
+    ip_address = Column(String, nullable=True)
+    details = Column(String, nullable=True)               # e.g., JSON or formatted message
+    timestamp = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    user = relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "event_type": self.event_type,
+            "severity": self.severity,
+            "ip_address": self.ip_address,
+            "details": self.details,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None,
+            "user_id": self.user_id,
+            "username": self.user.username if self.user else None
+        }

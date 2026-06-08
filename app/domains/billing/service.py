@@ -136,14 +136,16 @@ class BillingService:
                 timestamp=dt.datetime.now(timezone.utc),
                 shop_id=shop.id,
                 customer_id=customer_id,
+                status=bill_in.status,
             )
             self.db.add(new_bill)
             await self.db.flush()
 
-            # Deduct stock and create audit records
-            for menu_item, qty_sold in stock_updates:
-                if menu_item.stock_quantity is not None:
-                    menu_item.stock_quantity -= qty_sold
+            # Deduct stock and create audit records ONLY if Completed
+            if bill_in.status == "Completed":
+                for menu_item, qty_sold in stock_updates:
+                    if menu_item.stock_quantity is not None:
+                        menu_item.stock_quantity -= qty_sold
                     self.db.add(StockMovement(
                         menu_item_id=menu_item.id,
                         shop_id=shop.id,
@@ -189,4 +191,94 @@ class BillingService:
             "bill_data": bill_data,
             "shop_data": shop_data,
             "printer_ip": printer_ip
+        }
+
+    async def update_bill(self, bill_slug: str, bill_in: BillCreate, current_user: User) -> dict:
+        if not bill_in.items:
+            raise HTTPException(status_code=400, detail="Cart is empty")
+
+        shop_id = current_user.shop_id
+        if not shop_id:
+            raise HTTPException(status_code=400, detail="No shop assigned")
+
+        result = await self.db.execute(select(Bill).where(Bill.slug == bill_slug, Bill.shop_id == shop_id))
+        bill = result.scalars().first()
+
+        if not bill:
+            raise HTTPException(status_code=404, detail="Bill not found")
+
+        if bill.status == "Completed":
+            raise HTTPException(status_code=400, detail="Cannot edit a completed bill")
+
+        subtotal_amount = Decimal("0.00")
+        tax_amount = Decimal("0.00")
+        total_amount = Decimal("0.00")
+        items_snapshot = []
+        stock_updates: list[tuple] = []
+
+        for cart_item in bill_in.items:
+            result = await self.db.execute(select(MenuItem).where(MenuItem.id == cart_item.id, MenuItem.shop_id == shop_id, MenuItem.is_active == True))
+            menu_item = result.scalars().first()
+
+            if not menu_item:
+                raise HTTPException(status_code=400, detail=f"Item ID {cart_item.id} not found")
+
+            if bill_in.status == "Completed" and menu_item.stock_quantity is not None and cart_item.qty > menu_item.stock_quantity:
+                raise HTTPException(status_code=400, detail=f"Insufficient stock for '{menu_item.name}'")
+
+            TWO_PLACES = Decimal("0.01")
+            line_subtotal = (menu_item.price * Decimal(str(cart_item.qty))).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+            tax_rate = menu_item.tax_rate if menu_item.tax_rate is not None else Decimal("0.00")
+            line_tax = (line_subtotal * (tax_rate / Decimal("100.00"))).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+            line_total = (line_subtotal + line_tax).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+            
+            subtotal_amount += line_subtotal
+            tax_amount += line_tax
+            total_amount += line_total
+
+            items_snapshot.append({
+                "id": menu_item.id, "name": menu_item.name, "sku": menu_item.sku,
+                "category": menu_item.category, "price": float(menu_item.price), "unit": menu_item.unit,
+                "qty": cart_item.qty, "tax_rate": float(tax_rate),
+                "line_subtotal": float(line_subtotal), "line_tax": float(line_tax), "line_total": float(line_total),
+            })
+            stock_updates.append((menu_item, cart_item.qty))
+
+        try:
+            bill.subtotal_amount = subtotal_amount
+            bill.tax_amount = tax_amount
+            bill.total_amount = total_amount
+            bill.payment_method = bill_in.payment_method
+            bill.status = bill_in.status
+            bill.items_snapshot = items_snapshot
+            bill.timestamp = dt.datetime.now(timezone.utc)
+
+            if bill_in.status == "Completed":
+                for menu_item, qty_sold in stock_updates:
+                    if menu_item.stock_quantity is not None:
+                        menu_item.stock_quantity -= qty_sold
+                        self.db.add(StockMovement(
+                            menu_item_id=menu_item.id, shop_id=shop_id, change_qty=-qty_sold,
+                            reason="sale", note=f"Bill #{bill.bill_number} (Resumed)", created_by_user_id=current_user.id,
+                        ))
+
+            await self.db.commit()
+            await self.db.refresh(bill)
+        except Exception:
+            await self.db.rollback()
+            raise HTTPException(status_code=500, detail="Failed to update bill")
+
+        shop_res = await self.db.execute(select(Shop).where(Shop.id == shop_id))
+        shop = shop_res.scalars().first()
+        shop_data = {"name": shop.name if shop else "", "address": shop.address if shop else ""}
+
+        bill_data = {
+            "bill_number": bill.bill_number, "items_snapshot": items_snapshot,
+            "subtotal_amount": float(subtotal_amount), "tax_amount": float(tax_amount), "total_amount": float(total_amount),
+            "date": bill.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+        return {
+            "status": "success", "bill_number": bill.bill_number, "bill_id": bill.slug, "total": float(total_amount),
+            "message": "Bill updated successfully", "bill_data": bill_data, "shop_data": shop_data, "printer_ip": shop.printer_ip if shop else None
         }

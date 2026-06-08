@@ -14,6 +14,13 @@
                 <span class="font-medium hidden lg:block">Shop Fleet</span>
             </button>
 
+            <button id="nav-billing-tab" @click="switchTab('billing')"
+                :class="{'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30': activeTab === 'billing', 'text-gray-400 hover:bg-white/5': activeTab !== 'billing'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center text-lg">🧾</div>
+                <span class="font-medium hidden lg:block">Fleet Billing</span>
+            </button>
+
             <button @click="switchTab('design')"
                 :class="{'bg-purple-600 text-white shadow-lg shadow-purple-600/30': activeTab === 'design', 'text-gray-400 hover:bg-white/5': activeTab !== 'design'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
@@ -48,6 +55,13 @@
                 <div class="w-6 h-6 flex items-center justify-center text-lg">👥</div>
                 <span class="font-medium hidden lg:block">Personnel</span>
             </button>
+
+            <button id="nav-security-tab" @click="switchTab('security')"
+                :class="{'bg-red-600 text-white shadow-lg shadow-red-600/30': activeTab === 'security', 'text-gray-400 hover:bg-white/5': activeTab !== 'security'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center text-lg">🛡️</div>
+                <span class="font-medium hidden lg:block">Security Monitor</span>
+            </button>
         </div>
 
         <div class="px-3">
@@ -71,6 +85,11 @@
             :class="{'text-blue-500 bg-white/10': activeTab === 'fleet', 'text-gray-400': activeTab !== 'fleet'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
             <span class="text-2xl">🏪</span>
+        </button>
+        <button @click="switchTab('billing')"
+            :class="{'text-emerald-500 bg-white/10': activeTab === 'billing', 'text-gray-400': activeTab !== 'billing'}"
+            class="p-3 rounded-xl transition-all flex flex-col items-center">
+            <span class="text-2xl">🧾</span>
         </button>
         <button @click="switchTab('design')"
             :class="{'text-purple-500 bg-white/10': activeTab === 'design', 'text-gray-400': activeTab !== 'design'}"
@@ -97,9 +116,182 @@
             class="p-3 rounded-xl transition-all flex flex-col items-center">
             <span class="text-2xl">👥</span>
         </button>
+        <button @click="switchTab('security')"
+            :class="{'text-red-500 bg-white/10': activeTab === 'security', 'text-gray-400': activeTab !== 'security'}"
+            class="p-3 rounded-xl transition-all flex flex-col items-center">
+            <span class="text-2xl animate-pulse">🛡️</span>
+        </button>
     </div>
 
     <main class="flex-1 relative overflow-hidden flex flex-col">
+
+        <!-- FLEET BILLING TAB -->
+        <div x-show="activeTab === 'billing'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+            <div class="flex justify-between items-center w-full mb-8">
+                <div>
+                    <h1 class="text-4xl font-black text-white mb-2 italic tracking-tighter">FLEET BILLING</h1>
+                    <p class="text-gray-400">Automated platform invoices for shop subscriptions.</p>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/50 border border-white/10 rounded-[2rem] p-6">
+                <!-- Filters -->
+                <div class="flex flex-col md:flex-row gap-4 mb-6">
+                    <input type="text" x-model="billingFilters.search" @keyup.enter="fetchInvoices(1)" aria-label="Search Shops or Clients" placeholder="Search Shop or Client Name..." class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-white font-mono focus:border-emerald-500 outline-none w-full md:w-96">
+                    <button @click="fetchInvoices(1)" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl font-bold uppercase tracking-widest transition-all focus:ring-2 focus:ring-emerald-400">Search</button>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto rounded-xl border border-white/5" role="region" aria-label="Fleet Billing Status Table">
+                    <table class="w-full text-left text-sm text-gray-400">
+                        <thead class="bg-white/5 text-xs uppercase text-gray-300 font-black tracking-widest">
+                            <tr>
+                                <th scope="col" class="px-6 py-4">Shop Details</th>
+                                <th scope="col" class="px-6 py-4">Subscription</th>
+                                <th scope="col" class="px-6 py-4">Next Bill Date</th>
+                                <th scope="col" class="px-6 py-4">Payment Status</th>
+                                <th scope="col" class="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-if="billingData.items.length === 0">
+                                <tr><td colspan="5" class="px-6 py-8 text-center" role="alert">No shops found.</td></tr>
+                            </template>
+                            <template x-for="shop in billingData.items" :key="shop.shop_id">
+                                <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                    <td class="px-6 py-4">
+                                        <div class="font-bold text-white text-base" x-text="shop.shop_name"></div>
+                                        <div class="text-xs text-gray-500 font-mono" x-text="'Owner: ' + shop.client_name"></div>
+                                        <div class="text-[10px] text-gray-600 font-mono mt-1" x-text="shop.contact ? 'Contact: ' + shop.contact : 'No contact saved'"></div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="font-bold text-emerald-400" x-text="shop.subscription_name || 'No Plan'"></div>
+                                        <div class="text-xs text-gray-500" x-text="'₹' + shop.price + ' / ' + shop.billing_cycle"></div>
+                                    </td>
+                                    <td class="px-6 py-4 font-mono">
+                                        <span x-text="shop.next_billing_date ? new Date(shop.next_billing_date).toLocaleDateString() : 'N/A'"></span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="px-2 py-1 rounded text-[10px] font-black uppercase tracking-wider"
+                                              :class="{
+                                                  'bg-green-500/20 text-green-500': shop.payment_status === 'Up to date' || shop.payment_status === 'Paid',
+                                                  'bg-yellow-500/20 text-yellow-500': shop.payment_status === 'Pending',
+                                                  'bg-red-500/20 text-red-500': shop.payment_status === 'Overdue',
+                                                  'bg-gray-500/20 text-gray-500': shop.payment_status === 'Cancelled'
+                                              }" x-text="shop.payment_status"></span>
+                                    </td>
+                                    <td class="px-6 py-4 flex flex-wrap gap-2 justify-end">
+                                        <template x-if="shop.pending_invoice_id">
+                                            <div class="flex gap-2">
+                                                <button @click="viewInvoice(shop.pending_invoice_id)" aria-label="View Invoice" class="bg-purple-600/20 hover:bg-purple-600 text-purple-400 hover:text-white px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all focus:ring-2 focus:ring-purple-400">View Invoice</button>
+                                                <button @click="markInvoicePaid(shop.pending_invoice_id)" aria-label="Mark Paid" class="bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all focus:ring-2 focus:ring-blue-400">Pay</button>
+                                                <button @click="sendWhatsAppInvoice(shop.pending_invoice_id)" aria-label="Send via WhatsApp" class="bg-green-600/20 hover:bg-green-600 text-green-400 hover:text-white px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all focus:ring-2 focus:ring-green-400">WhatsApp</button>
+                                            </div>
+                                        </template>
+                                        <template x-if="!shop.pending_invoice_id">
+                                            <span class="text-xs text-gray-500 italic">No pending bills</span>
+                                        </template>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex justify-between items-center mt-6">
+                    <div class="text-sm text-gray-500">
+                        Showing page <span x-text="billingData.page"></span> of <span x-text="billingData.pages"></span> (Total: <span x-text="billingData.total"></span>)
+                    </div>
+                    <div class="flex gap-2">
+                        <button @click="fetchInvoices(billingData.page - 1)" :disabled="billingData.page <= 1" class="bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50 transition-all">Prev</button>
+                        <button @click="fetchInvoices(billingData.page + 1)" :disabled="billingData.page >= billingData.pages" class="bg-white/5 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-bold disabled:opacity-50 transition-all">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- INVOICE MODAL -->
+        <div x-show="showInvoiceModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" x-cloak
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            role="dialog" aria-modal="true" aria-labelledby="invoice-modal-title">
+            <div class="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" @click.away="showInvoiceModal = false">
+                <template x-if="currentInvoice">
+                    <div class="p-8 text-gray-800">
+                        <!-- Header -->
+                        <div class="flex justify-between items-start border-b border-gray-200 pb-6 mb-6">
+                            <div>
+                                <h2 class="text-3xl font-black text-gray-900 tracking-tighter" id="invoice-modal-title">INVOICE</h2>
+                                <p class="text-gray-500 font-mono mt-1" x-text="currentInvoice.invoice_number"></p>
+                            </div>
+                            <div class="text-right">
+                                <h3 class="font-bold text-xl text-gray-800">BurgerPOS Platform</h3>
+                                <p class="text-sm text-gray-500">platform@burgerpos.com</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Details -->
+                        <div class="flex justify-between mb-8">
+                            <div>
+                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Billed To</p>
+                                <p class="font-bold text-lg text-gray-900" x-text="currentInvoice.shop_name"></p>
+                                <p class="text-sm text-gray-600" x-text="'Subscription: ' + currentInvoice.subscription_name"></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Invoice Details</p>
+                                <p class="text-sm text-gray-600"><span class="font-bold">Status:</span> 
+                                    <span class="font-bold" :class="currentInvoice.status === 'Paid' ? 'text-green-600' : 'text-yellow-600'" x-text="currentInvoice.status"></span>
+                                </p>
+                                <p class="text-sm text-gray-600"><span class="font-bold">Date:</span> <span x-text="new Date(currentInvoice.created_at).toLocaleDateString()"></span></p>
+                                <p class="text-sm text-gray-600"><span class="font-bold">Due Date:</span> <span class="text-red-600" x-text="new Date(currentInvoice.due_date).toLocaleDateString()"></span></p>
+                            </div>
+                        </div>
+
+                        <!-- Table -->
+                        <table class="w-full mb-8">
+                            <thead class="border-b border-gray-200 text-left">
+                                <tr>
+                                    <th class="py-2 text-sm font-bold text-gray-600 uppercase">Description</th>
+                                    <th class="py-2 text-sm font-bold text-gray-600 uppercase text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="border-b border-gray-200">
+                                <tr>
+                                    <td class="py-4">
+                                        <p class="font-bold text-gray-800" x-text="'Software Subscription - ' + currentInvoice.subscription_name"></p>
+                                        <p class="text-xs text-gray-500" x-text="'Billing Cycle: ' + currentInvoice.billing_cycle.toUpperCase()"></p>
+                                        <p class="text-xs text-gray-500" x-text="'Period: ' + new Date(currentInvoice.period_start).toLocaleDateString() + ' to ' + new Date(currentInvoice.period_end).toLocaleDateString()"></p>
+                                    </td>
+                                    <td class="py-4 text-right font-mono font-bold text-gray-900" x-text="'₹' + currentInvoice.amount"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Total -->
+                        <div class="flex justify-end mb-8">
+                            <div class="w-1/2">
+                                <div class="flex justify-between py-2 font-black text-xl text-gray-900 border-t-2 border-gray-900">
+                                    <span>Total Due</span>
+                                    <span x-text="'₹' + currentInvoice.amount"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex justify-end gap-4 mt-8">
+                            <button @click="showInvoiceModal = false" class="px-6 py-2 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors focus:ring-2 focus:ring-gray-300">Close</button>
+                            <button x-show="currentInvoice.status !== 'Paid'" @click="markInvoicePaid(currentInvoice.id); showInvoiceModal = false;" class="px-6 py-2 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/30 focus:ring-2 focus:ring-blue-400">Mark as Paid</button>
+                            <button @click="sendWhatsAppInvoice(currentInvoice.id)" class="px-6 py-2 rounded-xl font-bold text-white bg-green-600 hover:bg-green-700 transition-colors shadow-lg shadow-green-600/30 focus:ring-2 focus:ring-green-400">Send WhatsApp</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
 
         <!-- FLEET TAB -->
         <div x-show="activeTab === 'fleet'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
@@ -240,6 +432,36 @@
                     <form @submit.prevent="saveDesign" class="space-y-10">
                         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
+                        <!-- SECTION: General Info -->
+                        <div class="space-y-4">
+                            <h3 class="text-sm font-black uppercase tracking-widest text-white border-b border-white/10 pb-2">General Info</h3>
+                            
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Shop Name</label>
+                                <input type="text" x-model="designConfig.name" required
+                                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-purple-500 outline-none transition-all">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Contact Number</label>
+                                <input type="text" x-model="designConfig.contact" placeholder="e.g. +91 9876543210"
+                                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-purple-500 outline-none transition-all">
+                                <p class="text-[10px] text-gray-500 mt-1">Required for WhatsApp invoice delivery.</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Address</label>
+                                <textarea x-model="designConfig.address" rows="2"
+                                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-purple-500 outline-none transition-all"></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">Google Pay UPI ID</label>
+                                <input type="text" x-model="designConfig.upi_id" placeholder="e.g. name@okaxis"
+                                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white font-mono focus:border-purple-500 outline-none transition-all">
+                            </div>
+                        </div>
+
                         <!-- Section: Typography & Global -->
                         <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
                             <h3
@@ -275,6 +497,12 @@
                                     <label class="text-xs font-black text-gray-500 uppercase block mb-3">Menu Icon
                                         (Upload)</label>
                                     <input type="file" x-ref="menuIconInput"
+                                        class="text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-blue-600 file:text-white cursor-pointer">
+                                </div>
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-3">Favicon
+                                        (Upload)</label>
+                                    <input type="file" x-ref="faviconInput"
                                         class="text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-blue-600 file:text-white cursor-pointer">
                                 </div>
                             </div>
@@ -936,6 +1164,171 @@
         </div>
 
 
+        <!-- SECURITY MONITOR TAB -->
+        <div x-show="activeTab === 'security'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
+                        <span>🛡️ SECURITY MONITOR</span>
+                        <span class="flex h-3.5 w-3.5 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500"></span>
+                        </span>
+                    </h1>
+                    <p class="text-gray-400 mt-2">Real-time platform access telemetry, active device sessions, and intrusion detection logs.</p>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <div class="bg-slate-900/50 border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl"></div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Logged In Users</p>
+                    <p class="text-4xl font-black text-white tracking-tighter">{{ active_users_count }}</p>
+                </div>
+                <div class="bg-slate-900/50 border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl"></div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Active Instances</p>
+                    <p class="text-4xl font-black text-purple-400 tracking-tighter">{{ active_sessions|length }}</p>
+                </div>
+                <div class="bg-slate-900/50 border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl"></div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Failed Logins</p>
+                    <p class="text-4xl font-black text-yellow-500 tracking-tighter">
+                        {{ security_logs | selectattr('event_type', 'equalto', 'LOGIN_FAILED') | list | length }}
+                    </p>
+                </div>
+                <div class="bg-slate-900/50 border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
+                    <div class="absolute inset-0 bg-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl"></div>
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">CSRF Blocked</p>
+                    <p class="text-4xl font-black text-red-500 tracking-tighter">
+                        {{ security_logs | selectattr('event_type', 'equalto', 'CSRF_FAILURE') | list | length }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Two Column Layout: Sessions on Left, Security Audit Feed on Right -->
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                
+                <!-- Left Column: Active User Session Instances -->
+                <div class="bg-slate-900/40 border border-white/10 rounded-[2rem] p-6 lg:p-8">
+                    <h2 class="text-2xl font-black text-white uppercase italic tracking-tight mb-6">User Device Instances</h2>
+                    
+                    {% if active_sessions %}
+                    <div class="space-y-4">
+                        {% for u_id, s_list in sessions_grouped.items() %}
+                        {% set active_user = s_list[0].user %}
+                        <div class="border border-white/5 bg-slate-900/60 rounded-2xl p-5 hover:border-purple-500/30 transition-all">
+                            <div class="flex justify-between items-center mb-4">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center font-black text-white uppercase">
+                                        {{ active_user.username[:2] }}
+                                    </div>
+                                    <div>
+                                        <h4 class="text-lg font-bold text-white leading-tight">{{ active_user.username }}</h4>
+                                        <span class="text-[10px] bg-purple-500/20 text-purple-300 font-extrabold uppercase tracking-wider px-2 py-0.5 rounded border border-purple-500/30">
+                                            {{ active_user.role }}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if s_list|length > 1 %}
+                                <span class="bg-red-500/10 text-red-400 text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full border border-red-500/20 animate-pulse">
+                                    ⚠️ {{ s_list|length }} Active Devices
+                                </span>
+                                {% else %}
+                                <span class="bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border border-emerald-500/20">
+                                    Single Session
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <div class="space-y-3 pt-3 border-t border-white/5">
+                                {% for instance in s_list %}
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-white/5 p-3.5 rounded-xl border border-white/5">
+                                    <div class="space-y-1">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-purple-400 font-bold">💻 Device:</span>
+                                            <span class="text-white font-semibold">{{ instance.user_agent }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-gray-400">
+                                            <span>🌐 IP:</span>
+                                            <span class="font-mono text-gray-300">{{ instance.ip_address }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right sm:space-y-1">
+                                        <div class="flex sm:justify-end items-center gap-2">
+                                            <span class="text-gray-400">⏱️ Session Time:</span>
+                                            <span class="text-purple-300 font-black">{{ instance.active_duration }}</span>
+                                        </div>
+                                        <div class="flex sm:justify-end items-center gap-2 text-[10px] text-gray-500">
+                                            <span>🔁 Logins:</span>
+                                            <span class="font-bold text-gray-400">{{ instance.login_count }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="flex flex-col items-center justify-center p-12 text-center text-gray-500 border border-dashed border-white/10 rounded-2xl">
+                        <span class="text-4xl mb-3">📭</span>
+                        <p class="font-bold uppercase tracking-widest text-xs">No Active User Sessions</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Right Column: Real-time Intrusion & Security Logs (Terminal style) -->
+                <div class="bg-slate-900/40 border border-white/10 rounded-[2rem] p-6 lg:p-8 flex flex-col h-[600px]">
+                    <h2 class="text-2xl font-black text-white uppercase italic tracking-tight mb-4">Security Intrusion Feed</h2>
+                    
+                    <div class="flex-1 bg-black/50 border border-white/10 rounded-2xl p-4 overflow-y-auto font-mono text-xs space-y-3 custom-scrollbar">
+                        {% if security_logs %}
+                            {% for log in security_logs %}
+                            <div class="p-3 rounded-lg border flex flex-col gap-1.5
+                                {% if log.severity == 'critical' %}
+                                    bg-red-500/10 border-red-500/20 text-red-300
+                                {% elif log.severity == 'warning' %}
+                                    bg-yellow-500/10 border-yellow-500/20 text-yellow-300
+                                {% else %}
+                                    bg-indigo-500/10 border-indigo-500/20 text-indigo-300
+                                {% endif %}
+                            ">
+                                <div class="flex justify-between items-center text-[10px]">
+                                    <span class="font-black px-2 py-0.5 rounded uppercase tracking-wider
+                                        {% if log.severity == 'critical' %}
+                                            bg-red-500/20 border border-red-500/30
+                                        {% elif log.severity == 'warning' %}
+                                            bg-yellow-500/20 border border-yellow-500/30
+                                        {% else %}
+                                            bg-indigo-500/20 border border-indigo-500/30
+                                        {% endif %}
+                                    ">
+                                        {{ log.event_type }}
+                                    </span>
+                                    <span class="text-gray-500">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                                </div>
+                                <p class="text-xs leading-relaxed text-gray-200">{{ log.details }}</p>
+                                <div class="flex gap-4 text-[10px] text-gray-500 mt-1 border-t border-white/5 pt-1.5">
+                                    <span>🌐 IP: <strong class="text-gray-400 font-mono">{{ log.ip_address or 'System' }}</strong></span>
+                                    {% if log.user %}
+                                    <span>👤 User: <strong class="text-gray-400">{{ log.user.username }}</strong></span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="h-full flex flex-col items-center justify-center text-center text-gray-600">
+                            <span class="text-3xl mb-2">🟢</span>
+                            <p class="font-bold uppercase tracking-widest text-[10px]">System Secure - No Incident Logs Registered</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
     <!-- MODALS (Outside main to fix fixed positioning) -->
@@ -1162,7 +1555,11 @@
             showShopModal: false,
             showPlanModal: false,
             showUserModal: false,
+            showInvoiceModal: false,
+            currentInvoice: null,
             saving: false,
+            billingData: { items: [], total: 0, page: 1, pages: 1, size: 10 },
+            billingFilters: { search: '' },
 
             init() {
                 const urlParams = new URLSearchParams(window.location.search);
@@ -1171,8 +1568,21 @@
                     setTimeout(() => alert(decodeURIComponent(errorMsg)), 100);
                 }
 
+                const dataEl = document.getElementById('superadmin-shops-data');
+                if (dataEl) {
+                    try {
+                        this.shopsData = JSON.parse(dataEl.textContent);
+                    } catch(e) {
+                        console.error('Failed to parse shops data:', e);
+                    }
+                }
+
                 if (this.selectedShopId) {
                     this.onShopSelect();
+                }
+
+                if (this.activeTab === 'billing') {
+                    this.fetchInvoices(1);
                 }
             },
 
@@ -1205,9 +1615,10 @@
                 billing_card_font_color: '#ffffff',
                 inc_dec_button_color: '#f97316',
                 cash_upi_option_color: '#1e293b',
-                cash_upi_font_color: '#ffffff'
+                cash_upi_font_color: '#ffffff',
+                upi_id: ''
             },
-            shopsData: JSON.parse(document.getElementById('superadmin-shops-data').textContent),
+            shopsData: [],
             previewUrl: 'about:blank',
 
 
@@ -1216,6 +1627,10 @@
                 const url = new URL(window.location);
                 url.searchParams.set('tab', t);
                 window.history.replaceState({}, '', url);
+
+                if (t === 'billing') {
+                    this.fetchInvoices(1);
+                }
             },
 
             selectForDesign(shop) {
@@ -1292,7 +1707,7 @@
 
                 // Append all text fields
                 for (const key in this.designConfig) {
-                    if (this.designConfig[key] !== null && key !== 'logo_url' && key !== 'menu_icon_url') {
+                    if (this.designConfig[key] !== null && key !== 'logo_url' && key !== 'menu_icon_url' && key !== 'favicon_url') {
                         formData.append(key, this.designConfig[key]);
                     }
                 }
@@ -1307,6 +1722,12 @@
                 const menuIconInput = this.$refs.menuIconInput;
                 if (menuIconInput && menuIconInput.files.length > 0) {
                     formData.append('menu_icon', menuIconInput.files[0]);
+                }
+
+                // Handle File Upload: Favicon
+                const faviconInput = this.$refs.faviconInput;
+                if (faviconInput && faviconInput.files.length > 0) {
+                    formData.append('favicon', faviconInput.files[0]);
                 }
 
                 try {
@@ -1337,6 +1758,80 @@
                     alert('Visual sync failed. Check network stability.');
                 } finally {
                     this.saving = false;
+                }
+            },
+
+            async fetchInvoices(page = 1) {
+                const params = new URLSearchParams();
+                params.append('page', page);
+                if (this.billingFilters.search) params.append('search', this.billingFilters.search);
+
+                try {
+                    const resp = await fetch(`/api/platform-billing/shops-status?${params.toString()}`);
+                    if (resp.ok) {
+                        this.billingData = await resp.json();
+                    } else {
+                        console.error('Failed to fetch billing status');
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            async viewInvoice(invoiceId) {
+                if (!invoiceId) return;
+                try {
+                    const resp = await fetch(`/api/platform-billing/invoices/${invoiceId}`);
+                    if (resp.ok) {
+                        this.currentInvoice = await resp.json();
+                        this.showInvoiceModal = true;
+                    } else {
+                        alert("Failed to load invoice details.");
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            async markInvoicePaid(invoiceId) {
+                if (!confirm("Are you sure you want to mark this invoice as paid?")) return;
+                const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+                try {
+                    const resp = await fetch(`/api/platform-billing/invoices/${invoiceId}/pay`, {
+                        method: 'POST',
+                        headers: { 'x-csrf-token': csrfToken }
+                    });
+                    if (resp.ok) {
+                        this.fetchInvoices(this.billingData.page);
+                    } else {
+                        const err = await resp.json();
+                        alert('Error: ' + err.detail);
+                    }
+                } catch (e) {
+                    console.error(e);
+                }
+            },
+
+            async sendWhatsAppInvoice(invoiceId) {
+                const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+                try {
+                    const resp = await fetch(`/api/platform-billing/invoices/${invoiceId}/notify`, {
+                        method: 'POST',
+                        headers: { 'x-csrf-token': csrfToken }
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        if (data.whatsapp_url) {
+                            window.open(data.whatsapp_url, '_blank');
+                        } else {
+                            alert("Notification logged, but no phone number found for WhatsApp link.");
+                        }
+                    } else {
+                        const err = await resp.json();
+                        alert('Error: ' + err.detail);
+                    }
+                } catch (e) {
+                    console.error(e);
                 }
             }
         };

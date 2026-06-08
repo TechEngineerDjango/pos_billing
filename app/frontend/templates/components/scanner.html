@@ -1,0 +1,120 @@
+<div x-data="scannerComponent()" 
+     @open-scanner.window="openScannerModal()"
+     x-show="showScannerModal"
+     class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" 
+     x-cloak x-transition>
+    
+    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-8 relative shadow-2xl border border-white/5" @click.away="closeScannerModal()">
+        <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-4 dark:text-white">Scan SKU</h2>
+        <p class="text-sm text-gray-500 mb-4">Point camera at item barcode or QR code</p>
+        <div id="shared-qr-reader" class="rounded-2xl overflow-hidden bg-black"></div>
+        
+        <!-- Zoom Slider -->
+        <div x-show="canZoom" class="mt-4 bg-gray-100 dark:bg-white/5 p-4 rounded-xl border border-gray-200 dark:border-white/10" x-cloak>
+            <div class="flex items-center justify-between mb-2">
+                <label class="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase">Optical Zoom</label>
+                <span class="text-xs text-orange-500 font-mono" x-text="scannerZoom + 'x'"></span>
+            </div>
+            <input type="range" :min="zoomMin" :max="zoomMax" :step="zoomStep" x-model="scannerZoom"
+                @input="updateScannerZoom()"
+                class="w-full h-2 bg-gray-200 dark:bg-white/10 rounded-full appearance-none cursor-pointer accent-orange-500">
+        </div>
+
+        <button @click="closeScannerModal()"
+            class="mt-6 w-full bg-gray-100 dark:bg-white/5 text-gray-500 font-black uppercase tracking-widest py-4 rounded-2xl text-xs">Close</button>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.data('scannerComponent', () => ({
+            showScannerModal: false,
+            _scanner: null,
+            canZoom: false,
+            scannerZoom: 1,
+            zoomMin: 1,
+            zoomMax: 5,
+            zoomStep: 0.1,
+
+            async openScannerModal() {
+                this.showScannerModal = true;
+                this.canZoom = false;
+                this.scannerZoom = 1;
+
+                if (!window.Html5Qrcode) {
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    });
+                }
+                await this.$nextTick();
+                try {
+                    this._scanner = new Html5Qrcode('shared-qr-reader', { useBarCodeDetectorIfSupported: true });
+                    await this._scanner.start(
+                        { facingMode: 'environment' },
+                        { 
+                            fps: 10, 
+                            qrbox: function(viewfinderWidth, viewfinderHeight) {
+                                let width = Math.floor(viewfinderWidth * 0.8);
+                                let height = Math.floor(viewfinderHeight * 0.8);
+                                return { width: Math.min(width, 400), height: Math.min(height, 400) };
+                            },
+                            videoConstraints: {
+                                facingMode: "environment",
+                                width: { ideal: 1920 },
+                                height: { ideal: 1080 },
+                                advanced: [{ focusMode: "continuous" }]
+                            }
+                        },
+                        (decodedText) => {
+                            // Dispatch event to parent
+                            this.$dispatch('scan-success', { result: decodedText });
+                            this.closeScannerModal();
+                        },
+                        () => {}
+                    );
+
+                    this.canZoom = true;
+                    try {
+                        const track = this._scanner.getRunningTrack();
+                        if (track) {
+                            const capabilities = track.getCapabilities();
+                            if (capabilities.zoom) {
+                                this.zoomMin = capabilities.zoom.min || 1;
+                                this.zoomMax = capabilities.zoom.max || 5;
+                                this.zoomStep = capabilities.zoom.step || 0.1;
+                                this.scannerZoom = this.zoomMin;
+                            }
+                        }
+                    } catch (capErr) {
+                        console.warn("Could not read zoom capabilities:", capErr);
+                    }
+                } catch (err) {
+                    console.warn('Scanner start failed:', err);
+                }
+            },
+
+            updateScannerZoom() {
+                if (this._scanner && this.canZoom) {
+                    try {
+                        this._scanner.applyVideoConstraints({ advanced: [{ zoom: parseFloat(this.scannerZoom) }] })
+                            .catch(e => console.warn("Zoom constraint rejected:", e));
+                    } catch (e) {
+                        console.warn("Failed to apply zoom:", e);
+                    }
+                }
+            },
+
+            closeScannerModal() {
+                if (this._scanner) {
+                    this._scanner.stop().catch(() => {});
+                    this._scanner = null;
+                }
+                this.showScannerModal = false;
+            }
+        }));
+    });
+</script>

@@ -164,6 +164,75 @@ async def create_bill(
         "message": result["message"]
     }
 
+@router.get("/recent-bills", response_class=JSONResponse)
+async def get_recent_bills(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Fetch recent bills (Held and Completed) for the POS UI"""
+    if not current_user.shop_id:
+        return JSONResponse({"bills": []})
+        
+    # Get last 20 bills for this shop
+    res = await db.execute(
+        select(Bill).options(selectinload(Bill.customer))
+        .where(Bill.shop_id == current_user.shop_id)
+        .order_by(Bill.timestamp.desc())
+        .limit(20)
+    )
+    bills = res.scalars().all()
+    
+    return JSONResponse({
+        "bills": [
+            {
+                "id": b.slug,
+                "bill_number": b.bill_number,
+                "status": getattr(b, "status", "Completed"),
+                "total_amount": float(b.total_amount),
+                "timestamp": b.timestamp.isoformat() if b.timestamp else None,
+                "items": b.items_snapshot,
+                "payment_method": getattr(b, "payment_method", "Cash"),
+                "customer_name": b.customer.name if b.customer else None,
+                "customer_phone": b.customer.phone_number if b.customer else None
+            }
+            for b in bills
+        ]
+    })
+
+@router.post("/update/{bill_slug}")
+async def update_bill(
+    bill_slug: str,
+    bill_in: BillCreate,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        current_user = await get_current_user(request, db)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+        
+    from app.domains.billing.service import BillingService
+    billing_svc = BillingService(db)
+    
+    result = await billing_svc.update_bill(bill_slug, bill_in, current_user)
+    
+    if bill_in.status == "Completed":
+        background_tasks.add_task(
+            print_bill_bg, 
+            result["bill_data"], 
+            result["shop_data"], 
+            result["printer_ip"]
+        )
+    
+    return {
+        "status": result["status"],
+        "bill_number": result["bill_number"],
+        "bill_id": result["bill_id"],
+        "total": result["total"],
+        "message": result["message"]
+    }
+
 
 @router.get("/item-by-sku/{sku}", response_class=JSONResponse)
 async def get_item_by_sku_for_pos(
@@ -201,23 +270,29 @@ async def get_item_by_sku_for_pos(
 
 @router.get("/customer/search")
 async def search_customer(
-    phone: str,
+    query: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _: None = Depends(require_feature("customer_management"))
 ):
-    """Search for customer by phone number in current shop."""
+    """Search for customer by phone number or name in current shop."""
     if not current_user.shop_id:
         return JSONResponse({"found": False})
     
-    phone_clean = re.sub(r'\D', '', phone)
-    if not phone_clean or len(phone_clean) < 3:
+    query_clean = query.strip()
+    if not query_clean or len(query_clean) < 3:
         return JSONResponse({"found": False})
+    
+    from sqlalchemy import or_
+    phone_clean = re.sub(r'\D', '', query_clean)
+    conditions = [Customer.name.ilike(f"%{query_clean}%")]
+    if phone_clean:
+        conditions.append(Customer.phone_number.like(f"%{phone_clean}%"))
     
     result = await db.execute(
         select(Customer).where(
             Customer.shop_id == current_user.shop_id,
-            Customer.phone_number.like(f"%{phone_clean}%")
+            or_(*conditions)
         )
     )
     customer = result.scalars().first()

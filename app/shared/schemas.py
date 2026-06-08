@@ -10,6 +10,7 @@ class CartItem(BaseModel):
 class BillCreate(BaseModel):
     items: List[CartItem]
     payment_method: str = "Cash"
+    status: str = "Completed"
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
@@ -128,6 +129,7 @@ class ShopCreate(BaseModel):
     inc_dec_button_color: str = "#f97316"
     cash_upi_option_color: str = "#1e293b"
     cash_upi_font_color: str = "#ffffff"
+    upi_id: Optional[str] = None
 
     @classmethod
     def as_form(
@@ -162,6 +164,7 @@ class ShopCreate(BaseModel):
         inc_dec_button_color: str = Form("#f97316"),
         cash_upi_option_color: str = Form("#1e293b"),
         cash_upi_font_color: str = Form("#ffffff"),
+        upi_id: Optional[str] = Form(None),
         target_shop_id: Optional[int] = Form(None)  # Renamed to avoid path param collision
     ):
         return cls(
@@ -183,6 +186,7 @@ class ShopCreate(BaseModel):
             inc_dec_button_color=inc_dec_button_color,
             cash_upi_option_color=cash_upi_option_color,
             cash_upi_font_color=cash_upi_font_color,
+            upi_id=upi_id,
             shop_id=target_shop_id
         )
 
@@ -226,3 +230,27 @@ class SkuUpdateRequest(BaseModel):
     @classmethod
     def as_form(cls, sku: str = Form(...)):
         return cls(sku=sku.upper().strip())
+
+
+class ShopInvoiceResponse(BaseModel):
+    id: int
+    invoice_number: str
+    shop_id: int
+    subscription_id: Optional[int]
+    amount: Decimal
+    billing_cycle: str
+    period_start: str
+    period_end: str
+    due_date: str
+    status: str
+    paid_at: Optional[str]
+    created_at: str
+    shop_name: Optional[str]
+    subscription_name: Optional[str]
+
+class PaginatedShopInvoiceResponse(BaseModel):
+    items: List[ShopInvoiceResponse]
+    total: int
+    page: int
+    size: int
+    pages: int

@@ -12,7 +12,7 @@
     </div>
 
     <!-- Customer Management -->
-    <div class="bg-slate-800/50 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-xl">
+    <div class="bg-slate-800/50 backdrop-blur-xl border border-white/10 p-6 rounded-2xl shadow-xl" x-data="{ search: '' }">
         <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <span class="p-2 bg-green-500/10 rounded-lg text-green-400">👥</span> Customer List
         </h2>
@@ -34,6 +34,17 @@
             </button>
         </form>
 
+        <!-- Search Bar -->
+        <div class="mb-6 relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <input type="text" x-model="search" placeholder="Search by name or phone number..."
+                class="block w-full pl-10 pr-3 py-3 bg-slate-900 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:outline-none transition-all shadow-inner">
+        </div>
+
         <div class="overflow-y-auto max-h-[600px] pr-2 custom-scrollbar">
             <table class="w-full text-left border-collapse">
                 <thead class="bg-slate-900/80 sticky top-0 backdrop-blur-sm">
@@ -45,27 +56,28 @@
                 </thead>
                 <tbody class="divide-y divide-white/5">
                     {% for customer in customers %}
-                    <tr class="group hover:bg-white/5 transition-colors">
-                        <form action="/admin/customer/update/{{ customer.slug }}" method="POST" class="contents">
-    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                            <td class="p-3">
-                                <input type="text" name="name" value="{{ customer.name }}"
-                                    class="w-full bg-slate-800 border border-white/10 rounded px-2 py-1 text-gray-200 font-medium text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            </td>
-                            <td class="p-3">
-                                <input type="tel" name="phone_number" value="{{ customer.phone_number }}"
-                                    class="w-full bg-slate-800 border border-white/10 rounded px-2 py-1 text-gray-400 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                            </td>
-                            <td class="p-3 text-right flex gap-1 justify-end">
-                                <button type="submit"
-                                    class="text-green-500 hover:text-green-400 p-1 hover:bg-green-500/10 rounded"
-                                    title="Save">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M5 13l4 4L19 7"></path>
-                                    </svg>
-                                </button>
-                        </form>
+                    <tr class="group hover:bg-white/5 transition-colors"
+                        x-show="search === '' || '{{ customer.name | lower }}'.includes(search.toLowerCase()) || '{{ customer.phone_number }}'.includes(search)">
+                        <td class="p-3">
+                            <form id="update_form_{{ customer.slug }}" action="/admin/customer/update/{{ customer.slug }}" method="POST" class="hidden">
+                                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                            </form>
+                            <input type="text" form="update_form_{{ customer.slug }}" name="name" value="{{ customer.name }}"
+                                class="w-full bg-slate-800 border border-white/10 rounded px-2 py-1 text-gray-200 font-medium text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        </td>
+                        <td class="p-3">
+                            <input type="tel" form="update_form_{{ customer.slug }}" name="phone_number" value="{{ customer.phone_number }}"
+                                class="w-full bg-slate-800 border border-white/10 rounded px-2 py-1 text-gray-400 text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                        </td>
+                        <td class="p-3 text-right flex gap-1 justify-end">
+                            <button type="submit" form="update_form_{{ customer.slug }}"
+                                class="text-green-500 hover:text-green-400 p-1 hover:bg-green-500/10 rounded"
+                                title="Save">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </button>
                         <form action="/admin/customer/delete/{{ customer.slug }}" method="POST"
                             onsubmit="return confirm('Delete customer?');" class="inline">
                             <button

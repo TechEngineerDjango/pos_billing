@@ -4,7 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Burger Shop POS</title>
+    <title>{{ shop.name if shop and shop.name else 'POS Billing System' }}</title>
+    <!-- Dynamic Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ shop.favicon_url if shop and shop.favicon_url else (shop.logo_url if shop and shop.logo_url else '/static/favicon.ico') }}">
     <!-- Google Fonts: Inter & Outfit -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;700&display=swap"
@@ -126,11 +128,11 @@
                             class="custom-logo rounded-lg object-cover">
                         {% else %}
                         <span id="shop-logo-span"
-                            class="text-2xl sm:text-3xl custom-logo flex items-center justify-center">🍔</span>
+                            class="text-2xl sm:text-3xl custom-logo flex items-center justify-center">🏪</span>
                         {% endif %}
                         <span id="shop-name-text"
                             class="logo-font font-bold text-lg sm:text-2xl bg-gradient-to-r from-orange-400 to-red-500 text-transparent bg-clip-text truncate max-w-[150px] sm:max-w-none">{{
-                            shop.name if shop and shop.name else 'BurgerPOS' }}</span>
+                            shop.name if shop and shop.name else 'POS Billing' }}</span>
                     </div>
                 </div>
 
@@ -151,6 +153,13 @@
                         <button id="nav-logout-btn" type="submit"
                             class="text-gray-300 hover:text-red-400 hover:bg-white/5 px-3 py-2 rounded-lg font-medium transition-all duration-200 ml-2">Logout</button>
                     </form>
+                    <button @click="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()" 
+                        title="Toggle Fullscreen" 
+                        class="text-gray-300 hover:text-white hover:bg-white/5 p-2 rounded-lg transition-all duration-200 ml-2 border border-white/10 hidden sm:block">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path>
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Mobile Menu Button -->
@@ -183,13 +192,16 @@
             <div class="px-4 py-3 space-y-2">
                 <a href="/billing/"
                     class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">{%
-                    if user and user.role == 'cashier' %}📋 Billing{% else %}🍔 POS{% endif %}</a>
+                    if user and user.role == 'cashier' %}📋 Billing{% else %}🏪 POS{% endif %}</a>
                 <a href="{% if user and user.role == 'superadmin' %}/superadmin/{% else %}/admin/{% endif %}"
                     class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">{%
                     if user and user.role == 'superadmin' %}🛡️ Control Center{% else %}📊 Dashboard{% endif %}</a>
                 <a href="/auth/change-password"
                     class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">🔑
                     Change Password</a>
+                <button @click="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()"
+                    class="w-full text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">⛶
+                    Toggle Fullscreen</button>
                 <form action="/auth/logout" method="post">
                     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <button id="mobile-logout-btn" type="submit"

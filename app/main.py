@@ -10,6 +10,7 @@ from fastapi.responses import RedirectResponse, JSONResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+import asyncio
 
 from app.core.database import engine, AsyncSessionLocal, get_db
 from app.core.base import Base
@@ -20,10 +21,12 @@ from app.domains.auth import router as auth
 from app.domains.billing import admin_router as admin
 from app.domains.tenancy import router as superadmin
 from app.domains.inventory import router as inventory
+from app.domains.platform_billing import router as platform_billing
 from app.core.config import settings
 from app.domains.auth.router import get_password_hash
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.middleware.csrf import CSRFMiddleware
+from app.workers.billing_cron import billing_worker_loop
 
 
 # ---------------------------------------------------------------------------
@@ -72,9 +75,12 @@ async def lifespan(app: FastAPI):
             await db.commit()
             logger.info("Superadmin user created. Visit /superadmin/ to configure features and plans.")
 
+    billing_task = asyncio.create_task(billing_worker_loop())
+
     yield
 
     # Shutdown
+    billing_task.cancel()
     logger.info("Closing Database Connection...")
     await close_redis()
     logger.info("Redis connection closed.")
@@ -108,6 +114,7 @@ app.include_router(billing.router)
 app.include_router(admin.router)
 app.include_router(superadmin.router)
 app.include_router(inventory.router)
+app.include_router(platform_billing.router)
 
 
 @app.get("/")
