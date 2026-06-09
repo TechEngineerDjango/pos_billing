@@ -591,8 +591,24 @@ const ApiService = {
         try {
             const response = await fetch(url, { ...defaultOptions, ...options });
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Network error occurred');
+                let detail = 'Network error occurred';
+                try {
+                    const errorData = await response.json();
+                    detail = errorData.detail || detail;
+                } catch (jsonErr) {}
+
+                if (response.status === 403 && detail.toLowerCase().includes('csrf')) {
+                    alert('Security token expired due to inactivity. The page will now refresh securely.');
+                    window.location.reload();
+                    return new Promise(() => {}); // halt execution while reloading
+                }
+                if (response.status === 401) {
+                    alert('Your session has expired. Please log in again.');
+                    window.location.href = '/auth/login';
+                    return new Promise(() => {}); // halt execution while redirecting
+                }
+
+                throw new Error(detail);
             }
             return await response.json();
         } catch (e) {

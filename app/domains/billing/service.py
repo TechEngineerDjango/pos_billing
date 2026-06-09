@@ -7,6 +7,11 @@ import datetime as dt
 from datetime import timezone
 from decimal import Decimal, ROUND_HALF_UP
 import re
+import logging
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_LOW_STOCK_THRESHOLD = 5.0
 
 from app.shared.models import Bill, MenuItem, Shop, User, Customer, StockMovement
 from app.infrastructure.integrations.notifications import get_notification_service
@@ -52,7 +57,7 @@ class BillingService:
                     MenuItem.id == cart_item.id,
                     MenuItem.shop_id == shop.id,
                     MenuItem.is_active == True,
-                )
+                ).with_for_update()
             )
             menu_item = result.scalars().first()
 
@@ -146,6 +151,17 @@ class BillingService:
                 for menu_item, qty_sold in stock_updates:
                     if menu_item.stock_quantity is not None:
                         menu_item.stock_quantity -= qty_sold
+                        # Fire in-app notification if at or below threshold
+                        threshold = menu_item.low_stock_threshold or DEFAULT_LOW_STOCK_THRESHOLD
+                        if menu_item.stock_quantity <= threshold:
+                            await self.notification_svc.send_low_stock_alert(
+                                shop_id=shop.id,
+                                item_name=menu_item.name,
+                                current_qty=menu_item.stock_quantity,
+                                threshold=threshold,
+                                item_id=menu_item.id,
+                            )
+
                     self.db.add(StockMovement(
                         menu_item_id=menu_item.id,
                         shop_id=shop.id,
@@ -154,16 +170,6 @@ class BillingService:
                         note=f"Bill #{bill_number}",
                         created_by_user_id=current_user.id,
                     ))
-                    # Fire in-app notification if at or below threshold (non-blocking)
-                    threshold = menu_item.low_stock_threshold or 5.0
-                    if menu_item.stock_quantity <= threshold:
-                        await self.notification_svc.send_low_stock_alert(
-                            shop_id=shop.id,
-                            item_name=menu_item.name,
-                            current_qty=menu_item.stock_quantity,
-                            threshold=threshold,
-                            item_id=menu_item.id,
-                        )
 
             await self.db.commit()
             await self.db.refresh(new_bill)
@@ -171,7 +177,8 @@ class BillingService:
             raise
         except Exception as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=500, detail="Failed to create bill. Please try again.")
+            logger.error(f"Failed to create bill: {str(exc)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to create bill. Error: {str(exc)}")
 
         bill_data = {
             "bill_number": new_bill.bill_number,
@@ -217,7 +224,15 @@ class BillingService:
         stock_updates: list[tuple] = []
 
         for cart_item in bill_in.items:
-            result = await self.db.execute(select(MenuItem).where(MenuItem.id == cart_item.id, MenuItem.shop_id == shop_id, MenuItem.is_active == True))
+            result = await self.db.execute(
+                select(MenuItem)
+                .where(
+                    MenuItem.id == cart_item.id, 
+                    MenuItem.shop_id == shop_id, 
+                    MenuItem.is_active == True
+                )
+                .with_for_update()
+            )
             menu_item = result.scalars().first()
 
             if not menu_item:
@@ -261,12 +276,23 @@ class BillingService:
                             menu_item_id=menu_item.id, shop_id=shop_id, change_qty=-qty_sold,
                             reason="sale", note=f"Bill #{bill.bill_number} (Resumed)", created_by_user_id=current_user.id,
                         ))
+                        
+                        threshold = menu_item.low_stock_threshold or DEFAULT_LOW_STOCK_THRESHOLD
+                        if menu_item.stock_quantity <= threshold:
+                            await self.notification_svc.send_low_stock_alert(
+                                shop_id=shop_id,
+                                item_name=menu_item.name,
+                                current_qty=menu_item.stock_quantity,
+                                threshold=threshold,
+                                item_id=menu_item.id,
+                            )
 
             await self.db.commit()
             await self.db.refresh(bill)
-        except Exception:
+        except Exception as exc:
             await self.db.rollback()
-            raise HTTPException(status_code=500, detail="Failed to update bill")
+            logger.error(f"Failed to update bill: {str(exc)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to update bill. Error: {str(exc)}")
 
         shop_res = await self.db.execute(select(Shop).where(Shop.id == shop_id))
         shop = shop_res.scalars().first()
