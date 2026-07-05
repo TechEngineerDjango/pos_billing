@@ -145,6 +145,40 @@
                     </div>
                 </div>
 
+                <!-- Receipt & Printer Settings -->
+                <div class="md:col-span-2 pt-6 border-t border-white/10">
+                    <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                        <span class="text-purple-400">🖨️</span> Receipt & Printer Settings
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Custom Footer -->
+                        <div class="md:col-span-2">
+                            <label class="text-sm font-medium text-gray-400 block mb-2">Receipt Footer Message</label>
+                            <input type="text" name="receipt_footer" value="{{ shop.receipt_footer }}" placeholder="e.g. Thank you for your order!"
+                                class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                            <p class="text-[10px] text-gray-500 mt-1">This message will appear at the bottom of both WhatsApp bills and Thermal Printer receipts.</p>
+                        </div>
+                        
+                        <!-- Paper Width -->
+                        <div>
+                            <label class="text-sm font-medium text-gray-400 block mb-2">Printer Paper Width</label>
+                            <select name="printer_paper_width" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                                <option value="58mm" {% if shop.printer_paper_width == '58mm' %}selected{% endif %}>58mm (Narrow)</option>
+                                <option value="80mm" {% if shop.printer_paper_width == '80mm' %}selected{% endif %}>80mm (Wide)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Printer Alignment -->
+                        <div>
+                            <label class="text-sm font-medium text-gray-400 block mb-2">Printer Text Alignment</label>
+                            <select name="printer_alignment" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                                <option value="left" {% if shop.printer_alignment == 'left' %}selected{% endif %}>Left Aligned</option>
+                                <option value="center" {% if shop.printer_alignment == 'center' %}selected{% endif %}>Center Aligned</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Logo Upload -->
                 <div>
                     <label class="text-sm font-medium text-gray-400 block mb-2">Shop Logo</label>

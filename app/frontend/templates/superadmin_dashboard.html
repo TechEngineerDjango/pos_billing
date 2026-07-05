@@ -462,6 +462,39 @@
                             </div>
                         </div>
 
+                        <!-- Section: Receipt & Printer Settings -->
+                        <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
+                            <h3 class="text-xl font-bold text-emerald-400 uppercase tracking-widest mb-8 flex items-center gap-4">
+                                <span class="w-8 h-[2px] bg-emerald-400/30"></span> Receipt & Printer
+                            </h3>
+                            <div class="flex flex-col gap-4">
+                                <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                                    <label class="text-xs font-black text-gray-500 uppercase block mb-2">Receipt Footer Message</label>
+                                    <input type="text" x-model="designConfig.receipt_footer" placeholder="e.g. Thank you for your order!"
+                                        class="w-full bg-transparent border-b border-white/10 text-white font-bold pb-2 focus:ring-0 focus:border-emerald-500 transition-all outline-none">
+                                    <p class="text-[10px] text-gray-500 mt-2">Appears at the bottom of WhatsApp and Thermal receipts.</p>
+                                </div>
+                                <div class="flex gap-4">
+                                    <div class="bg-white/5 p-4 rounded-xl border border-white/5 flex-1">
+                                        <label class="text-xs font-black text-gray-500 uppercase block mb-2">Paper Width</label>
+                                        <select x-model="designConfig.printer_paper_width"
+                                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0 appearance-none cursor-pointer">
+                                            <option value="58mm">58mm (Narrow)</option>
+                                            <option value="80mm">80mm (Wide)</option>
+                                        </select>
+                                    </div>
+                                    <div class="bg-white/5 p-4 rounded-xl border border-white/5 flex-1">
+                                        <label class="text-xs font-black text-gray-500 uppercase block mb-2">Alignment</label>
+                                        <select x-model="designConfig.printer_alignment"
+                                            class="w-full bg-transparent border-0 text-white font-bold p-0 focus:ring-0 appearance-none cursor-pointer">
+                                            <option value="left">Left</option>
+                                            <option value="center">Center</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Section: Typography & Global -->
                         <div class="bg-slate-900/50 border border-white/10 rounded-2xl p-6">
                             <h3
@@ -1307,7 +1340,7 @@
                                     ">
                                         {{ log.event_type }}
                                     </span>
-                                    <span class="text-gray-500">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                                    <span class="text-gray-500" data-timestamp="{{ log.timestamp | utc_iso }}">{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
                                 </div>
                                 <p class="text-xs leading-relaxed text-gray-200">{{ log.details }}</p>
                                 <div class="flex gap-4 text-[10px] text-gray-500 mt-1 border-t border-white/5 pt-1.5">
@@ -1616,7 +1649,10 @@
                 inc_dec_button_color: '#f97316',
                 cash_upi_option_color: '#1e293b',
                 cash_upi_font_color: '#ffffff',
-                upi_id: ''
+                upi_id: '',
+                receipt_footer: '',
+                printer_paper_width: '80mm',
+                printer_alignment: 'center'
             },
             shopsData: [],
             previewUrl: 'about:blank',
@@ -1836,5 +1872,7 @@
             }
         };
     }
+
+    // Convert server timestamps to local user timezone
 </script>
 {% endblock %}

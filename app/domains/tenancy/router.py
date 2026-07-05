@@ -21,6 +21,7 @@ from app.domains.auth.services import require_superadmin
 from app.core.dependencies.csrf import verify_csrf
 from app.domains.features.service import FeatureService
 from app.core.redis import get_redis
+from app.shared.time_utils import utc_iso
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
+templates.env.filters["utc_iso"] = utc_iso
 
 def json_serializer(obj):
     if isinstance(obj, list):
@@ -218,6 +220,9 @@ async def update_shop(
     if data.cash_upi_option_color: shop.cash_upi_option_color = data.cash_upi_option_color
     if data.cash_upi_font_color: shop.cash_upi_font_color = data.cash_upi_font_color
     if data.upi_id is not None: shop.upi_id = data.upi_id
+    if data.receipt_footer is not None: shop.receipt_footer = data.receipt_footer
+    if data.printer_paper_width is not None: shop.printer_paper_width = data.printer_paper_width
+    if data.printer_alignment is not None: shop.printer_alignment = data.printer_alignment
     
     if data.subscription_id:
         shop.subscription_id = data.subscription_id

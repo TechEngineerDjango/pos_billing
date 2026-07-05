@@ -91,6 +91,43 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     user = await _resolve_user(token, db)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    # --- Idle Session Enforcement ---
+    suffix = token[-50:]
+    stmt = select(UserSession).where(
+        UserSession.user_id == user.id,
+        UserSession.session_token == suffix,
+        UserSession.is_active == True
+    )
+    session_res = await db.execute(stmt)
+    active_session = session_res.scalars().first()
+
+    if active_session:
+        now = datetime.now(timezone.utc)
+        last = active_session.last_activity
+        if last and last.tzinfo is None:
+            last = last.replace(tzinfo=timezone.utc)
+
+        idle_minutes = (now - last).total_seconds() / 60 if last else float("inf")
+
+        if idle_minutes > settings.SESSION_IDLE_TIMEOUT_MINUTES:
+            # Session has been idle too long — terminate it
+            active_session.is_active = False
+            db.add(SecurityLog(
+                event_type="SESSION_IDLE_TIMEOUT",
+                severity="info",
+                ip_address=request.client.host if request.client else None,
+                details=f"Session for user {user.username} timed out after {int(idle_minutes)} min of inactivity.",
+                user_id=user.id
+            ))
+            await db.commit()
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired due to inactivity")
+
+        # Heartbeat: update last_activity at most once every 5 minutes
+        if idle_minutes >= 5:
+            active_session.last_activity = now
+            await db.commit()
+
     return user
 
 async def get_optional_current_user(request: Request, db: AsyncSession = Depends(get_db)):

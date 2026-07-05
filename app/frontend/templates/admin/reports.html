@@ -65,7 +65,7 @@
                     {% for bill in bills | reverse %}
                     <tr class="group hover:bg-white/5 transition-colors">
                         <td class="p-3 font-mono text-sm text-blue-300">{{ bill.bill_number }}</td>
-                        <td class="p-3 text-sm text-gray-500">{{ bill.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td class="p-3 text-sm text-gray-500" data-timestamp="{{ bill.timestamp.isoformat() }}">{{ bill.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td class="p-3 text-sm text-gray-300">
                             {% if bill.customer %}
                             <span class="text-white">{{ bill.customer.name }}</span>
@@ -184,7 +184,7 @@
             <div class="space-y-4">
                 <div class="bg-slate-900/50 rounded-lg p-4 space-y-2">
                     <p class="text-sm"><span class="text-gray-500">Bill Number:</span> <span class="text-blue-300 font-mono font-bold">${bill.bill_number}</span></p>
-                    <p class="text-sm"><span class="text-gray-500">Date:</span> <span class="text-white">${bill.timestamp}</span></p>
+                    <p class="text-sm"><span class="text-gray-500">Date:</span> <span class="text-white">${new Date(bill.timestamp).toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span></p>
                     <p class="text-sm"><span class="text-gray-500">Payment Method:</span> <span class="text-orange-400">${bill.payment_method}</span></p>
                     ${customerInfo}
                 </div>
@@ -254,5 +254,6 @@
             alert('❌ Error sending bill: ' + error.message);
         }
     }
+
 </script>
 {% endblock %}

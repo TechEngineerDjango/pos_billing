@@ -157,6 +157,11 @@ class Shop(Base):
     # Panel Colors
     panel_font_color = Column(String, default="#ffffff")
     panel_bg_color = Column(String, default="#1e293b")
+    
+    # Printer and Receipt Customization
+    receipt_footer = Column(String, default="Thank you for your order!")
+    printer_paper_width = Column(String, default="80mm") # 58mm or 80mm
+    printer_alignment = Column(String, default="center") # left or center
 
     # Billing Styles
     billing_font_color = Column(String, default="#ffffff")
@@ -168,7 +173,9 @@ class Shop(Base):
     cash_upi_option_color = Column(String, default="#1e293b")
     cash_upi_font_color = Column(String, default="#ffffff")
     upi_id = Column(String, nullable=True)  # Added for UPI QR code
-    
+    country_code = Column(String(3), nullable=True)  # Phone country code (e.g., "91" for India, "1" for US)
+    timezone = Column(String, nullable=False, server_default="Asia/Kolkata")  # IANA name; controls how bill/receipt timestamps are displayed
+
     subscription_id = Column(Integer, ForeignKey("subscriptions.id"), nullable=True)
     subscription = relationship("Subscription", back_populates="shops")
     
@@ -282,19 +289,20 @@ class ShopInvoice(Base):
 class Customer(Base):
     """Customer information for better tracking and communication."""
     __tablename__ = "customers"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     slug = Column(String(36), unique=True, index=True, default=lambda: uuid.uuid4().hex)
     name = Column(String, nullable=False)
     phone_number = Column(String, nullable=False, index=True)
-    
+    country_code = Column(String(3), nullable=True)  # Phone country code (if None, use shop's default)
+
     # Multi-tenancy: Each customer belongs to a shop
     shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
     shop = relationship("Shop", back_populates="customers")
-    
+
     # Relationships
     bills = relationship("Bill", back_populates="customer")
-    
+
     created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
 
 
@@ -351,6 +359,7 @@ class MenuItem(Base):
 
     # Inventory tracking — NULL means this item is NOT tracked
     stock_quantity = Column(Float, nullable=True, default=None)
+    reserved_quantity = Column(Float, nullable=False, default=0.0)
     low_stock_threshold = Column(Float, nullable=True, default=5.0)
 
     # Unit-based pricing:
@@ -380,6 +389,8 @@ class MenuItem(Base):
             "unit": self.unit,   # None → fixed price; 'kg'/'g'/'liter'/'ml' → rate-based
             "sku": self.sku,
             "stock_quantity": self.stock_quantity,
+            "reserved_quantity": self.reserved_quantity,
+            "available_stock": self.stock_quantity - self.reserved_quantity if self.stock_quantity is not None else None,
             "low_stock_threshold": self.low_stock_threshold,
             "tax_rate": float(self.tax_rate) if self.tax_rate is not None else 0.0,
         }

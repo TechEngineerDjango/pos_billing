@@ -1,7 +1,33 @@
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional
+from typing import List, Optional, Type
 from fastapi import Form
 from decimal import Decimal
+import inspect
+
+def as_form(cls: Type[BaseModel]):
+    """
+    Decorator to dynamically generate an `as_form` classmethod for FastAPI Form dependencies.
+    Prevents repetitive boilerplate.
+    """
+    new_params = []
+    for field_name, model_field in cls.model_fields.items():
+        new_params.append(
+            inspect.Parameter(
+                field_name,
+                inspect.Parameter.POSITIONAL_ONLY,
+                default=Form(model_field.default) if not model_field.is_required() else Form(...),
+                annotation=model_field.annotation,
+            )
+        )
+    
+    async def _as_form(**data):
+        return cls(**data)
+    
+    sig = inspect.signature(_as_form)
+    sig = sig.replace(parameters=new_params)
+    _as_form.__signature__ = sig
+    setattr(cls, 'as_form', _as_form)
+    return cls
 
 class CartItem(BaseModel):
     id: int
@@ -14,6 +40,7 @@ class BillCreate(BaseModel):
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
+    customer_country_code: Optional[str] = None
 
 import re
 
@@ -24,6 +51,7 @@ def validate_password_strength(password: str) -> str:
         raise ValueError("Password does not meet the security policy requirements")
     return password
 
+@as_form
 class UserCreate(BaseModel):
     username: str
     password: str
@@ -33,15 +61,7 @@ class UserCreate(BaseModel):
     def validate_password(cls, v):
         return validate_password_strength(v)
 
-    @classmethod
-    def as_form(
-        cls,
-        username: str = Form(...),
-        password: str = Form(...),
-        shop_id: Optional[int] = Form(None)
-    ):
-        return cls(username=username, password=password, shop_id=shop_id)
-
+@as_form
 class MenuItemCreate(BaseModel):
     name: str
     price: Decimal = Field(..., ge=0)
@@ -52,57 +72,36 @@ class MenuItemCreate(BaseModel):
     low_stock_threshold: Optional[float] = Field(default=5.0, ge=0)
     tax_rate: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0, le=100)
 
-    @classmethod
-    def as_form(
-        cls,
-        name: str = Form(...),
-        price: Decimal = Form(...),
-        category: str = Form("General"),
-        shop_id: Optional[int] = Form(None),
-        unit: Optional[str] = Form(None),
-        sku: Optional[str] = Form(None),
-        low_stock_threshold: Optional[float] = Form(5.0),
-        tax_rate: Optional[Decimal] = Form(0.0),
-    ):
-        unit = unit if unit and unit.strip() else None
-        sku = sku.upper().strip() if sku and sku.strip() else None
-        return cls(name=name, price=price, category=category, shop_id=shop_id, unit=unit, sku=sku, low_stock_threshold=low_stock_threshold, tax_rate=tax_rate)
+    @validator("unit", pre=True)
+    def clean_unit(cls, v):
+        return v.strip() if v and v.strip() else None
 
+    @validator("sku", pre=True)
+    def clean_sku(cls, v):
+        return v.upper().strip() if v and v.strip() else None
+
+@as_form
 class CustomerCreate(BaseModel):
     name: str
     phone_number: str
+    country_code: Optional[str] = None  # Phone country code (e.g., "91" for India); if None, uses shop's default
     shop_id: Optional[int] = None
 
-    @classmethod
-    def as_form(
-        cls,
-        name: str = Form(...),
-        phone_number: str = Form(...),
-        shop_id: Optional[int] = Form(None)
-    ):
-        return cls(name=name, phone_number=phone_number, shop_id=shop_id)
-
+@as_form
 class SubscriptionCreate(BaseModel):
     name: str
     price: Decimal
     features: List[str] = []
 
-    @classmethod
-    def as_form(
-        cls,
-        name: str = Form(...),
-        price: Decimal = Form(...),
-        features: List[str] = Form([])
-    ):
-        return cls(name=name, price=price, features=features)
-
+@as_form
 class ShopCreate(BaseModel):
     name: str
     address: str = ""
     contact: str = ""
     currency_symbol: str = "₹"
+    country_code: Optional[str] = None  # Phone country code (e.g., "91" for India); defaults to system DEFAULT_COUNTRY_CODE
     subscription_id: Optional[int] = None
-    
+
     # Visual configs
     font_color: str = "#ffffff"
     background_color: str = "#0f172a"
@@ -130,66 +129,14 @@ class ShopCreate(BaseModel):
     cash_upi_option_color: str = "#1e293b"
     cash_upi_font_color: str = "#ffffff"
     upi_id: Optional[str] = None
+    
+    receipt_footer: str = "Thank you for your order!"
+    printer_paper_width: str = "80mm"
+    printer_alignment: str = "center"
+    timezone: str = "Asia/Kolkata"
+    target_shop_id: Optional[int] = Field(None, alias="shop_id")
 
-    @classmethod
-    def as_form(
-        cls,
-        name: str = Form(...),
-        address: str = Form(""),
-        contact: str = Form(""),
-        currency_symbol: str = Form("₹"),
-        subscription_id: Optional[int] = Form(None),
-        font_color: str = Form("#ffffff"),
-        background_color: str = Form("#0f172a"),
-        header_color: str = Form("#1e293b"),
-        logo_size: int = Form(40),
-        watermark_opacity: float = Form(0.1),
-        card_bg_color: str = Form("#1e293b"),
-        sidebar_bg_color: str = Form("#0f172a"),
-        accent_color: str = Form("#f97316"),
-        border_color: str = Form("rgba(255, 255, 255, 0.1)"),
-        price_card_bg: str = Form("#1e293b"),
-        header_text_color: str = Form("#ffffff"),
-        cart_bg_color: str = Form("#0f172a"),
-        nav_font_family: str = Form("'Outfit', sans-serif"),
-        pos_card_width: str = Form("100%"),
-        pos_card_height: str = Form("auto"),
-        pos_card_image_width: str = Form("100%"),
-        pos_card_image_height: str = Form("8rem"),
-        panel_font_color: str = Form("#ffffff"),
-        panel_bg_color: str = Form("#1e293b"),
-        billing_font_color: str = Form("#ffffff"),
-        billing_card_bg_color: str = Form("#1e293b"),
-        billing_card_font_color: str = Form("#ffffff"),
-        inc_dec_button_color: str = Form("#f97316"),
-        cash_upi_option_color: str = Form("#1e293b"),
-        cash_upi_font_color: str = Form("#ffffff"),
-        upi_id: Optional[str] = Form(None),
-        target_shop_id: Optional[int] = Form(None)  # Renamed to avoid path param collision
-    ):
-        return cls(
-            name=name, address=address, contact=contact, currency_symbol=currency_symbol,
-            subscription_id=subscription_id, font_color=font_color,
-            background_color=background_color, header_color=header_color,
-            logo_size=logo_size, watermark_opacity=watermark_opacity,
-            card_bg_color=card_bg_color, sidebar_bg_color=sidebar_bg_color,
-            accent_color=accent_color, border_color=border_color,
-            price_card_bg=price_card_bg, header_text_color=header_text_color,
-            cart_bg_color=cart_bg_color, nav_font_family=nav_font_family,
-            pos_card_width=pos_card_width, pos_card_height=pos_card_height,
-            pos_card_image_width=pos_card_image_width,
-            pos_card_image_height=pos_card_image_height,
-            panel_font_color=panel_font_color, panel_bg_color=panel_bg_color,
-            billing_font_color=billing_font_color,
-            billing_card_bg_color=billing_card_bg_color,
-            billing_card_font_color=billing_card_font_color,
-            inc_dec_button_color=inc_dec_button_color,
-            cash_upi_option_color=cash_upi_option_color,
-            cash_upi_font_color=cash_upi_font_color,
-            upi_id=upi_id,
-            shop_id=target_shop_id
-        )
-
+@as_form
 class PasswordChangeRequest(BaseModel):
     current_password: str
     new_password: str
@@ -198,38 +145,23 @@ class PasswordChangeRequest(BaseModel):
     def validate_new_password(cls, v):
         return validate_password_strength(v)
 
-    @classmethod
-    def as_form(
-        cls,
-        current_password: str = Form(...),
-        new_password: str = Form(...)
-    ):
-        return cls(current_password=current_password, new_password=new_password)
 
-
+@as_form
 class StockRestockRequest(BaseModel):
     """Used by owner to add stock — via manual form or QR scanner."""
     qty: float = Field(gt=0, description="Quantity to add (must be positive)")
     note: Optional[str] = Field(None, max_length=255)
     source: str = Field(default="manual", description="'manual' or 'scanner'")
 
-    @classmethod
-    def as_form(
-        cls,
-        qty: float = Form(...),
-        note: Optional[str] = Form(None),
-        source: str = Form("manual"),
-    ):
-        return cls(qty=qty, note=note, source=source)
 
-
+@as_form
 class SkuUpdateRequest(BaseModel):
     """Used by owner to manually override an auto-generated SKU."""
     sku: str = Field(min_length=3, max_length=64, description="Alphanumeric + hyphens only, uppercase")
 
-    @classmethod
-    def as_form(cls, sku: str = Form(...)):
-        return cls(sku=sku.upper().strip())
+    @validator("sku", pre=True)
+    def clean_sku(cls, v):
+        return v.upper().strip() if v else v
 
 
 class ShopInvoiceResponse(BaseModel):
@@ -254,3 +186,16 @@ class PaginatedShopInvoiceResponse(BaseModel):
     page: int
     size: int
     pages: int
+
+class StockUpdate(BaseModel):
+    """Represents the backend-authoritative available stock for a single item."""
+    id: int
+    available_stock: Optional[float] = None
+
+class BillActionResponse(BaseModel):
+    status: str
+    message: str
+    bill_number: Optional[str] = None
+    bill_id: Optional[str] = None
+    total: Optional[float] = None
+    updated_items: List[StockUpdate] = []

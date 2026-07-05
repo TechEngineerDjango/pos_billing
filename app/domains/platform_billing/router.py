@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.shared.models import User, Shop, ShopInvoice, NotificationLog
 from app.domains.auth.services import require_superadmin
 from app.shared.schemas import PaginatedShopInvoiceResponse, ShopInvoiceResponse
+from app.shared.time_utils import utc_iso
 from pydantic import BaseModel
 
 
@@ -148,7 +149,7 @@ async def list_shops_billing_status(
             "subscription_name": shop.subscription.name if shop.subscription else None,
             "price": float(shop.subscription.price) if shop.subscription else 0.0,
             "billing_cycle": shop.subscription.billing_cycle if shop.subscription else "monthly",
-            "next_billing_date": shop.next_billing_date.isoformat() if shop.next_billing_date else None,
+            "next_billing_date": utc_iso(shop.next_billing_date),
             "payment_status": status,
             "pending_invoice_id": pending_inv_id,
             "contact": shop.contact

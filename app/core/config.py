@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours work shift
+    SESSION_IDLE_TIMEOUT_MINUTES: int = 60  # Auto-logout after 60 min inactivity
 
     # Seed credentials — MUST be overridden in production
     SUPERADMIN_PASSWORD: str = "superadmin"
@@ -35,6 +36,9 @@ class Settings(BaseSettings):
 
     # Default Printer Settings (can be overridden by Shop)
     DEFAULT_PRINTER_IP: str = "mock"
+
+    # Phone/WhatsApp Settings
+    DEFAULT_COUNTRY_CODE: str = "91"  # India; override for other regions
 
     # Redis — used for feature caching and rate limiting
     REDIS_URL: str = "redis://localhost:6379/0"

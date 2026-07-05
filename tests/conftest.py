@@ -20,7 +20,7 @@ from app.core.base import Base
 from app.core.database import get_db
 from app.main import app
 from app.domains.auth.router import get_password_hash
-from app.shared.models import User, Shop
+from app.shared.models import User, Shop, Subscription
 
 # TEST DATABASE
 # Use in-memory SQLite for speed and isolation
@@ -57,10 +57,19 @@ async def db_session():
         superadmin = User(username="superadmin", hashed_password=hashed_pw_super, role="superadmin")
         session.add(superadmin)
 
+        # Seed Subscription
+        sub = Subscription(
+            name="Pro Test Plan",
+            enabled_features=["pos_basic", "menu_management", "cash_calculator", "customer_management", "sales_reports", "staff_management"]
+        )
+        session.add(sub)
+        await session.commit()
+        await session.refresh(sub)
+
         # Seed Owner
         hashed_pw = get_password_hash(OWNER_PASSWORD)
         admin_user = User(username="owner", hashed_password=hashed_pw, role="owner")
-        shop = Shop(name="Test Shop", printer_ip="mock")
+        shop = Shop(name="Test Shop", printer_ip="mock", subscription_id=sub.id)
         session.add(admin_user)
         session.add(shop)
         await session.commit()

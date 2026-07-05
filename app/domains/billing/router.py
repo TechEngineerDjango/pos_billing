@@ -21,9 +21,11 @@ from app.core.redis import get_redis
 from app.infrastructure.integrations.printer import print_bill_bg
 from app.infrastructure.integrations.notifications import get_notification_service
 from app.domains.auth.router import get_current_user, get_optional_current_user
-from app.shared.schemas import CartItem, BillCreate
+from app.shared.schemas import CartItem, BillCreate, BillActionResponse
 from app.core.dependencies.csrf import verify_csrf
 from app.core.dependencies.features import require_feature
+from app.core.config import settings
+from app.shared.time_utils import utc_iso, shop_local
 
 router = APIRouter(prefix="/billing", tags=["Billing"], dependencies=[Depends(verify_csrf)])
 import os
@@ -31,6 +33,11 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
+# Timestamps are stored in UTC. These filters let templates print them safely:
+# utc_iso   -> raw UTC string with an explicit offset (for JS that does its own conversion)
+# shop_local -> converted to the shop's configured timezone (Shop.timezone), for display
+templates.env.filters["utc_iso"] = utc_iso
+templates.env.filters["shop_local"] = shop_local
 
 class DecimalEncoder(json.JSONEncoder):
     """Custom encoder that converts Decimal to float for JSON serialization."""
@@ -118,10 +125,16 @@ async def pos_page(
     else:
         error_msg = "No shop available. Please contact admin."
 
+    # Country code for the phone-number picker on this page: prefer the shop's own
+    # saved country code, otherwise fall back to the app-wide default. Resolved
+    # here on the server so the template/JS never has to hardcode a country.
+    default_country_code = (shop.country_code if shop and shop.country_code else settings.DEFAULT_COUNTRY_CODE)
+
     return templates.TemplateResponse(request, "pos.html", {
         "items": items,
         "currency": currency,
         "shop": shop,
+        "default_country_code": default_country_code,
         "all_shops": all_shops,
         "is_superadmin": current_user.role == "superadmin",
         "user": current_user,
@@ -130,7 +143,7 @@ async def pos_page(
     })
 
 
-@router.post("/create")
+@router.post("/create", response_model=BillActionResponse)
 async def create_bill(
     bill_in: BillCreate,
     background_tasks: BackgroundTasks,
@@ -161,7 +174,8 @@ async def create_bill(
         "bill_number": result["bill_number"],
         "bill_id": result["bill_id"],
         "total": result["total"],
-        "message": result["message"]
+        "message": result["message"],
+        "updated_items": result.get("updated_items", []),
     }
 
 @router.get("/recent-bills", response_class=JSONResponse)
@@ -169,19 +183,25 @@ async def get_recent_bills(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Fetch recent bills (Held and Completed) for the POS UI"""
+    """Fetch recent bills (Held and Completed, excluding Cancelled) for the POS UI"""
     if not current_user.shop_id:
         return JSONResponse({"bills": []})
-        
-    # Get last 20 bills for this shop
+
+    shop_res = await db.execute(select(Shop).where(Shop.id == current_user.shop_id))
+    shop = shop_res.scalars().first()
+
+    # Get last 20 bills for this shop (exclude cancelled bills)
     res = await db.execute(
         select(Bill).options(selectinload(Bill.customer))
-        .where(Bill.shop_id == current_user.shop_id)
+        .where(
+            Bill.shop_id == current_user.shop_id,
+            Bill.status != "Cancelled"
+        )
         .order_by(Bill.timestamp.desc())
         .limit(20)
     )
     bills = res.scalars().all()
-    
+
     return JSONResponse({
         "bills": [
             {
@@ -190,6 +210,9 @@ async def get_recent_bills(
                 "status": getattr(b, "status", "Completed"),
                 "total_amount": float(b.total_amount),
                 "timestamp": b.timestamp.isoformat() if b.timestamp else None,
+                # Pre-formatted in the shop's local timezone so the POS UI can
+                # display it directly, without doing its own timezone math in JS.
+                "timestamp_display": shop_local(b.timestamp, shop).strftime("%d %b %Y, %I:%M %p") if b.timestamp else None,
                 "items": b.items_snapshot,
                 "payment_method": getattr(b, "payment_method", "Cash"),
                 "customer_name": b.customer.name if b.customer else None,
@@ -199,7 +222,7 @@ async def get_recent_bills(
         ]
     })
 
-@router.post("/update/{bill_slug}")
+@router.post("/update/{bill_slug}", response_model=BillActionResponse)
 async def update_bill(
     bill_slug: str,
     bill_in: BillCreate,
@@ -230,7 +253,31 @@ async def update_bill(
         "bill_number": result["bill_number"],
         "bill_id": result["bill_id"],
         "total": result["total"],
-        "message": result["message"]
+        "message": result["message"],
+        "updated_items": result.get("updated_items", []),
+    }
+
+
+@router.post("/cancel/{bill_slug}", response_model=BillActionResponse)
+async def cancel_bill(
+    bill_slug: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        current_user = await get_current_user(request, db)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+        
+    from app.domains.billing.service import BillingService
+    billing_svc = BillingService(db)
+    
+    result = await billing_svc.cancel_bill(bill_slug, current_user)
+    
+    return {
+        "status": result["status"],
+        "message": result["message"],
+        "updated_items": result.get("updated_items", []),
     }
 
 
@@ -260,11 +307,14 @@ async def get_item_by_sku_for_pos(
         raise HTTPException(status_code=404, detail=f"No item found with SKU '{sku}'")
 
     threshold = item.low_stock_threshold or 5.0
+    item_dict = item.to_dict()
+    available = item_dict.get("available_stock")
+
     return JSONResponse({
-        **item.to_dict(),
+        **item_dict,
         "is_tracked": item.stock_quantity is not None,
-        "is_low_stock": item.stock_quantity is not None and item.stock_quantity <= threshold,
-        "is_out_of_stock": item.stock_quantity is not None and item.stock_quantity <= 0,
+        "is_low_stock": available is not None and available <= threshold,
+        "is_out_of_stock": available is not None and available <= 0,
     })
 
 

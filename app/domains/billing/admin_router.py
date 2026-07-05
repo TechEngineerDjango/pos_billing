@@ -18,6 +18,8 @@ from app.infrastructure.integrations.image import save_uploaded_image
 from app.domains.auth.services import require_owner_or_above, require_any_staff
 from app.core.dependencies.csrf import verify_csrf
 from app.domains.inventory.sku import generate_sku
+from app.shared.time_utils import utc_iso, shop_local
+from app.shared.timezones import TIMEZONE_CHOICES
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(verify_csrf)])
 import os
@@ -25,6 +27,8 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
+templates.env.filters["utc_iso"] = utc_iso
+templates.env.filters["shop_local"] = shop_local
 
 
 @router.get("/")
@@ -92,9 +96,12 @@ async def admin_overview(
             customers = cust_res.scalars().all()
             stats["customer_count"] = len(customers)
             
-            # Bills for Reports
+            # Bills for Reports (excluding cancelled bills)
             bills_res = await db.execute(
-                select(Bill).where(Bill.shop_id == shop.id).order_by(Bill.timestamp.desc())
+                select(Bill).where(
+                    Bill.shop_id == shop.id,
+                    Bill.status != "Cancelled"
+                ).order_by(Bill.timestamp.desc())
             )
             bills = bills_res.scalars().all()
             stats["order_count"] = len(bills)
@@ -278,6 +285,9 @@ async def admin_overview(
         )
         low_stock_count = len(low_res.scalars().all())
 
+    from app.core.config import settings
+    default_country_code = (shop.country_code if shop and shop.country_code else settings.DEFAULT_COUNTRY_CODE)
+
     # Render the new SPA Dashboard
     return templates.TemplateResponse(request, "dashboard.html", {
         "user": current_user,
@@ -292,6 +302,8 @@ async def admin_overview(
         "features": shop_features,
         "active_page": "overview",
         "low_stock_count": low_stock_count,
+        "default_country_code": default_country_code,
+        "timezone_choices": TIMEZONE_CHOICES,
     })
 
 
@@ -575,13 +587,17 @@ async def update_settings(
     shop.header_text_color = data.header_text_color
     shop.cart_bg_color = data.cart_bg_color
     shop.upi_id = data.upi_id
+    shop.receipt_footer = data.receipt_footer
+    shop.printer_paper_width = data.printer_paper_width
+    shop.printer_alignment = data.printer_alignment
+    shop.timezone = data.timezone  # IANA zone chosen in settings; controls bill/receipt display time
     
     logo_url = await save_uploaded_image(logo, max_size=(150, 150), prefix="logo")
     if logo_url:
         shop.logo_url = logo_url
             
     await db.commit()
-    return RedirectResponse(url=f"/admin/?shop_id={target_shop_id}&tab=branding", status_code=303)
+    return RedirectResponse(url=f"/admin/?shop_slug={shop.slug}&tab=overview", status_code=303)
 
 
 # ============================================================================
@@ -598,12 +614,19 @@ async def add_customer(
     target_shop_id = data.shop_id or current_user.shop_id
     if not target_shop_id:
         return {"error": "No shop assigned"}
-    
+
+    # Fetch shop to get its default country_code if not provided
+    shop_res = await db.execute(select(Shop).where(Shop.id == target_shop_id))
+    shop = shop_res.scalars().first()
+
     phone_number = re.sub(r'\D', '', data.phone_number)
-    
+    from app.core.config import settings
+    country_code = data.country_code or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE
+
     new_customer = Customer(
         name=data.name,
         phone_number=phone_number,
+        country_code=country_code,
         shop_id=target_shop_id
     )
     db.add(new_customer)
@@ -642,10 +665,14 @@ async def customer_edit_page(
         shop_res = await db.execute(select(Shop).where(Shop.id == current_user.shop_id))
         shop = shop_res.scalars().first()
     
+    from app.core.config import settings
+    default_country_code = customer.country_code or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE
+
     return templates.TemplateResponse(request, "customer_edit.html", {
         "customer": customer,
         "shop": shop,
-        "user": current_user
+        "user": current_user,
+        "default_country_code": default_country_code,
     })
 
 
@@ -671,6 +698,8 @@ async def update_customer(
     if customer:
         customer.name = data.name
         customer.phone_number = re.sub(r'\D', '', data.phone_number)
+        if data.country_code:
+            customer.country_code = data.country_code
         await db.commit()
     
     return RedirectResponse(url=f"/admin/?shop_id={effective_shop_id}&tab=customers", status_code=303)
@@ -735,9 +764,13 @@ async def get_bill_detail(
             "phone_number": bill.customer.phone_number
         }
     
+    shop_res = await db.execute(select(Shop).where(Shop.id == bill.shop_id))
+    shop = shop_res.scalars().first()
+    
+    local_ts = shop_local(bill.timestamp, shop)
     return JSONResponse({
         "bill_number": bill.bill_number,
-        "timestamp": bill.timestamp.strftime("%Y-%m-%d %H:%M"),
+        "timestamp": local_ts.strftime("%Y-%m-%d %H:%M") if local_ts else "",
         "total_amount": float(bill.total_amount),
         "payment_method": getattr(bill, 'payment_method', 'Cash'),
         "items_snapshot": bill.items_snapshot,
@@ -753,6 +786,8 @@ async def send_bill_whatsapp(
     db: AsyncSession = Depends(get_db)
 ):
     from sqlalchemy.orm import selectinload
+    from app.infrastructure.integrations.whatsapp import whatsapp_service
+    from app.domains.billing.service import BillingService
     
     if current_user.role not in ["owner", "superadmin", "cashier"]:
          return JSONResponse({"error": "Unauthorized"}, status_code=403)
@@ -775,31 +810,23 @@ async def send_bill_whatsapp(
     if not phone_number:
         return JSONResponse({"error": "No phone number provided"}, status_code=400)
     
-    phone_number = re.sub(r'\D', '', phone_number)
-    if len(phone_number) == 10:
-        phone_number = "91" + phone_number
-    
     current_bill_shop_id = bill.shop_id or target_shop_id
     shop_res = await db.execute(select(Shop).where(Shop.id == current_bill_shop_id))
     shop = shop_res.scalars().first()
-    shop_name = shop.name if shop else "Restaurant"
-    currency = shop.currency_symbol if shop else "₹"
     
-    items_text = "\n".join([
-        f"{item['qty']}x {item['name']} - {currency}{item['line_total']:.2f}"
-        for item in bill.items_snapshot
-    ])
+    message = BillingService.format_whatsapp_bill_message(
+        bill_number=bill.bill_number,
+        items_snapshot=bill.items_snapshot or [],
+        total_amount=float(bill.total_amount),
+        shop_name=shop.name if shop else "Restaurant",
+        currency=shop.currency_symbol if shop else "₹",
+        bill_date=shop_local(bill.timestamp, shop).strftime("%d-%b-%Y %I:%M %p") if bill.timestamp else "",
+        footer_message=shop.receipt_footer if shop and hasattr(shop, 'receipt_footer') else "Thank you for your order!"
+    )
+    from app.core.config import settings
+    customer_country_code = (bill.customer.country_code if bill.customer else None) or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE
+    whatsapp_url = whatsapp_service.generate_wa_link(phone_number, message, customer_country_code)
     
-    message = f"""*{shop_name}*
-Bill #{bill.bill_number}
-
-{items_text}
-
-*Total: {currency}{bill.total_amount:.2f}*
-
-Thank you for your order! \U0001f354"""
-    
-    whatsapp_url = f"https://wa.me/{phone_number}?text={urllib.parse.quote(message.strip(), encoding='utf-8')}"
     return JSONResponse({
         "success": True,
         "whatsapp_url": whatsapp_url,
@@ -819,7 +846,8 @@ async def whatsapp_redirect_page(
     logic (fetching bill, formatting message) happens here during page load.
     """
     from sqlalchemy.orm import selectinload
-    import urllib.parse
+    from app.infrastructure.integrations.whatsapp import whatsapp_service
+    from app.domains.billing.service import BillingService
     
     query = select(Bill).where(Bill.slug == bill_slug).options(selectinload(Bill.customer))
     result = await db.execute(query)
@@ -828,36 +856,23 @@ async def whatsapp_redirect_page(
     if not bill:
          return HTMLResponse("<h1>Error: Bill not found</h1>", status_code=404)
 
-    # Use provided phone
-    phone_number = phone
-    phone_number = re.sub(r'\D', '', phone_number)
-    if len(phone_number) == 10:
-        phone_number = "91" + phone_number
-        
     current_bill_shop_id = bill.shop_id
     shop_res = await db.execute(select(Shop).where(Shop.id == current_bill_shop_id))
     shop = shop_res.scalars().first()
-    shop_name = shop.name if shop else "Restaurant"
-    currency = shop.currency_symbol if shop else "₹"
     
-    # Manually format message (same as send_bill_whatsapp)
-    items_text = "\n".join([
-        f"{item['qty']}x {item['name']} - {currency}{item['line_total']:.2f}"
-        for item in bill.items_snapshot or []
-    ])
-    
-    message = f"""*{shop_name}*
-Bill #{bill.bill_number}
+    message = BillingService.format_whatsapp_bill_message(
+        bill_number=bill.bill_number,
+        items_snapshot=bill.items_snapshot or [],
+        total_amount=float(bill.total_amount),
+        shop_name=shop.name if shop else "Restaurant",
+        currency=shop.currency_symbol if shop else "₹",
+        bill_date=shop_local(bill.timestamp, shop).strftime("%d-%b-%Y %I:%M %p") if bill.timestamp else "",
+        footer_message=shop.receipt_footer if shop and hasattr(shop, 'receipt_footer') else "Thank you for your order!"
+    )
+    from app.core.config import settings
+    customer_country_code = (bill.customer.country_code if bill.customer else None) or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE
+    whatsapp_url = whatsapp_service.generate_wa_link(phone, message, customer_country_code)
 
-{items_text}
-
-*Total: {currency}{bill.total_amount:.2f}*
-
-Thank you for your order! \U0001f354"""
-
-    # Generate the actual WhatsApp URL
-    whatsapp_url = f"https://wa.me/{phone_number}?text={urllib.parse.quote(message.strip(), encoding='utf-8')}"
-    
     # S2 FIX: Escape all user-controllable data to prevent XSS
     safe_url = html_mod.escape(whatsapp_url, quote=True)
     

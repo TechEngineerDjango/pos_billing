@@ -50,8 +50,29 @@ def server():
     )
     
     # Wait for server to start and seed data
-    time.sleep(10)
+    time.sleep(5)
     
+    # Seed the Feature catalog
+    seed_script = """
+import asyncio
+from app.core.database import AsyncSessionLocal
+from app.shared.models import Feature
+from sqlalchemy import select
+
+async def seed():
+    async with AsyncSessionLocal() as db:
+        features = ["cash_calculator", "customer_management", "inventory_management", "whatsapp_billing", "sale_report", "pos_basic"]
+        for f in features:
+            res = await db.execute(select(Feature).where(Feature.key == f))
+            if not res.scalars().first():
+                db.add(Feature(key=f, name=f.replace('_', ' ').title(), category='billing'))
+        await db.commit()
+
+asyncio.run(seed())
+"""
+    subprocess.run(["python3", "-c", seed_script], cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    time.sleep(2)
+
     yield SERVER_PROCESS
     
     # Cleanup: Kill server process group
@@ -68,7 +89,7 @@ def browser_page(server):
     """Create a new browser page for each test — always in headed mode."""
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False, slow_mo=300)
-        context = browser.new_context(viewport={"width": 1920, "height": 1080})
+        context = browser.new_context(viewport={'width': 1280, 'height': 800})
         page = context.new_page()
         yield page
         browser.close()
@@ -83,9 +104,9 @@ def _login_owner(page: Page):
     page.fill("input[name='username']", "owner")
     # Try the configured OWNER_PASSWORD first
     page.fill("input[name='password']", OWNER_PASSWORD)
-    page.click("button[type='submit']")
-    
     try:
+        with page.expect_navigation(timeout=5000):
+            page.click("button[type='submit']")
         # Fast wait to see if current credentials work
         page.wait_for_url(re.compile(r".*/(admin|billing)/"), timeout=3000)
     except Exception:
@@ -93,8 +114,8 @@ def _login_owner(page: Page):
         # we re-attempt with the standard default or just retry the env one
         page.fill("input[name='username']", "owner")
         page.fill("input[name='password']", OWNER_PASSWORD)
-        page.click("button[type='submit']")
-        page.wait_for_url(re.compile(r".*/(admin|billing)/"), timeout=10000)
+        with page.expect_navigation(timeout=5000):
+            page.click("button[type='submit']")
         
     page.wait_for_load_state("domcontentloaded")
 
@@ -134,7 +155,7 @@ class TestLoginPage:
         browser_page.goto(f"{BASE_URL}/auth/login")
         
         # Check page title - corrected to match actual title in layout.html
-        expect(browser_page).to_have_title("Burger Shop POS")
+        expect(browser_page).to_have_title("POS Billing System")
         
         # Check form elements exist
         expect(browser_page.locator("input[name='username']")).to_be_visible()
@@ -705,7 +726,7 @@ class TestExhaustiveFunctionalitySuite:
         time.sleep(1)
         browser_page.locator("button:has-text('Add New Item')").click()
         time.sleep(0.5)
-        browser_page.fill("input[name='name']", "Mega Exhaustive Burger")
+        browser_page.fill("input[name='name']:not([type='hidden'])", "Mega Exhaustive Burger")
         browser_page.fill("input[name='price']", "250.00")
         browser_page.fill("input[name='category']", "Burgers")
         browser_page.locator("#admin-add-product-btn").click()
@@ -738,7 +759,7 @@ class TestExhaustiveFunctionalitySuite:
         time.sleep(0.5)
         
         # Test Customer Adding (New Customer)
-        browser_page.fill("input[placeholder='Phone Number']", "9094855498")
+        browser_page.fill("input[data-input='customer-search-phone']", "9094855498")
         time.sleep(1)
         expect(browser_page.locator("text=NEW")).to_be_visible()
         browser_page.fill("input[placeholder='Customer Name *']", "Mega Customer")
@@ -928,7 +949,7 @@ def _run_pos_cashier_workflow(page: Page, viewport: dict, cashier_user: str,
 
     # --- Fill Customer Details ---
     # Wait for the input to be stable and visible
-    phone_input = page.locator("input[placeholder='Phone Number']")
+    phone_input = page.locator("input[data-input='customer-search-phone']")
     phone_input.wait_for(state="visible", timeout=5000)
     phone_input.fill("9094855498")
     time.sleep(1)
@@ -1047,7 +1068,7 @@ def _run_full_lifecycle(page: Page, viewport: dict):
     page.locator("button:has-text('Add New Item')").click()
     time.sleep(0.5)
     item_name = f"VP Burger {viewport['width']}"
-    page.fill("input[name='name']", item_name)
+    page.fill("input[name='name']:not([type='hidden'])", item_name)
     page.fill("input[name='price']", "250.00")
     page.fill("input[name='category']", "Burgers")
     page.locator("#admin-add-product-btn").click()

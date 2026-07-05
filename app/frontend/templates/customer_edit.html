@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "partials/country_picker.html" import country_picker %}
 
 {% block content %}
 <div class="h-[calc(100vh-4rem)] bg-[#F5F5F7] dark:bg-[#0a0f1c] overflow-y-auto p-6 lg:p-12">
@@ -29,7 +30,8 @@
             <!-- Decorative Accent -->
             <div class="absolute top-0 right-0 w-32 h-32 bg-green-500/10 blur-3xl rounded-full -mr-16 -mt-16"></div>
 
-            <form action="/admin/customer/update/{{ customer.slug }}" method="POST" class="space-y-8 relative z-10">
+            <form action="/admin/customer/update/{{ customer.slug }}" method="POST" class="space-y-8 relative z-10"
+                x-data="{ editCustomerCountryCode: '{{ default_country_code }}' }">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="shop_id" value="{{ shop.id }}">
 
@@ -44,8 +46,11 @@
                     <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Global Mobile Station
                             (GMS)</label>
-                        <input type="tel" name="phone_number" value="{{ customer.phone_number }}" required
-                            class="w-full bg-transparent border-0 text-green-500 font-mono font-black text-2xl p-0 focus:ring-0 tracking-widest">
+                        <div class="flex gap-2 items-center">
+                            {{ country_picker('editCustomerCountryCode', 'editCustomerCountryCode = v', 'country_code') }}
+                            <input type="tel" name="phone_number" value="{{ customer.phone_number }}" required
+                                class="flex-1 min-w-0 bg-transparent border-0 text-green-500 font-mono font-black text-2xl p-0 focus:ring-0 tracking-widest">
+                        </div>
                         <p class="text-[10px] text-gray-500 font-bold mt-2 uppercase tracking-widest opacity-50">
                             Standardized 10-digit format</p>
                     </div>

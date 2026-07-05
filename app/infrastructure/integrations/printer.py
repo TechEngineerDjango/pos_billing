@@ -61,32 +61,38 @@ class ThermalPrinter:
             # Header
             shop_name = shop_profile.get("name", "Burger Shop") if shop_profile else "Burger Shop"
             address = shop_profile.get("address", "") if shop_profile else ""
+            footer = shop_profile.get("receipt_footer", "Thank You!\\nVisit Again\\n\\n\\n") if shop_profile else "Thank You!\\nVisit Again\\n\\n\\n"
+            alignment = shop_profile.get("printer_alignment", "center") if shop_profile else "center"
+            width_setting = shop_profile.get("printer_paper_width", "80mm") if shop_profile else "80mm"
+            
+            line_len = 32 if width_setting == "58mm" else 48
+            sep_line = "-" * line_len + "\n"
             
             # Simple formatting
-            self.printer.set(align='center')
+            self.printer.set(align=alignment)
             self.printer.text(f"\n{shop_name}\n")
             if address:
                 self.printer.text(f"{address}\n")
-            self.printer.text("--------------------------------\n")
+            self.printer.text(sep_line)
             
             # Bill Details
             self.printer.set(align='left')
             self.printer.text(f"Bill No: {bill_data.get('bill_number')}\n")
             self.printer.text(f"Date:    {bill_data.get('date')}\n")
-            self.printer.text("--------------------------------\n")
+            self.printer.text(sep_line)
             
             # Items
-            # 32 char width standard for many thermal printers, or 42/48. We assume 32-42 approx.
-            # Format: Name (20) Qty (5) Price (Right)
-            self.printer.text(f"{'Item':<16} {'Qty':<4} {'Price':>10}\n")
+            # Format: Name (name_len) Qty (5) Price (8)
+            name_len = line_len - 14  # space for qty (5) + price (8) + spaces (1)
+            self.printer.text(f"{'Item':<{name_len}} {'Qty':<4} {'Price':>8}\n")
             
             for item in bill_data.get('items_snapshot', []):
-                name = item.get('name', 'Item')[:16]
+                name = item.get('name', 'Item')[:name_len]
                 qty = item.get('qty', 1)
-                price = item.get('price', 0.0) * qty
-                self.printer.text(f"{name:<16} {qty:<4} {price:>10.2f}\n")
+                price = item.get('price', 0.0) * float(qty)
+                self.printer.text(f"{name:<{name_len}} {qty:<4} {price:>8.2f}\n")
             
-            self.printer.text("--------------------------------\n")
+            self.printer.text(sep_line)
             self.printer.set(align='right')
             
             subtotal = bill_data.get('subtotal_amount')
@@ -98,10 +104,16 @@ class ThermalPrinter:
                 self.printer.text(f"TAX: {tax:.2f}\n")
             
             self.printer.text(f"TOTAL: {total:.2f}\n")
-            self.printer.text("--------------------------------\n")
+            self.printer.text(sep_line)
             
-            self.printer.set(align='center')
-            self.printer.text("Thank You!\nVisit Again\n\n\n")
+            self.printer.set(align=alignment)
+            
+            # Format footer message to include newlines if needed, ensuring padding
+            footer_text = footer.replace("\\n", "\n")
+            if not footer_text.endswith("\n\n\n"):
+                footer_text += "\n\n\n"
+            
+            self.printer.text(footer_text)
             
             self.printer.cut()
             

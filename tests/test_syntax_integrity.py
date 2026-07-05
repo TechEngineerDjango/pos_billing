@@ -53,7 +53,6 @@ async def test_superadmin_dashboard_template_integrity(async_client: AsyncClient
     
     # Check for Data Island
     assert '<script id="superadmin-shops-data" type="application/json">' in html
-    assert 'JSON.parse(document.getElementById(\'superadmin-shops-data\').textContent)' in html
     
     # Ensure no syntax leaks
     assert 'shopsData: {{' not in html

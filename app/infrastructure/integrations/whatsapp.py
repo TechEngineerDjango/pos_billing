@@ -1,63 +1,51 @@
 import logging
-from typing import Dict, Any
+import urllib.parse
+from typing import Dict, Any, List, Optional
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
 
 class WhatsAppService:
     def __init__(self, api_key: str = None):
         self.api_key = api_key
 
-    def format_bill_message(self, bill_data: Dict[str, Any], shop_data: Dict[str, Any]) -> str:
-        """Format bill information as a text message."""
-        currency = shop_data.get("currency", "₹")
-        
-        message = f"""🏪 *{shop_data.get('name', 'Shop')}*
-{shop_data.get('address', '')}
-
-📄 *Bill #{bill_data['bill_number']}*
-📅 Date: {bill_data['timestamp']}
-💳 Payment: {bill_data['payment_method']}
-
-*Items:*
-"""
-        
-        for item in bill_data.get('items', []):
-            name = item.get('name', 'Item')
-            qty = item.get('qty', 1)
-            price = item.get('price', 0)
-            line_total = item.get('line_total', qty * price)
-            message += f"\n• {name} x{qty} - {currency}{line_total:.2f}"
-        
-        message += f"\n\n{'='*30}\n*Total: {currency}{bill_data['total_amount']:.2f}*\n{'='*30}"
-        message += "\n\nThank you for your business! 🙏"
-        
-        return message
-
-    async def send_bill_receipt(self, phone_number: str, bill_data: Dict[str, Any], shop_data: Dict[str, Any]):
+    @staticmethod
+    def sanitize_phone(phone_number: str, country_code: Optional[str] = None) -> str:
         """
-        Send bill receipt via WhatsApp.
+        Strip non-digits and prepend country code.
+        Uses provided country_code, falls back to settings default if not provided.
+        """
+        phone = ''.join(filter(str.isdigit, phone_number))
+        code = country_code or settings.DEFAULT_COUNTRY_CODE
+
+        if len(phone) == 10 and not phone.startswith(code):
+            phone = code + phone
+        return phone
+
+    def generate_wa_link(self, phone_number: str, message: str, country_code: Optional[str] = None) -> str:
+        """Generate a complete wa.me URL with pre-filled message text."""
+        phone = self.sanitize_phone(phone_number, country_code)
+        return f"https://wa.me/{phone}?text={urllib.parse.quote(message.strip(), encoding='utf-8')}"
+
+    async def send_message(self, phone_number: str, message: str, country_code: Optional[str] = None) -> bool:
+        """
+        Send a WhatsApp message via API.
         In production, this would integrate with Twilio, Meta Cloud API, or similar.
         """
-        message = self.format_bill_message(bill_data, shop_data)
+        phone = self.sanitize_phone(phone_number, country_code)
         
-        logger.info(f"[WhatsApp Stub] Sending to {phone_number}:")
+        logger.info(f"[WhatsApp Stub] Sending to {phone}:")
         logger.info(f"\n{message}\n")
-        
+
         # Valid implementation would be:
         # await client.messages.create(
         #     from_='whatsapp:+YOUR_NUMBER',
-        #     to=f'whatsapp:{phone_number}',
+        #     to=f'whatsapp:{phone}',
         #     body=message
         # )
-        
+
         return True
 
-    def get_whatsapp_url(self, phone_number: str, bill_data: Dict[str, Any], shop_data: Dict[str, Any]) -> str:
-        """Generate a wa.me URL for client-side sending."""
-        import urllib.parse
-        message = self.format_bill_message(bill_data, shop_data)
-        encoded_message = urllib.parse.quote(message)
-        return f"https://wa.me/{phone_number}?text={encoded_message}"
 
 whatsapp_service = WhatsAppService()
-

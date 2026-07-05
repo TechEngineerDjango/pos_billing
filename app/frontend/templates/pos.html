@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "partials/country_picker.html" import country_picker %}
 
 {% block content %}
 <div x-data="posApp()" 
@@ -7,7 +8,7 @@
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
     <!-- Mobile Cart Toggle Button -->
-    <button id="pos-mobile-cart-toggle" x-show="showFloatingCart" x-cloak
+    <button data-action="toggle-mobile-cart" id="pos-mobile-cart-toggle" x-show="showFloatingCart" x-cloak
         @click="mobileCartOpen = true"
         class="fixed bottom-6 right-6 z-40 w-16 h-16 rounded-full bg-[var(--accent-color)] text-white shadow-2xl flex items-center justify-center active:scale-95 transition-transform hover:scale-110">
         <div class="relative">
@@ -50,13 +51,13 @@
         <div
             class="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl">
             <span class="text-purple-400 font-medium text-sm">🛡️ Superadmin:</span>
-            <select onchange="window.location.href='/billing/?shop_slug=' + this.value"
+            <select data-input="superadmin-shop-select" onchange="window.location.href='/billing/?shop_slug=' + this.value"
                 class="flex-1 bg-slate-800 border border-purple-500/50 rounded-lg px-3 py-2 text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none">
                 {% for s in all_shops %}
                 <option value="{{ s.slug }}" {% if shop and s.slug==shop.slug %}selected{% endif %}>{{ s.name }}</option>
                 {% endfor %}
             </select>
-            <a href="/superadmin/"
+            <a data-action="goto-control-center" href="/superadmin/"
                 class="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap">Control
                 Center</a>
         </div>
@@ -73,11 +74,11 @@
                 Menu
             </h2>
             <div class="flex items-center gap-2">
-                <button @click="openRecentBills()"
+                <button data-action="view-recent-bills" @click="openRecentBills()"
                     class="flex items-center gap-2 bg-[var(--card-bg)] text-[var(--font-color)] border border-[var(--border-color)] px-4 py-2 rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all text-sm font-bold">
                     <span>🧾</span> Recent
                 </button>
-                <button x-show="features['inventory_management']" @click="$dispatch('open-scanner')"
+                <button data-action="open-scanner" x-show="features['inventory_management']" @click="$dispatch('open-scanner')"
                     class="flex items-center gap-2 bg-[var(--accent-color)] text-white px-4 py-2 rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all text-sm font-bold">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
@@ -90,11 +91,11 @@
         <!-- Category Filter Tabs (Horizontal Scroll on Mobile) -->
         <div
             class="flex gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide">
-            <button @click="selectedCategory = 'All'"
+            <button data-category-filter="All" @click="selectedCategory = 'All'"
                 :class="selectedCategory === 'All' ? 'bg-[var(--accent-color)] text-white shadow-lg' : 'bg-[var(--card-bg)] text-[var(--font-color)] hover:bg-[var(--accent-color)]/20'"
                 class="px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 whitespace-nowrap shrink-0">All</button>
             <template x-for="cat in categories" :key="cat">
-                <button @click="selectedCategory = cat"
+                <button :data-category-filter="cat" @click="selectedCategory = cat"
                     :class="selectedCategory === cat ? 'bg-[var(--accent-color)] text-white shadow-lg' : 'bg-[var(--card-bg)] text-[var(--font-color)] hover:bg-[var(--accent-color)]/20'"
                     class="px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 uppercase whitespace-nowrap shrink-0"
                     x-text="cat"></button>
@@ -104,7 +105,8 @@
         <!-- Menu Grid (Responsive) -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
             {% for item in items %}
-            <div x-show="selectedCategory === 'All' || '{{ item.category }}'.toUpperCase() === selectedCategory.toUpperCase()"
+            <div data-product-sku="{{ item.sku }}" data-product-id="{{ item.id }}"
+                x-show="selectedCategory === 'All' || '{{ item.category }}'.toUpperCase() === selectedCategory.toUpperCase()"
                 @click="openItem({{ item.id }})"
                 :class="isOutOfStock({{ item.id }}) ? 'opacity-50 cursor-not-allowed grayscale' : 'cursor-pointer hover:shadow-xl transform hover:-translate-y-1 active:scale-95'"
                 style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--font-color);"
@@ -164,7 +166,7 @@
             class="p-4 sm:p-6 border-b border-[var(--border-color)] flex justify-between items-center bg-transparent shrink-0">
             <h2 class="text-lg sm:text-xl font-bold" style="font-family: var(--nav-font);">Current Order</h2>
             <div class="flex items-center gap-3">
-                <button @click="clearCart()" style="color: inherit; opacity: 0.6;"
+                <button data-action="clear-cart" @click="clearCart()" style="color: inherit; opacity: 0.6;"
                     class="text-sm hover:text-red-400 transition-colors flex items-center gap-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -174,7 +176,7 @@
                     <span class="hidden sm:inline">Clear</span>
                 </button>
                 <!-- Mobile Close Button -->
-                <button @click="mobileCartOpen = false" x-show="isMobile"
+                <button data-action="close-mobile-cart" @click="mobileCartOpen = false" x-show="isMobile"
                     class="p-2 hover:bg-white/10 rounded-lg transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
@@ -190,38 +192,42 @@
             <!-- Items Section -->
             <div id="cart-items-list" class="space-y-3">
                 <template x-for="(item, index) in cart" :key="index">
-                    <div style="background-color: var(--billing-card-bg); color: var(--billing-card-font); border-color: var(--border-color);"
+                    <div :data-cart-sku="item.sku" style="background-color: var(--billing-card-bg); color: var(--billing-card-font); border-color: var(--border-color);"
                         class="flex justify-between items-center border p-3 rounded-xl group hover:brightness-110 transition-colors">
                         <div>
                             <p class="font-bold text-sm" x-text="item.name"></p>
                             <div class="flex items-center gap-2 mt-1">
                                 <!-- Fixed-price items: show +/- qty buttons -->
                                 <template x-if="!item.unit || item.unit === 'piece'">
-                                    <div class="flex items-center gap-2">
-                                        <button @click="changeQty(index, -1)"
+                                    <div class="flex items-center gap-1">
+                                        <button data-action="decrease-qty" @click="changeQty(index, -1)"
                                             style="background-color: var(--inc-dec-btn); color: white;"
                                             class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-opacity hover:opacity-90">-</button>
-                                        <span class="text-sm font-mono w-4 text-center" x-text="item.qty"></span>
-                                        <button @click="changeQty(index, 1)"
+                                        <input type="text" inputmode="numeric"
+                                            :value="item.qty"
+                                            @change="setExactQty(index, $event.target.value)"
+                                            class="w-12 text-center bg-transparent border-b border-gray-600 focus:outline-none focus:border-[var(--accent-color)] text-sm font-mono p-0 h-6">
+                                        <button data-action="increase-qty" @click="changeQty(index, 1)"
                                             style="background-color: var(--inc-dec-btn); color: white;"
                                             class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-opacity hover:opacity-90">+</button>
                                     </div>
                                 </template>
-                                <!-- Unit-based items: show qty + unit, tap to re-edit -->
+                                <!-- Unit-based items: show input + unit -->
                                 <template x-if="item.unit && item.unit !== 'piece'">
-                                    <button @click="openUnitModal(item, index)"
-                                        style="background-color: var(--inc-dec-btn); color: white;"
-                                        class="px-3 h-6 rounded flex items-center gap-1 text-xs font-bold transition-opacity hover:opacity-90">
-                                        <span x-text="item.qty + ' ' + item.unit"></span>
-                                        <span class="opacity-60 text-[10px]">✎</span>
-                                    </button>
+                                    <div class="flex items-center gap-1">
+                                        <input type="text" inputmode="decimal"
+                                            :value="item.qty"
+                                            @change="setExactQty(index, $event.target.value)"
+                                            class="w-16 text-right bg-transparent border-b border-gray-600 focus:outline-none focus:border-[var(--accent-color)] text-sm font-mono p-0 h-6">
+                                        <span class="text-xs opacity-80" x-text="item.unit"></span>
+                                    </div>
                                 </template>
                             </div>
                         </div>
                         <div class="flex items-center space-x-3">
                             <span class="font-bold text-sm text-[var(--accent-color)]"
                                 x-text="formatMoney(item.price * item.qty)"></span>
-                            <button @click="removeFromCart(index)"
+                            <button data-action="remove-item" @click="removeFromCart(index)"
                                 class="text-gray-600 hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded-full transition-colors opacity-0 group-hover:opacity-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -240,13 +246,17 @@
                     class="space-y-2">
                     <label class="text-xs font-bold uppercase opacity-60">Customer Details</label>
                     <div class="space-y-2">
-                        <input type="text" x-model="customerPhone" @input="searchCustomer()"
-                            @keyup.enter="selectCustomer()" placeholder="Search Phone or Name"
-                            style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
-                            class="w-full border rounded-lg px-3 py-2.5 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none text-sm">
+                        <div class="flex gap-2 relative">
+                            {{ country_picker('customerCountryCode', 'customerCountryCode = v') }}
+
+                            <input data-input="customer-search-phone" type="text" x-model="customerPhone" @input="searchCustomer()"
+                                @keyup.enter="selectCustomer()" placeholder="Search Phone or Name"
+                                style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
+                                class="flex-1 min-w-0 border rounded-lg px-3 py-2.5 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none text-sm">
+                        </div>
 
                         <!-- Search Suggestion Dropdown -->
-                        <div x-show="foundCustomer && foundCustomer.phone_number && foundCustomer.phone_number !== customerPhone"
+                        <div data-action="select-customer-suggestion" x-show="foundCustomer && foundCustomer.phone_number && foundCustomer.phone_number !== customerPhone"
                             @mousedown.prevent="selectCustomer()"
                             class="p-3 bg-white dark:bg-slate-800 border-2 border-orange-500 rounded-xl cursor-pointer hover:bg-orange-50 dark:hover:bg-orange-900/10 transition-all flex items-center gap-3 relative z-50 shadow-xl">
                             <div
@@ -271,7 +281,7 @@
 
                         <div x-show="customerPhone.length > 2" x-transition>
                             <div class="relative">
-                                <input type="text" x-model="customerName"
+                                <input data-input="customer-name" type="text" x-model="customerName"
                                     :placeholder="isNewCustomer ? 'Customer Name *' : 'Customer Name'"
                                     :required="isNewCustomer"
                                     style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
@@ -292,13 +302,13 @@
                 <div>
                     <label class="text-xs font-bold uppercase opacity-60 mb-2 block">Payment Method</label>
                     <div class="grid grid-cols-2 gap-3">
-                        <button id="pos-cash-method-btn" @click="paymentMethod = 'Cash'"
+                        <button data-payment-method="cash" id="pos-cash-method-btn" @click="paymentMethod = 'Cash'"
                             :class="{'shadow-lg border-transparent': paymentMethod === 'Cash', 'bg-transparent border-gray-600 hover:border-gray-500': paymentMethod !== 'Cash'}"
                             :style="paymentMethod === 'Cash' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font); opacity: 0.6;'"
                             class="py-2.5 rounded-xl font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
                             <span>💵</span> Cash
                         </button>
-                        <button @click="paymentMethod = 'UPI'"
+                        <button data-payment-method="upi" @click="paymentMethod = 'UPI'"
                             :class="{'shadow-lg border-transparent': paymentMethod === 'UPI', 'bg-transparent border-gray-600 hover:border-gray-500': paymentMethod !== 'UPI'}"
                             :style="paymentMethod === 'UPI' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font); opacity: 0.6;'"
                             class="py-2.5 rounded-xl font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
@@ -334,28 +344,28 @@
 
                         <!-- Suggestions -->
                         <div class="flex gap-2" x-show="totalPrice > 0">
-                            <button @click="cashReceived = totalPrice"
+                            <button data-action="set-exact-cash" @click="cashReceived = totalPrice"
                                 class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
                                 Exact
                             </button>
-                            <button @click="cashReceived = Math.ceil(totalPrice / 10) * 10"
+                            <button data-action="set-cash-10" @click="cashReceived = Math.ceil(totalPrice / 10) * 10"
                                 x-show="Math.ceil(totalPrice/10)*10 !== totalPrice"
                                 class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
                                 <span x-text="formatMoney(Math.ceil(totalPrice / 10) * 10)"></span>
                             </button>
-                            <button @click="cashReceived = Math.ceil(totalPrice / 50) * 50"
+                            <button data-action="set-cash-50" @click="cashReceived = Math.ceil(totalPrice / 50) * 50"
                                 x-show="Math.ceil(totalPrice/50)*50 !== totalPrice && Math.ceil(totalPrice/50)*50 !== Math.ceil(totalPrice/10)*10"
                                 class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
                                 <span x-text="formatMoney(Math.ceil(totalPrice / 50) * 50)"></span>
                             </button>
-                            <button @click="cashReceived = Math.ceil(totalPrice / 100) * 100"
+                            <button data-action="set-cash-100" @click="cashReceived = Math.ceil(totalPrice / 100) * 100"
                                 x-show="Math.ceil(totalPrice/100)*100 !== totalPrice && Math.ceil(totalPrice/100)*100 !== Math.ceil(totalPrice/50)*50"
                                 class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
                                 <span x-text="formatMoney(Math.ceil(totalPrice / 100) * 100)"></span>
                             </button>
                         </div>
                     </label>
-                    <input id="pos-cash-amount-input" type="number" x-model.number="cashReceived" placeholder="Amount"
+                    <input data-input="cash-received" id="pos-cash-amount-input" type="number" x-model.number="cashReceived" placeholder="Amount"
                         style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
                         class="w-full border rounded-lg px-4 py-3 text-lg font-bold placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:outline-none text-right">
 
@@ -402,11 +412,11 @@
             </div>
 
             <div class="flex gap-2">
-                <button @click="submitBill('Held')" :disabled="cart.length === 0 || loading"
+                <button data-action="hold-bill" @click="submitBill('Held')" :disabled="cart.length === 0 || loading"
                     class="flex-1 bg-orange-500/10 text-orange-400 border border-orange-500/30 font-bold py-3 sm:py-4 rounded-xl shadow-lg transform active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center text-sm sm:text-base">
                     HOLD BILL
                 </button>
-                <button id="pos-print-bill-btn" @click="submitBill('Completed')" :disabled="cart.length === 0 || loading"
+                <button data-action="print-bill" id="pos-print-bill-btn" @click="submitBill('Completed')" :disabled="cart.length === 0 || loading"
                     class="flex-[2] bg-[var(--accent-color)] text-white font-bold py-3 sm:py-4 rounded-xl shadow-lg transform active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center text-sm sm:text-base">
                     <span x-show="!loading" class="flex items-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -449,7 +459,7 @@
             <div class="bg-white/5 border border-white/10 rounded-2xl p-4 mb-4">
                 <label class="text-[10px] text-gray-500 font-bold uppercase block mb-2"
                     x-text="'Quantity (' + (unitModal.item?.unit || '') + ')'"></label>
-                <input type="number" step="0.001" min="0.001"
+                <input data-input="unit-qty" type="text" inputmode="decimal"
                     x-model="unitModal.inputQty"
                     x-ref="unitQtyInput"
                     @keydown.enter="confirmUnitQty()"
@@ -468,11 +478,11 @@
 
             <!-- Actions -->
             <div class="flex gap-3">
-                <button @click="unitModal = { open: false, item: null, cartIndex: null, inputQty: '' }"
+                <button data-action="cancel-unit-modal" @click="unitModal = { open: false, item: null, cartIndex: null, inputQty: '' }"
                     class="flex-1 py-3 rounded-2xl bg-white/5 text-gray-400 font-black uppercase tracking-widest text-xs hover:bg-white/10 transition-all">
                     Cancel
                 </button>
-                <button @click="confirmUnitQty()" :disabled="!(unitModal.inputQty > 0)"
+                <button data-action="confirm-unit-modal" @click="confirmUnitQty()" :disabled="!(unitModal.inputQty > 0)"
                     class="flex-1 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all text-white"
                     :class="unitModal.inputQty > 0 ? 'bg-orange-500 hover:bg-orange-400 shadow-lg shadow-orange-500/30' : 'bg-white/10 opacity-50 cursor-not-allowed'"
                     x-text="unitModal.cartIndex !== null ? 'Update' : 'Add to Cart'">
@@ -482,14 +492,14 @@
     </div>
 
     <!-- ===== RECENT BILLS MODAL ===== -->
-    <div x-show="recentBillsModal.open" x-cloak
+    <div x-show="recentBillsModal.open" id="recentBillsModal" x-cloak
         class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
         @keydown.escape.window="recentBillsModal.open = false">
         <div class="bg-slate-900 border border-white/10 w-full max-w-2xl max-h-[80vh] flex flex-col rounded-3xl p-6 shadow-2xl"
             @click.away="recentBillsModal.open = false">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-2xl font-black text-white tracking-tight">Recent Bills</h2>
-                <button @click="recentBillsModal.open = false" class="text-gray-400 hover:text-white transition-colors">
+                <button data-action="close-recent-bills" @click="recentBillsModal.open = false" class="text-gray-400 hover:text-white transition-colors">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
@@ -511,18 +521,25 @@
                                       :class="bill.status === 'Held' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'"
                                       x-text="bill.status"></span>
                             </div>
-                            <p class="text-xs text-gray-400" x-text="new Date(bill.timestamp).toLocaleString()"></p>
+                            <p class="text-xs text-gray-400" x-text="bill.timestamp_display"></p>
                             <p class="text-sm font-medium text-white mt-2" x-text="'{{ currency }}' + parseFloat(bill.total_amount).toFixed(2) + ' • ' + (bill.customer_name || 'Guest')"></p>
                         </div>
                         <div class="flex gap-2">
-                            <button @click="resendWhatsapp(bill)" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-bold shadow-lg transition-colors flex items-center gap-2">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.195 1.603 6.012L.031 24l6.104-1.6c1.765.952 3.75 1.455 5.896 1.455 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.854c-1.84 0-3.64-.495-5.218-1.433l-.373-.223-3.87 1.014 1.034-3.77-.245-.39A9.85 9.85 0 012.181 12.03C2.181 6.59 6.6 2.17 12.031 2.17c5.431 0 9.85 4.42 9.85 9.86 0 5.44-4.419 9.855-9.85 9.855h-.001zm5.398-7.37c-.296-.148-1.75-.864-2.02-.962-.27-.099-.467-.148-.664.148-.197.296-.763.962-.934 1.16-.172.197-.344.221-.64.074-1.393-.69-2.527-1.464-3.486-3.037-.123-.2-.014-.308.134-.455.133-.133.296-.345.444-.518.148-.172.197-.296.296-.492.099-.197.049-.37-.025-.518-.074-.148-.664-1.603-.91-2.195-.24-.577-.482-.498-.664-.508-.172-.01-.37-.01-.567-.01-.197 0-.518.074-.789.37-.27.296-1.035 1.012-1.035 2.466 0 1.455 1.06 2.86 1.208 3.057.148.197 2.083 3.183 5.044 4.464 2.085.897 2.802.775 3.32.735.617-.048 1.75-.714 1.996-1.405.247-.69.247-1.282.173-1.405-.074-.123-.27-.197-.567-.345z"/></svg>
+                            <template x-if="$store.features['whatsapp_billing'] && bill.status !== 'Cancelled'">
+                                <button data-action="resend-whatsapp" @click="resendWhatsapp(bill)" class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-bold shadow-lg transition-colors flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.195 1.603 6.012L.031 24l6.104-1.6c1.765.952 3.75 1.455 5.896 1.455 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.854c-1.84 0-3.64-.495-5.218-1.433l-.373-.223-3.87 1.014 1.034-3.77-.245-.39A9.85 9.85 0 012.181 12.03C2.181 6.59 6.6 2.17 12.031 2.17c5.431 0 9.85 4.42 9.85 9.86 0 5.44-4.419 9.855-9.85 9.855h-.001zm5.398-7.37c-.296-.148-1.75-.864-2.02-.962-.27-.099-.467-.148-.664.148-.197.296-.763.962-.934 1.16-.172.197-.344.221-.64.074-1.393-.69-2.527-1.464-3.486-3.037-.123-.2-.014-.308.134-.455.133-.133.296-.345.444-.518.148-.172.197-.296.296-.492.099-.197.049-.37-.025-.518-.074-.148-.664-1.603-.91-2.195-.24-.577-.482-.498-.664-.508-.172-.01-.37-.01-.567-.01-.197 0-.518.074-.789.37-.27.296-1.035 1.012-1.035 2.466 0 1.455 1.06 2.86 1.208 3.057.148.197 2.083 3.183 5.044 4.464 2.085.897 2.802.775 3.32.735.617-.048 1.75-.714 1.996-1.405.247-.69.247-1.282.173-1.405-.074-.123-.27-.197-.567-.345z"/></svg>
                                 WhatsApp
-                            </button>
-                            <template x-if="bill.status === 'Held'">
-                                <button @click="resumeBill(bill)" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold shadow-lg transition-colors">
-                                    Edit Bill
                                 </button>
+                            </template>
+                            <template x-if="bill.status === 'Held'">
+                                <div class="flex gap-2">
+                                    <button data-action="resume-bill" @click="resumeBill(bill)" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-bold shadow-lg transition-colors">
+                                        Edit Bill
+                                    </button>
+                                    <button data-action="cancel-held-bill" @click="cancelHeldBill(bill)" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-sm font-bold shadow-lg transition-colors">
+                                        Cancel
+                                    </button>
+                                </div>
                             </template>
                         </div>
                     </div>
@@ -542,7 +559,7 @@
 
 <!-- Data Island for Shop Details -->
 <script id="pos-shop-data" type="application/json">
-    {"name": {{ (shop.name if shop else '') | tojson | safe }}, "upi_id": {{ (shop.upi_id if shop else '') | tojson | safe }}}
+    {"name": {{ (shop.name if shop else '') | tojson | safe }}, "upi_id": {{ (shop.upi_id if shop else '') | tojson | safe }}, "country_code": {{ default_country_code | tojson | safe }}}
 </script>
 
 <!-- Data Island for POS Items -->
@@ -573,6 +590,7 @@ document.addEventListener('alpine:init', () => {
 /**
  * Burger POS - Industrial Service-Oriented Architecture
  * Layers: Infrastructure (API) -> Domain (Logic) -> Controller (Alpine)
+ * Note: bill.timestamp_display is pre-formatted server-side in the shop's configured timezone
  */
 
 // --- 1. INFRASTRUCTURE LAYER: API SERVICE ---
@@ -700,8 +718,9 @@ function posApp() {
         // --- View State ---
         itemsData,
         features,
-        cart: [],
         loading: false,
+        cart: [],
+        heldCartItems: [],
         mobileCartOpen: false,
         selectedCategory: 'All',
         paymentMethod: 'Cash',
@@ -709,6 +728,7 @@ function posApp() {
         isMobile: window.innerWidth < 1024, // Evaluated synchronously before DOM parse
         shopName: shopData.name || '',
         shopUpiId: shopData.upi_id || '',
+        shopCountryCode: shopData.country_code,
         currentBillId: null,
 
         // Customer State
@@ -718,6 +738,9 @@ function posApp() {
         foundCustomer: null, // Resolves 'foundCustomer is not defined'
         customerId: null,
         isNewCustomer: false,
+
+        // Country dial-code for customer phone (picker UI lives in the countryPicker Alpine component)
+        customerCountryCode: shopData.country_code,
 
         // State
         searchQuery: '',
@@ -756,7 +779,8 @@ function posApp() {
         },
         getStock(id) {
             const item = this.itemsData.find(i => i.id === id);
-            return item && item.stock_quantity !== null && item.stock_quantity !== undefined ? item.stock_quantity : null;
+            return item && item.available_stock !== null && item.available_stock !== undefined
+                ? item.available_stock : null;
         },
         getCartQty(id) {
             return this.cart.filter(i => i.id === id).reduce((sum, i) => sum + i.qty, 0);
@@ -766,10 +790,23 @@ function posApp() {
             if (available === null) return false; // not tracked
             return available <= 0;
         },
-        getAvailableStock(id) {
+        getMaxAllowedStock(id) {
             const stock = this.getStock(id);
             if (stock === null) return null;
-            return stock - this.getCartQty(id);
+            
+            let heldQty = 0;
+            if (this.currentBillId && this.heldCartItems.length > 0) {
+                const heldItem = this.heldCartItems.find(i => i.id === id);
+                if (heldItem) {
+                    heldQty = heldItem.qty;
+                }
+            }
+            return stock + heldQty;
+        },
+        getAvailableStock(id) {
+            const maxAllowed = this.getMaxAllowedStock(id);
+            if (maxAllowed === null) return null;
+            return maxAllowed - this.getCartQty(id);
         },
         get hasCart() { 
             return this.cart.length > 0; 
@@ -841,15 +878,24 @@ function posApp() {
         },
 
         confirmUnitQty() {
-            const qty = parseFloat(this.unitModal.inputQty);
+            let qty = parseFloat(this.unitModal.inputQty);
             if (!qty || qty <= 0) return;
             
+            // Enforce integer for piece items
+            if (!this.unitModal.item.unit || this.unitModal.item.unit === 'piece') {
+                qty = Math.floor(qty);
+            }
+            
             if (this.features['inventory_management']) {
-                const stock = this.getStock(this.unitModal.item.id);
-                if (stock !== null) {
-                    const existingQty = this.unitModal.cartIndex !== null ? 0 : this.getCartQty(this.unitModal.item.id);
-                    if (existingQty + qty > stock) {
-                        alert(`Cannot add more. Only ${stock} units available.`);
+                const maxAllowed = this.getMaxAllowedStock(this.unitModal.item.id);
+                if (maxAllowed !== null) {
+                    const otherLinesQty = this.unitModal.cartIndex !== null ? 
+                        (this.getCartQty(this.unitModal.item.id) - this.cart[this.unitModal.cartIndex].qty) : 
+                        this.getCartQty(this.unitModal.item.id);
+                    
+                    if (otherLinesQty + qty > maxAllowed) {
+                        const remainingAllowed = maxAllowed - otherLinesQty;
+                        alert(`Cannot increase quantity. Maximum allowed is ${remainingAllowed}.`);
                         return;
                     }
                 }
@@ -883,16 +929,44 @@ function posApp() {
 
         changeQty(index, delta) {
             const currentItem = this.cart[index];
-            if (delta > 0 && this.features['inventory_management']) {
-                const stock = this.getStock(currentItem.id);
-                if (stock !== null && currentItem.qty + delta > stock) {
-                    alert(`Cannot increase quantity. Only ${stock} units available.`);
-                    return;
+            const newQty = currentItem.qty + delta;
+            if (newQty <= 0) {
+                this.removeFromCart(index);
+                return;
+            }
+            this.setExactQty(index, newQty.toString());
+        },
+        
+        setExactQty(index, newQtyStr) {
+            let qty = parseFloat(newQtyStr);
+            if (!qty || qty <= 0) {
+                if (newQtyStr !== "" && qty <= 0) {
+                    this.removeFromCart(index);
+                } else {
+                    this.cart = [...this.cart]; // Force re-render to reset input value
+                }
+                return;
+            }
+
+            const currentItem = this.cart[index];
+            if (!currentItem.unit || currentItem.unit === 'piece') {
+                qty = Math.floor(qty);
+            }
+            
+            if (this.features['inventory_management']) {
+                const maxAllowed = this.getMaxAllowedStock(currentItem.id);
+                if (maxAllowed !== null) {
+                    const otherLinesQty = this.getCartQty(currentItem.id) - currentItem.qty;
+                    if (otherLinesQty + qty > maxAllowed) {
+                        const remainingAllowed = maxAllowed - otherLinesQty;
+                        alert(`Cannot increase quantity. Maximum allowed is ${remainingAllowed}.`);
+                        this.cart = [...this.cart]; // Force re-render to reset input value
+                        return;
+                    }
                 }
             }
-            this.cart = this.cart.map((item, idx) => 
-                idx === index ? { ...item, qty: Math.max(1, item.qty + delta) } : item
-            );
+            
+            this.cart = this.cart.map((c, i) => i === index ? { ...c, qty } : c);
         },
 
         handleScanResult(sku) {
@@ -1032,7 +1106,8 @@ function posApp() {
                 items: this.cart.map(i => ({ id: i.id, qty: i.qty })),
                 payment_method: this.paymentMethod,
                 customer_phone: this.customerPhone,
-                customer_name: this.customerName
+                customer_name: this.customerName,
+                customer_country_code: this.customerCountryCode
             };
         },
 
@@ -1040,7 +1115,20 @@ function posApp() {
             const phone = this.customerPhone;
             const billNum = data.bill_number;
             const billSlug = data.bill_id;
+            
+            // Capture cart state before clearing it
+            const soldItems = this.cart.map(item => ({ id: item.id, qty: item.qty }));
+            
+            this.heldCartItems = [];
             this.clearCart();
+
+            // Apply backend-provided stock values (single source of truth)
+            if (data.updated_items && data.updated_items.length > 0) {
+                this.itemsData = this.itemsData.map(item => {
+                    const updated = data.updated_items.find(u => u.id === item.id);
+                    return updated ? { ...item, available_stock: updated.available_stock } : item;
+                });
+            }
 
             if (status === 'Held') {
                 alert(`⏸️ Bill #${billNum} placed on Hold!`);
@@ -1050,8 +1138,8 @@ function posApp() {
             // Always confirm bill creation first
             alert(`✅ Bill #${billNum} created successfully!`);
 
-            // Then offer WhatsApp if phone is present
-            if (phone && phone.trim().length >= 10) {
+            // Then offer WhatsApp if phone is present and feature is enabled
+            if (phone && phone.trim().length >= 10 && this.features['whatsapp_billing']) {
                 this.sendWhatsAppMessage(phone.trim(), billSlug);
             }
         },
@@ -1070,15 +1158,46 @@ function posApp() {
         },
         
         resumeBill(bill) {
+            this.heldCartItems = [];
             this.clearCart();
             this.currentBillId = bill.id;
             this.cart = bill.items.map(i => ({...i}));
+            // Store the original held items so the dynamic stock calculation doesn't double-deduct
+            this.heldCartItems = bill.items.map(i => ({...i}));
             this.paymentMethod = bill.payment_method || 'Cash';
             if (bill.customer_phone) {
                 this.customerPhone = bill.customer_phone;
                 this.searchCustomer();
             }
+            
             this.recentBillsModal.open = false;
+        },
+        
+        async cancelHeldBill(bill) {
+            if (!confirm(`Are you sure you want to cancel the held bill #${bill.bill_number}? This will return the items to stock.`)) {
+                return;
+            }
+            
+            try {
+                this.recentBillsModal.loading = true;
+                const response = await ApiService.request(`/billing/cancel/${bill.id}`, { method: 'POST' });
+                alert(response.message || "Bill cancelled");
+                
+                // Apply backend-provided stock values (single source of truth)
+                if (response.updated_items && response.updated_items.length > 0) {
+                    this.itemsData = this.itemsData.map(item => {
+                        const updated = response.updated_items.find(u => u.id === item.id);
+                        return updated ? { ...item, available_stock: updated.available_stock } : item;
+                    });
+                }
+                
+                // Remove cancelled bill from the modal list
+                this.recentBillsModal.bills = this.recentBillsModal.bills.filter(b => b.id !== bill.id);
+                this.recentBillsModal.loading = false;
+            } catch(e) {
+                alert(`Error: ${e.message}`);
+                this.recentBillsModal.loading = false;
+            }
         },
         
         resendWhatsapp(bill) {

@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "partials/country_picker.html" import country_picker %}
 
 {% block content %}
 <div class="h-[calc(100vh-4rem)] flex overflow-hidden bg-[#F5F5F7] dark:bg-[#0f172a]" x-data="dashboardApp()">
@@ -32,7 +33,8 @@
                 <span class="font-medium hidden lg:block">Menu</span>
             </button>
 
-            <button @click="switchTab('customers')"
+            {% if features.customer_management %}
+            <button @click="switchTab('customers')" data-tab="customers"
                 :class="{'bg-green-500 text-white shadow-lg shadow-green-500/30': activeTab === 'customers', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'customers'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
                 <div class="w-6 h-6 flex items-center justify-center">
@@ -44,8 +46,11 @@
                 </div>
                 <span class="font-medium hidden lg:block">Customers</span>
             </button>
+            {% endif %}
 
-            <button @click="switchTab('reports')"
+            <!-- Premium Tab: Sales -->
+            {% if features.sale_report %}
+            <button @click="switchTab('reports')" data-tab="sales"
                 :class="{'bg-purple-500 text-white shadow-lg shadow-purple-500/30': activeTab === 'reports', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'reports'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
                 <div class="w-6 h-6 flex items-center justify-center">
@@ -57,6 +62,7 @@
                 </div>
                 <span class="font-medium hidden lg:block">Sales</span>
             </button>
+            {% endif %}
 
             <button @click="switchTab('staff')"
                 :class="{'bg-rose-500 text-white shadow-lg shadow-rose-500/30': activeTab === 'staff', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'staff'}"
@@ -251,6 +257,89 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Receipt & Printer Settings -->
+            <div class="mt-10">
+                <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
+                    <span class="text-purple-400">🖨️</span> Receipt & Printer Settings
+                </h2>
+                <form action="/admin/settings" method="POST" enctype="multipart/form-data"
+                    class="bg-white dark:bg-slate-800 rounded-3xl border border-gray-200 dark:border-white/5 p-6 shadow-sm">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                    <!-- Hidden fields to preserve existing shop settings on POST -->
+                    <input type="hidden" name="name" value="{{ shop.name }}">
+                    <input type="hidden" name="address" value="{{ shop.address or '' }}">
+                    <input type="hidden" name="currency" value="{{ shop.currency_symbol }}">
+                    <input type="hidden" name="font_color" value="{{ shop.font_color }}">
+                    <input type="hidden" name="background_color" value="{{ shop.background_color }}">
+                    <input type="hidden" name="header_color" value="{{ shop.header_color }}">
+                    <input type="hidden" name="logo_size" value="{{ shop.logo_size }}">
+                    <input type="hidden" name="watermark_opacity" value="{{ shop.watermark_opacity }}">
+                    <input type="hidden" name="card_bg_color" value="{{ shop.card_bg_color or '#1e293b' }}">
+                    <input type="hidden" name="sidebar_bg_color" value="{{ shop.sidebar_bg_color or '#0f172a' }}">
+                    <input type="hidden" name="accent_color" value="{{ shop.accent_color or '#f97316' }}">
+                    <input type="hidden" name="border_color" value="{{ shop.border_color or 'rgba(255,255,255,0.1)' }}">
+                    <input type="hidden" name="header_text_color" value="{{ shop.header_text_color or '#ffffff' }}">
+                    <input type="hidden" name="cart_bg_color" value="{{ shop.cart_bg_color or '#0f172a' }}">
+                    <input type="hidden" name="upi_id" value="{{ shop.upi_id or '' }}">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Receipt Footer -->
+                        <div class="md:col-span-2">
+                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Receipt Footer Message</label>
+                            <input type="text" name="receipt_footer" value="{{ shop.receipt_footer or '' }}" placeholder="e.g. Thank you for your order!"
+                                class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                            <p class="text-[10px] text-gray-400 mt-1">Appears at the bottom of WhatsApp and Thermal receipts.</p>
+                        </div>
+
+                        <!-- Paper Width -->
+                        <div>
+                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Printer Paper Width</label>
+                            <select name="printer_paper_width"
+                                class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                                <option value="58mm" {% if shop.printer_paper_width == '58mm' %}selected{% endif %}>58mm (Narrow)</option>
+                                <option value="80mm" {% if shop.printer_paper_width == '80mm' %}selected{% endif %}>80mm (Wide)</option>
+                            </select>
+                        </div>
+
+                        <!-- Printer Alignment -->
+                        <div>
+                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Printer Text Alignment</label>
+                            <select name="printer_alignment"
+                                class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                                <option value="left" {% if shop.printer_alignment == 'left' %}selected{% endif %}>Left Aligned</option>
+                                <option value="center" {% if shop.printer_alignment == 'center' %}selected{% endif %}>Center Aligned</option>
+                            </select>
+                        </div>
+
+                        <!-- Timezone -->
+                        <div class="md:col-span-2">
+                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Shop Timezone</label>
+                            <select name="timezone"
+                                class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                                {% set ns = namespace(current_group=None) %}
+                                {% for tz_name, tz_label, tz_continent in timezone_choices %}
+                                {% if tz_continent != ns.current_group %}
+                                    {% if ns.current_group is not none %}</optgroup>{% endif %}
+                                    <optgroup label="{{ tz_continent }}">
+                                    {% set ns.current_group = tz_continent %}
+                                {% endif %}
+                                <option value="{{ tz_name }}" {% if shop.timezone == tz_name %}selected{% endif %}>{{ tz_label }}</option>
+                                {% if loop.last %}</optgroup>{% endif %}
+                                {% endfor %}
+                            </select>
+                            <p class="text-[10px] text-gray-400 mt-1">Controls the local time shown on bills and receipts, regardless of the viewing device.</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 mt-4 border-t border-gray-100 dark:border-white/5 flex justify-end">
+                        <button type="submit"
+                            class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-purple-900/20 transform hover:scale-[1.02] transition-all">
+                            Save Receipt Settings
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -544,8 +633,9 @@
                         {% for bill in bills[:20] %}
                         <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                             <td class="p-6 font-mono text-blue-500 text-sm italic">#{{ bill.bill_number }}</td>
-                            <td class="p-6 text-xs font-bold text-gray-500 uppercase tracking-tighter">{{
-                                bill.timestamp.strftime('%d %b %Y | %H:%M') }}</td>
+                            <td class="p-6 text-xs font-bold text-gray-500 uppercase tracking-tighter">
+                                <span>{{ (bill.timestamp | shop_local(shop)).strftime('%d %b %Y | %H:%M') }}</span>
+                            </td>
                             <td class="p-6">
                                 <span
                                     class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 border border-white/10 rounded-lg">{{
@@ -880,7 +970,7 @@
         class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" x-cloak
         x-transition>
         <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] p-10 relative shadow-2xl border border-white/5"
-            @click.away="showCustomerModal = false">
+            @click.away="showCustomerModal = false" x-data="{ newCustomerCountryCode: '{{ default_country_code }}' }">
             <h2 class="text-3xl font-black italic tracking-tighter uppercase mb-6 dark:text-white">Add Customer
             </h2>
             <form action="/admin/customer/add" method="POST" class="space-y-6">
@@ -894,8 +984,11 @@
                     </div>
                     <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Phone Number</label>
-                        <input type="tel" name="phone_number" required
-                            class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                        <div class="flex gap-2 items-center">
+                            {{ country_picker('newCustomerCountryCode', 'newCustomerCountryCode = v', 'country_code') }}
+                            <input type="tel" name="phone_number" required
+                                class="flex-1 min-w-0 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                        </div>
                     </div>
                 </div>
                 <div class="flex gap-3 pt-4">
@@ -1127,5 +1220,6 @@
             }
         };
     }
+
 </script>
 {% endblock %}
