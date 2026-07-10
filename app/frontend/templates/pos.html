@@ -2,9 +2,9 @@
 {% from "partials/country_picker.html" import country_picker %}
 
 {% block content %}
-<div x-data="posApp()" 
+<div x-data="posApp()"
      @scan-success.window="handleScanResult($event.detail.result)"
-     class="flex-1 flex flex-col w-full bg-transparent relative overflow-x-hidden overflow-y-auto">
+     class="flex flex-col w-full bg-transparent relative overflow-hidden h-[calc(100vh_-_3.5rem)] sm:h-[calc(100vh_-_4rem)]">
     <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
 
     <!-- Mobile Cart Toggle Button -->
@@ -31,11 +31,11 @@
         class="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" x-cloak></div>
 
     <!-- Main Layout Container (Industrial Grid) -->
-    <div :class="!isMobile ? 'grid grid-cols-[1fr,400px]' : 'block'" 
+    <div :class="!isMobile ? 'grid grid-cols-[1fr,400px] grid-rows-[minmax(0,1fr)]' : 'flex flex-col'"
          class="flex-1 w-full overflow-hidden relative h-full">
         <!-- Left: Menu Area -->
         <div :class="isMobile ? 'pb-24' : 'pb-6'"
-             class="flex-1 flex flex-col min-h-0 overflow-hidden overflow-y-auto relative transition-all duration-300 min-w-0"
+             class="flex-1 flex flex-col min-h-0 overflow-hidden overflow-y-auto relative transition-all duration-300 min-w-0 px-4 pt-4"
              style="background-color: var(--bg-color); color: var(--panel-font);">
         <!-- Watermark -->
         {% if shop and shop.logo_url %}
@@ -63,7 +63,7 @@
         </div>
         {% endif %}
 
-        <div class="flex justify-between items-center mb-4 sm:mb-6">
+        <div class="flex justify-between items-center mb-4 sm:mb-6 shrink-0">
             <h2 class="text-xl sm:text-2xl font-bold flex items-center gap-2"
                 style="font-family: var(--nav-font); color: var(--panel-font);">
                 {% if shop.menu_icon_url %}
@@ -88,25 +88,54 @@
             </div>
         </div>
 
+        <!-- Item Search (by name or code) -->
+        <div class="relative mb-4 sm:mb-6 shrink-0">
+            <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40 pointer-events-none"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
+            </svg>
+            <input data-input="menu-search" type="text" x-model="searchQuery"
+                placeholder="Search by name or code..."
+                style="background-color: var(--card-bg); color: var(--font-color); border-color: var(--border-color);"
+                class="w-full border rounded-xl pl-10 pr-10 py-2.5 sm:py-3 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none text-sm">
+            <button data-action="clear-menu-search" x-show="searchQuery.length > 0" x-cloak
+                @click="searchQuery = ''"
+                class="absolute right-3 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100 transition-opacity">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+        </div>
+
         <!-- Category Filter Tabs (Horizontal Scroll on Mobile) -->
         <div
-            class="flex gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide">
-            <button data-category-filter="All" @click="selectedCategory = 'All'"
+            class="flex gap-2 mb-4 sm:mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-hide shrink-0">
+            <button data-category-filter="All" @click="selectedCategory = 'All'; searchQuery = ''"
                 :class="selectedCategory === 'All' ? 'bg-[var(--accent-color)] text-white shadow-lg' : 'bg-[var(--card-bg)] text-[var(--font-color)] hover:bg-[var(--accent-color)]/20'"
                 class="px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 whitespace-nowrap shrink-0">All</button>
             <template x-for="cat in categories" :key="cat">
-                <button :data-category-filter="cat" @click="selectedCategory = cat"
+                <button :data-category-filter="cat" @click="selectedCategory = cat; searchQuery = ''"
                     :class="selectedCategory === cat ? 'bg-[var(--accent-color)] text-white shadow-lg' : 'bg-[var(--card-bg)] text-[var(--font-color)] hover:bg-[var(--accent-color)]/20'"
                     class="px-4 py-2 rounded-xl font-bold text-sm transition-all duration-200 uppercase whitespace-nowrap shrink-0"
                     x-text="cat"></button>
             </template>
         </div>
 
+        <!-- No Results State -->
+        <div x-show="searchQuery.trim().length > 0 && !hasSearchResults" x-cloak
+            class="flex flex-col items-center justify-center py-16 text-center opacity-60">
+            <span class="text-4xl mb-3">🔍</span>
+            <p class="font-bold">No items match "<span x-text="searchQuery"></span>"</p>
+            <p class="text-sm mt-1">Try a different name or item code.</p>
+        </div>
+
         <!-- Menu Grid (Responsive) -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">
             {% for item in items %}
             <div data-product-sku="{{ item.sku }}" data-product-id="{{ item.id }}"
-                x-show="selectedCategory === 'All' || '{{ item.category }}'.toUpperCase() === selectedCategory.toUpperCase()"
+                x-show="isItemVisible({{ item.id }}, '{{ item.category }}')"
                 @click="openItem({{ item.id }})"
                 :class="isOutOfStock({{ item.id }}) ? 'opacity-50 cursor-not-allowed grayscale' : 'cursor-pointer hover:shadow-xl transform hover:-translate-y-1 active:scale-95'"
                 style="background-color: var(--card-bg); border-color: var(--border-color); color: var(--font-color);"
@@ -158,7 +187,7 @@
              x-transition:leave-start="translate-x-0 opacity-100"
              x-transition:leave-end="translate-x-full opacity-0"
              :class="isMobile ? 'fixed inset-0 z-50' : 'relative h-full border-l border-[var(--border-color)]'"
-             class="flex flex-col shadow-2xl shrink-0"
+             class="flex flex-col shadow-2xl shrink-0 min-h-0"
              style="background-color: var(--cart-bg); color: var(--billing-font);" x-cloak>
 
         <!-- Cart Header -->
@@ -187,48 +216,56 @@
         </div>
 
         <!-- Scrollable Content (Items + Inputs) -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-6">
+        <div class="flex-1 min-h-0 overflow-y-auto p-4 space-y-6">
 
             <!-- Items Section -->
-            <div id="cart-items-list" class="space-y-3">
+            <div id="cart-items-list" class="space-y-2">
                 <template x-for="(item, index) in cart" :key="index">
                     <div :data-cart-sku="item.sku" style="background-color: var(--billing-card-bg); color: var(--billing-card-font); border-color: var(--border-color);"
-                        class="flex justify-between items-center border p-3 rounded-xl group hover:brightness-110 transition-colors">
-                        <div>
-                            <p class="font-bold text-sm" x-text="item.name"></p>
-                            <div class="flex items-center gap-2 mt-1">
-                                <!-- Fixed-price items: show +/- qty buttons -->
-                                <template x-if="!item.unit || item.unit === 'piece'">
-                                    <div class="flex items-center gap-1">
-                                        <button data-action="decrease-qty" @click="changeQty(index, -1)"
-                                            style="background-color: var(--inc-dec-btn); color: white;"
-                                            class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-opacity hover:opacity-90">-</button>
-                                        <input type="text" inputmode="numeric"
-                                            :value="item.qty"
-                                            @change="setExactQty(index, $event.target.value)"
-                                            class="w-12 text-center bg-transparent border-b border-gray-600 focus:outline-none focus:border-[var(--accent-color)] text-sm font-mono p-0 h-6">
-                                        <button data-action="increase-qty" @click="changeQty(index, 1)"
-                                            style="background-color: var(--inc-dec-btn); color: white;"
-                                            class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-opacity hover:opacity-90">+</button>
-                                    </div>
-                                </template>
-                                <!-- Unit-based items: show input + unit -->
-                                <template x-if="item.unit && item.unit !== 'piece'">
-                                    <div class="flex items-center gap-1">
-                                        <input type="text" inputmode="decimal"
-                                            :value="item.qty"
-                                            @change="setExactQty(index, $event.target.value)"
-                                            class="w-16 text-right bg-transparent border-b border-gray-600 focus:outline-none focus:border-[var(--accent-color)] text-sm font-mono p-0 h-6">
-                                        <span class="text-xs opacity-80" x-text="item.unit"></span>
-                                    </div>
-                                </template>
-                            </div>
+                        class="flex items-center gap-3 border p-2.5 rounded-xl group hover:brightness-110 transition-all">
+
+                        <!-- Qty control (leads the row for fast tapping) -->
+                        <div class="shrink-0">
+                            <!-- Fixed-price items: compact grouped stepper -->
+                            <template x-if="!item.unit || item.unit === 'piece'">
+                                <div class="flex items-center rounded-lg overflow-hidden" style="background-color: var(--card-bg);">
+                                    <button data-action="decrease-qty" @click="changeQty(index, -1)"
+                                        style="color: var(--inc-dec-btn);"
+                                        class="w-7 h-8 flex items-center justify-center text-lg font-bold leading-none hover:bg-black/10 transition-colors">−</button>
+                                    <input type="text" inputmode="numeric"
+                                        :value="item.qty"
+                                        @change="setExactQty(index, $event.target.value)"
+                                        class="w-8 text-center bg-transparent focus:outline-none text-sm font-mono font-bold p-0 h-8">
+                                    <button data-action="increase-qty" @click="changeQty(index, 1)"
+                                        style="color: var(--inc-dec-btn);"
+                                        class="w-7 h-8 flex items-center justify-center text-lg font-bold leading-none hover:bg-black/10 transition-colors">+</button>
+                                </div>
+                            </template>
+                            <!-- Unit-based items: show input + unit -->
+                            <template x-if="item.unit && item.unit !== 'piece'">
+                                <div class="flex items-center gap-1 rounded-lg px-2 h-8" style="background-color: var(--card-bg);">
+                                    <input type="text" inputmode="decimal"
+                                        :value="item.qty"
+                                        @change="setExactQty(index, $event.target.value)"
+                                        class="w-12 text-right bg-transparent focus:outline-none text-sm font-mono font-bold p-0 h-8">
+                                    <span class="text-xs opacity-70" x-text="item.unit"></span>
+                                </div>
+                            </template>
                         </div>
-                        <div class="flex items-center space-x-3">
-                            <span class="font-bold text-sm text-[var(--accent-color)]"
+
+                        <!-- Name + per-unit price -->
+                        <div class="flex-1 min-w-0">
+                            <p class="font-bold text-sm truncate" x-text="item.name"></p>
+                            <p class="text-[11px] opacity-60 font-mono"
+                               x-text="formatMoney(item.price) + (item.unit && item.unit !== 'piece' ? ' / ' + item.unit : ' each')"></p>
+                        </div>
+
+                        <!-- Line total + remove -->
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <span class="font-bold text-sm text-[var(--accent-color)] tabular-nums"
                                 x-text="formatMoney(item.price * item.qty)"></span>
                             <button data-action="remove-item" @click="removeFromCart(index)"
-                                class="text-gray-600 hover:text-red-500 hover:bg-red-500/10 p-1.5 rounded-full transition-colors opacity-0 group-hover:opacity-100">
+                                class="text-gray-500 hover:text-red-500 hover:bg-red-500/10 p-1 rounded-full transition-colors sm:opacity-0 sm:group-hover:opacity-100">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M6 18L18 6M6 6l12 12"></path>
@@ -249,10 +286,15 @@
                         <div class="flex gap-2 relative">
                             {{ country_picker('customerCountryCode', 'customerCountryCode = v') }}
 
-                            <input data-input="customer-search-phone" type="text" x-model="customerPhone" @input="searchCustomer()"
-                                @keyup.enter="selectCustomer()" placeholder="Search Phone or Name"
-                                style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
-                                class="flex-1 min-w-0 border rounded-lg px-3 py-2.5 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none text-sm">
+                            <div class="relative flex-1 min-w-0">
+                                <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                                <input data-input="customer-search-phone" type="text" x-model="customerPhone" @input="searchCustomer()"
+                                    @keyup.enter="selectCustomer()" placeholder="Search Phone or Name"
+                                    style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
+                                    class="w-full border rounded-lg pl-9 pr-3 py-2.5 placeholder-gray-500 focus:ring-2 focus:ring-[var(--accent-color)] focus:outline-none text-sm">
+                            </div>
                         </div>
 
                         <!-- Search Suggestion Dropdown -->
@@ -301,17 +343,17 @@
                 <!-- Payment Method -->
                 <div>
                     <label class="text-xs font-bold uppercase opacity-60 mb-2 block">Payment Method</label>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-2 gap-1.5 p-1 rounded-2xl" style="background-color: var(--card-bg);">
                         <button data-payment-method="cash" id="pos-cash-method-btn" @click="paymentMethod = 'Cash'"
-                            :class="{'shadow-lg border-transparent': paymentMethod === 'Cash', 'bg-transparent border-gray-600 hover:border-gray-500': paymentMethod !== 'Cash'}"
-                            :style="paymentMethod === 'Cash' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font); opacity: 0.6;'"
-                            class="py-2.5 rounded-xl font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+                            :class="paymentMethod === 'Cash' ? 'shadow-md' : 'opacity-50 hover:opacity-90'"
+                            :style="paymentMethod === 'Cash' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font);'"
+                            class="py-2.5 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 text-sm">
                             <span>💵</span> Cash
                         </button>
                         <button data-payment-method="upi" @click="paymentMethod = 'UPI'"
-                            :class="{'shadow-lg border-transparent': paymentMethod === 'UPI', 'bg-transparent border-gray-600 hover:border-gray-500': paymentMethod !== 'UPI'}"
-                            :style="paymentMethod === 'UPI' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font); opacity: 0.6;'"
-                            class="py-2.5 rounded-xl font-bold border-2 transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+                            :class="paymentMethod === 'UPI' ? 'shadow-md' : 'opacity-50 hover:opacity-90'"
+                            :style="paymentMethod === 'UPI' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font);'"
+                            class="py-2.5 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 text-sm">
                             <span>📱</span> UPI
                         </button>
                     </div>
@@ -338,44 +380,43 @@
 
                 <!-- Cash Calculator (dynamic — controlled by feature store) -->
                 <div x-show="$store.features['cash_calculator'] && paymentMethod === 'Cash'" x-transition
-                    class="p-4 rounded-xl border-2 border-dashed border-green-500/30 bg-green-500/5">
-                    <label class="text-xs font-bold uppercase opacity-60 mb-2 block flex items-center justify-between">
-                        <span id="pos-cash-calc-label" class="flex items-center gap-2">💵 Cash Received</span>
+                    class="p-4 rounded-2xl border-2 border-dashed border-green-500/30 bg-green-500/5">
+                    <label id="pos-cash-calc-label" class="text-xs font-bold uppercase opacity-60 mb-2 flex items-center gap-2">💵 Cash Received</label>
 
-                        <!-- Suggestions -->
-                        <div class="flex gap-2" x-show="totalPrice > 0">
-                            <button data-action="set-exact-cash" @click="cashReceived = totalPrice"
-                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
-                                Exact
-                            </button>
-                            <button data-action="set-cash-10" @click="cashReceived = Math.ceil(totalPrice / 10) * 10"
-                                x-show="Math.ceil(totalPrice/10)*10 !== totalPrice"
-                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
-                                <span x-text="formatMoney(Math.ceil(totalPrice / 10) * 10)"></span>
-                            </button>
-                            <button data-action="set-cash-50" @click="cashReceived = Math.ceil(totalPrice / 50) * 50"
-                                x-show="Math.ceil(totalPrice/50)*50 !== totalPrice && Math.ceil(totalPrice/50)*50 !== Math.ceil(totalPrice/10)*10"
-                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
-                                <span x-text="formatMoney(Math.ceil(totalPrice / 50) * 50)"></span>
-                            </button>
-                            <button data-action="set-cash-100" @click="cashReceived = Math.ceil(totalPrice / 100) * 100"
-                                x-show="Math.ceil(totalPrice/100)*100 !== totalPrice && Math.ceil(totalPrice/100)*100 !== Math.ceil(totalPrice/50)*50"
-                                class="text-[10px] bg-green-500/10 text-green-600 px-2 py-1 rounded-lg font-bold hover:bg-green-500/20 transition-colors">
-                                <span x-text="formatMoney(Math.ceil(totalPrice / 100) * 100)"></span>
-                            </button>
-                        </div>
-                    </label>
-                    <input data-input="cash-received" id="pos-cash-amount-input" type="number" x-model.number="cashReceived" placeholder="Amount"
+                    <input data-input="cash-received" id="pos-cash-amount-input" type="number" x-model.number="cashReceived" placeholder="0"
                         style="color: var(--font-color); background-color: var(--card-bg); border-color: var(--border-color);"
-                        class="w-full border rounded-lg px-4 py-3 text-lg font-bold placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:outline-none text-right">
+                        class="w-full border rounded-xl px-4 py-3 text-2xl font-black placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:outline-none text-right tabular-nums">
+
+                    <!-- Quick-cash chips (full-width, thumb-friendly) -->
+                    <div class="grid grid-cols-4 gap-2 mt-2" x-show="totalPrice > 0">
+                        <button data-action="set-exact-cash" @click="cashReceived = totalPrice"
+                            class="text-xs bg-green-500/10 text-green-600 py-2 rounded-lg font-bold hover:bg-green-500/20 active:scale-95 transition-all">
+                            Exact
+                        </button>
+                        <button data-action="set-cash-10" @click="cashReceived = Math.ceil(totalPrice / 10) * 10"
+                            x-show="Math.ceil(totalPrice/10)*10 !== totalPrice"
+                            class="text-xs bg-green-500/10 text-green-600 py-2 rounded-lg font-bold hover:bg-green-500/20 active:scale-95 transition-all">
+                            <span x-text="formatMoney(Math.ceil(totalPrice / 10) * 10)"></span>
+                        </button>
+                        <button data-action="set-cash-50" @click="cashReceived = Math.ceil(totalPrice / 50) * 50"
+                            x-show="Math.ceil(totalPrice/50)*50 !== totalPrice && Math.ceil(totalPrice/50)*50 !== Math.ceil(totalPrice/10)*10"
+                            class="text-xs bg-green-500/10 text-green-600 py-2 rounded-lg font-bold hover:bg-green-500/20 active:scale-95 transition-all">
+                            <span x-text="formatMoney(Math.ceil(totalPrice / 50) * 50)"></span>
+                        </button>
+                        <button data-action="set-cash-100" @click="cashReceived = Math.ceil(totalPrice / 100) * 100"
+                            x-show="Math.ceil(totalPrice/100)*100 !== totalPrice && Math.ceil(totalPrice/100)*100 !== Math.ceil(totalPrice/50)*50"
+                            class="text-xs bg-green-500/10 text-green-600 py-2 rounded-lg font-bold hover:bg-green-500/20 active:scale-95 transition-all">
+                            <span x-text="formatMoney(Math.ceil(totalPrice / 100) * 100)"></span>
+                        </button>
+                    </div>
 
                     <div x-show="cashReceived > 0" x-transition class="mt-4">
                         <div class="flex flex-col gap-2 p-3 rounded-xl"
                             :class="changeAmount >= 0 ? 'bg-green-500/20 border border-green-500/50' : 'bg-red-500/20 border border-red-500/50'">
                             <div class="flex justify-between items-center">
-                                <span class="font-medium text-xs"
-                                    x-text="changeAmount >= 0 ? 'Return Change:' : 'Short:'"></span>
-                                <span id="pos-cash-change-amount" class="text-lg font-black tracking-tight"
+                                <span class="font-bold text-xs uppercase tracking-wide opacity-80"
+                                    x-text="changeAmount >= 0 ? 'Return Change' : 'Short By'"></span>
+                                <span id="pos-cash-change-amount" class="text-2xl font-black tracking-tight tabular-nums"
                                     :class="changeAmount >= 0 ? 'text-green-400' : 'text-red-400'"
                                     x-text="formatMoney(Math.abs(changeAmount))"></span>
                             </div>
@@ -575,653 +616,5 @@
 <!-- Data Island for shop currency symbol -->
 <script id="pos-currency-data" type="application/json">"{{ currency | e }}"</script>
 
-<script>
-// Initialize Alpine feature store BEFORE posApp() runs
-document.addEventListener('alpine:init', () => {
-    const raw = JSON.parse(document.getElementById('pos-features-data')?.textContent || '{}');
-    // Normalize: FeatureService returns {KEY: {enabled: bool, ...}} — flatten to {KEY: bool}
-    const flat = {};
-    for (const [k, v] of Object.entries(raw)) {
-        flat[k] = (typeof v === 'object' && v !== null) ? (v.enabled === true) : Boolean(v);
-    }
-    Alpine.store('features', flat);
-});
-
-/**
- * Burger POS - Industrial Service-Oriented Architecture
- * Layers: Infrastructure (API) -> Domain (Logic) -> Controller (Alpine)
- * Note: bill.timestamp_display is pre-formatted server-side in the shop's configured timezone
- */
-
-// --- 1. INFRASTRUCTURE LAYER: API SERVICE ---
-const ApiService = {
-    _abortController: null,
-
-    async request(url, options = {}) {
-        const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-        const defaultOptions = {
-            headers: {
-                'Content-Type': 'application/json',
-                'x-csrf-token': csrfToken
-            }
-        };
-
-        try {
-            const response = await fetch(url, { ...defaultOptions, ...options });
-            if (!response.ok) {
-                let detail = 'Network error occurred';
-                try {
-                    const errorData = await response.json();
-                    detail = errorData.detail || detail;
-                } catch (jsonErr) {}
-
-                if (response.status === 403 && detail.toLowerCase().includes('csrf')) {
-                    alert('Security token expired due to inactivity. The page will now refresh securely.');
-                    window.location.reload();
-                    return new Promise(() => {}); // halt execution while reloading
-                }
-                if (response.status === 401) {
-                    alert('Your session has expired. Please log in again.');
-                    window.location.href = '/auth/login';
-                    return new Promise(() => {}); // halt execution while redirecting
-                }
-
-                throw new Error(detail);
-            }
-            return await response.json();
-        } catch (e) {
-            if (e.name === 'AbortError') return null;
-            throw e;
-        }
-    },
-
-    async searchCustomer(query, signal) {
-        return this.request(`/billing/customer/search?query=${encodeURIComponent(query)}`, { signal });
-    },
-
-    async createBill(payload) {
-        return this.request('/billing/create', {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-    },
-    
-    async updateBill(slug, payload) {
-        return this.request(`/billing/update/${slug}`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-        });
-    },
-    
-    async fetchRecentBills() {
-        return this.request('/billing/recent-bills');
-    }
-};
-
-// --- 2. DOMAIN LAYER: BUSINESS SERVICES ---
-const CartService = {
-    addItem(cart, product) {
-        // Unit-based items (kg/g/liter/ml) never merge — each weighed qty is a separate line
-        if (product.unit && product.unit !== 'piece') {
-            return [...cart, { ...product }];
-        }
-        const existingIndex = cart.findIndex(i => i.id === product.id && (!i.unit || i.unit === 'piece'));
-        if (existingIndex !== -1) {
-            return cart.map((item, index) => 
-                index === existingIndex ? { ...item, qty: item.qty + 1 } : item
-            );
-        }
-        return [...cart, { ...product, qty: 1 }];
-    },
-
-    calculateSubtotal(cart) {
-        return cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
-    },
-
-    calculateTax(cart) {
-        return cart.reduce((sum, item) => {
-            const taxRate = parseFloat(item.tax_rate) || 0;
-            return sum + (item.price * item.qty) * (taxRate / 100);
-        }, 0);
-    },
-
-    calculateTotal(cart) {
-        return this.calculateSubtotal(cart) + this.calculateTax(cart);
-    }
-};
-
-const CashService = {
-    DENOMINATIONS: [500, 200, 100, 50, 20, 10, 5, 2, 1],
-    
-    getDenominations(changeAmount) {
-        let remaining = Math.round(changeAmount);
-        if (remaining <= 0) return [];
-        
-        return this.DENOMINATIONS.map(d => {
-            const count = Math.floor(remaining / d);
-            remaining %= d;
-            return count > 0 ? { value: d, count } : null;
-        }).filter(Boolean);
-    }
-};
-
-// --- 3. CONTROLLER LAYER: ALPINE COMPONENT ---
-function posApp() {
-    // Load static data from islands
-    const itemsData = JSON.parse(document.getElementById('pos-items-data').textContent);
-    const features = JSON.parse(document.getElementById('pos-features-data')?.textContent || '{}');
-    // Currency symbol from server — safe, from DB shop config
-    const currencySymbol = JSON.parse(document.getElementById('pos-currency-data')?.textContent || '"\u20b9"');
-    const shopData = JSON.parse(document.getElementById('pos-shop-data')?.textContent || '{}');
-
-    return {
-        // --- View State ---
-        itemsData,
-        features,
-        loading: false,
-        cart: [],
-        heldCartItems: [],
-        mobileCartOpen: false,
-        selectedCategory: 'All',
-        paymentMethod: 'Cash',
-        cashReceived: 0,
-        isMobile: window.innerWidth < 1024, // Evaluated synchronously before DOM parse
-        shopName: shopData.name || '',
-        shopUpiId: shopData.upi_id || '',
-        shopCountryCode: shopData.country_code,
-        currentBillId: null,
-
-        // Customer State
-        customerPhone: '',
-        customerName: '',
-        customerInfo: '',
-        foundCustomer: null, // Resolves 'foundCustomer is not defined'
-        customerId: null,
-        isNewCustomer: false,
-
-        // Country dial-code for customer phone (picker UI lives in the countryPicker Alpine component)
-        customerCountryCode: shopData.country_code,
-
-        // State
-        searchQuery: '',
-        activeCategory: 'all',
-        _searchTimeout: null,
-        _searchToken: 0,
-        _resizeHandler: null,
-        
-        recentBillsModal: { open: false, loading: false, bills: [] },
-
-        // --- Lifecycle ---
-        init() {
-            this.itemsData = typeof itemsData !== 'undefined' ? itemsData : [];
-            this.setupResizeListener();
-
-            this.$nextTick(() => {
-                this.isMobile = window.innerWidth < 1024;
-            });
-        },
-
-        destroy() {
-            window.removeEventListener('resize', this._resizeHandler);
-            if (this._searchTimeout) clearTimeout(this._searchTimeout);
-        },
-
-        setupResizeListener() {
-            this._resizeHandler = () => { this.isMobile = window.innerWidth < 1024; };
-            window.addEventListener('resize', this._resizeHandler);
-        },
-
-        // --- Computed Properties ---
-        get categories() {
-            // Extracts unique categories from itemsData
-            const cats = this.itemsData.map(i => i.category.toUpperCase());
-            return [...new Set(cats)];
-        },
-        getStock(id) {
-            const item = this.itemsData.find(i => i.id === id);
-            return item && item.available_stock !== null && item.available_stock !== undefined
-                ? item.available_stock : null;
-        },
-        getCartQty(id) {
-            return this.cart.filter(i => i.id === id).reduce((sum, i) => sum + i.qty, 0);
-        },
-        isOutOfStock(id) {
-            const available = this.getAvailableStock(id);
-            if (available === null) return false; // not tracked
-            return available <= 0;
-        },
-        getMaxAllowedStock(id) {
-            const stock = this.getStock(id);
-            if (stock === null) return null;
-            
-            let heldQty = 0;
-            if (this.currentBillId && this.heldCartItems.length > 0) {
-                const heldItem = this.heldCartItems.find(i => i.id === id);
-                if (heldItem) {
-                    heldQty = heldItem.qty;
-                }
-            }
-            return stock + heldQty;
-        },
-        getAvailableStock(id) {
-            const maxAllowed = this.getMaxAllowedStock(id);
-            if (maxAllowed === null) return null;
-            return maxAllowed - this.getCartQty(id);
-        },
-        get hasCart() { 
-            return this.cart.length > 0; 
-        },
-        get subtotalPrice() {
-            const trigger = this.cart;
-            return CartService.calculateSubtotal(trigger);
-        },
-        get taxAmount() {
-            const trigger = this.cart;
-            return CartService.calculateTax(trigger);
-        },
-        get totalPrice() { 
-            const trigger = this.cart; // Explicit reactivity hook
-            return CartService.calculateTotal(trigger); 
-        },
-        get changeAmount() { 
-            const total = this.totalPrice; 
-            const received = this.cashReceived; 
-            return received - total; 
-        },
-        get changeDenominations() { 
-            if (this.changeAmount <= 0) return [];
-            return CashService.getDenominations(this.changeAmount); 
-        },
-        get showSidebar() { 
-            return !this.isMobile || this.mobileCartOpen; 
-        },
-        get showFloatingCart() { 
-            return this.isMobile && !this.mobileCartOpen; 
-        },
-        get isCash() { 
-            return this.paymentMethod === 'Cash'; 
-        },
-
-        // Unit quantity modal state
-        unitModal: {
-            open: false,
-            item: null,
-            cartIndex: null,   // null = new item, number = editing existing
-            inputQty: '',
-        },
-
-        // --- Actions ---
-        // Route item click: fixed → add directly, unit-based → open qty modal
-        openItem(id) {
-            if (this.features['inventory_management'] && this.isOutOfStock(id)) {
-                alert("This item is out of stock.");
-                return;
-            }
-            const item = this.itemsData.find(i => i.id === id);
-            if (!item) return;
-            const isUnitBased = item.unit && item.unit !== 'piece';
-            if (isUnitBased) {
-                this.openUnitModal({ id: item.id, name: item.name, price: parseFloat(item.price), unit: item.unit, tax_rate: item.tax_rate || 0.0 }, null);
-            } else {
-                this.addToCartById(id);
-            }
-        },
-
-        // Open modal for a new unit item (cartIndex=null) or editing existing (cartIndex=number)
-        openUnitModal(item, cartIndex) {
-            this.unitModal = {
-                open: true,
-                item: { ...item },
-                cartIndex,
-                inputQty: cartIndex !== null ? String(this.cart[cartIndex].qty) : '',
-            };
-        },
-
-        confirmUnitQty() {
-            let qty = parseFloat(this.unitModal.inputQty);
-            if (!qty || qty <= 0) return;
-            
-            // Enforce integer for piece items
-            if (!this.unitModal.item.unit || this.unitModal.item.unit === 'piece') {
-                qty = Math.floor(qty);
-            }
-            
-            if (this.features['inventory_management']) {
-                const maxAllowed = this.getMaxAllowedStock(this.unitModal.item.id);
-                if (maxAllowed !== null) {
-                    const otherLinesQty = this.unitModal.cartIndex !== null ? 
-                        (this.getCartQty(this.unitModal.item.id) - this.cart[this.unitModal.cartIndex].qty) : 
-                        this.getCartQty(this.unitModal.item.id);
-                    
-                    if (otherLinesQty + qty > maxAllowed) {
-                        const remainingAllowed = maxAllowed - otherLinesQty;
-                        alert(`Cannot increase quantity. Maximum allowed is ${remainingAllowed}.`);
-                        return;
-                    }
-                }
-            }
-
-            if (this.unitModal.cartIndex !== null) {
-                // Edit existing cart line
-                this.cart = this.cart.map((c, i) =>
-                    i === this.unitModal.cartIndex ? { ...c, qty } : c
-                );
-            } else {
-                // Add new line
-                this.cart = CartService.addItem(this.cart, { ...this.unitModal.item, qty });
-            }
-            this.unitModal = { open: false, item: null, cartIndex: null, inputQty: '' };
-            if (!this.isMobile) this.showSidebarForced = true;
-        },
-
-        addToCartById(id) {
-            const item = this.itemsData.find(i => i.id === id);
-            if (item) {
-                this.cart = CartService.addItem(this.cart, { 
-                    id: item.id, 
-                    name: item.name, 
-                    price: parseFloat(item.price),
-                    unit: item.unit || null,
-                    tax_rate: item.tax_rate || 0.0
-                });
-            }
-        },
-
-        changeQty(index, delta) {
-            const currentItem = this.cart[index];
-            const newQty = currentItem.qty + delta;
-            if (newQty <= 0) {
-                this.removeFromCart(index);
-                return;
-            }
-            this.setExactQty(index, newQty.toString());
-        },
-        
-        setExactQty(index, newQtyStr) {
-            let qty = parseFloat(newQtyStr);
-            if (!qty || qty <= 0) {
-                if (newQtyStr !== "" && qty <= 0) {
-                    this.removeFromCart(index);
-                } else {
-                    this.cart = [...this.cart]; // Force re-render to reset input value
-                }
-                return;
-            }
-
-            const currentItem = this.cart[index];
-            if (!currentItem.unit || currentItem.unit === 'piece') {
-                qty = Math.floor(qty);
-            }
-            
-            if (this.features['inventory_management']) {
-                const maxAllowed = this.getMaxAllowedStock(currentItem.id);
-                if (maxAllowed !== null) {
-                    const otherLinesQty = this.getCartQty(currentItem.id) - currentItem.qty;
-                    if (otherLinesQty + qty > maxAllowed) {
-                        const remainingAllowed = maxAllowed - otherLinesQty;
-                        alert(`Cannot increase quantity. Maximum allowed is ${remainingAllowed}.`);
-                        this.cart = [...this.cart]; // Force re-render to reset input value
-                        return;
-                    }
-                }
-            }
-            
-            this.cart = this.cart.map((c, i) => i === index ? { ...c, qty } : c);
-        },
-
-        handleScanResult(sku) {
-            // Lookup SKU
-            fetch(`/billing/item-by-sku/${encodeURIComponent(sku)}`)
-                .then(r => {
-                    if (!r.ok) throw new Error("Not Found");
-                    return r.json();
-                })
-                .then(item => {
-                    // Find item in itemsData to get actual ID mapped in pos
-                    const posItem = this.itemsData.find(i => i.id === item.id);
-                    if (posItem) {
-                        this.openItem(posItem.id);
-                    } else {
-                        alert(`Item '${item.name}' found but not loaded in current menu.`);
-                    }
-                })
-                .catch(() => alert(`SKU '${sku}' not found or active.`));
-        },
-
-        removeFromCart(index) {
-            this.cart = this.cart.filter((_, idx) => idx !== index);
-            if (!this.hasCart) this.mobileCartOpen = false;
-        },
-
-        clearCart() {
-            this.cart = [];
-            this.mobileCartOpen = false;
-            this.cashReceived = 0;
-            this.paymentMethod = 'Cash';
-            this.customerPhone = '';
-            this.customerName = '';
-            this.customerInfo = '';
-            this.customerId = null;
-            this.currentBillId = null;
-        },
-
-        // --- Async Workflows ---
-        async searchCustomer() {
-            const token = ++this._searchToken;
-            if (this._searchTimeout) clearTimeout(this._searchTimeout);
-
-            if (this.customerPhone.length < 3) {
-                this.resetCustomer();
-                return;
-            }
-
-            this._searchTimeout = setTimeout(async () => {
-                try {
-                    const controller = new AbortController();
-                    const data = await ApiService.searchCustomer(this.customerPhone, controller.signal);
-                    
-                    if (token === this._searchToken && data) {
-                        this.handleCustomerFound(data);
-                    }
-                } catch (e) {
-                    console.error('Customer search failed', e);
-                }
-            }, 300);
-        },
-
-        handleCustomerFound(data) {
-            if (data.found) {
-                this.foundCustomer = data; // Satisfies template expressions
-                this.customerInfo = `✓ ${data.name}`;
-                this.customerId = data.id;
-                this.customerName = data.name;
-                this.isNewCustomer = false;
-            } else {
-                this.foundCustomer = null;
-                this.customerInfo = '+ New customer';
-                this.customerId = null;
-                this.customerName = '';
-                this.isNewCustomer = true;
-            }
-        },
-
-        selectCustomer() {
-            if (this.foundCustomer) {
-                this.customerPhone = this.foundCustomer.phone_number;
-                this.customerName = this.foundCustomer.name;
-                this.customerId = this.foundCustomer.id;
-                this.isNewCustomer = false;
-                this.customerInfo = `✓ ${this.foundCustomer.name}`;
-            }
-        },
-
-        resetCustomer() {
-            this.customerInfo = '';
-            this.customerId = null;
-            this.isNewCustomer = false;
-        },
-
-        async submitBill(status = "Completed") {
-            if (!this.validateSubmission()) return;
-
-            this.loading = true;
-            try {
-                const payload = this.preparePayload();
-                payload.status = status;
-                
-                let data;
-                if (this.currentBillId) {
-                    data = await ApiService.updateBill(this.currentBillId, payload);
-                } else {
-                    data = await ApiService.createBill(payload);
-                }
-                
-                this.handleSuccess(data, status);
-            } catch (e) {
-                alert(`Error: ${e.message}`);
-            } finally {
-                this.loading = false;
-            }
-        },
-
-        validateSubmission() {
-            if (!this.hasCart) return false;
-            // If cashier hasn't entered a cash amount, default to exact total (most common case)
-            if (this.isCash && this.cashReceived === 0) {
-                this.cashReceived = this.totalPrice;
-            }
-            if (this.isCash && this.cashReceived < this.totalPrice) {
-                alert('Cash received is less than the total amount');
-                return false;
-            }
-            if (this.isNewCustomer && !this.customerName) {
-                alert('Please enter customer name for new customer');
-                return false;
-            }
-            return true;
-        },
-
-        preparePayload() {
-            return {
-                items: this.cart.map(i => ({ id: i.id, qty: i.qty })),
-                payment_method: this.paymentMethod,
-                customer_phone: this.customerPhone,
-                customer_name: this.customerName,
-                customer_country_code: this.customerCountryCode
-            };
-        },
-
-        handleSuccess(data, status) {
-            const phone = this.customerPhone;
-            const billNum = data.bill_number;
-            const billSlug = data.bill_id;
-            
-            // Capture cart state before clearing it
-            const soldItems = this.cart.map(item => ({ id: item.id, qty: item.qty }));
-            
-            this.heldCartItems = [];
-            this.clearCart();
-
-            // Apply backend-provided stock values (single source of truth)
-            if (data.updated_items && data.updated_items.length > 0) {
-                this.itemsData = this.itemsData.map(item => {
-                    const updated = data.updated_items.find(u => u.id === item.id);
-                    return updated ? { ...item, available_stock: updated.available_stock } : item;
-                });
-            }
-
-            if (status === 'Held') {
-                alert(`⏸️ Bill #${billNum} placed on Hold!`);
-                return;
-            }
-
-            // Always confirm bill creation first
-            alert(`✅ Bill #${billNum} created successfully!`);
-
-            // Then offer WhatsApp if phone is present and feature is enabled
-            if (phone && phone.trim().length >= 10 && this.features['whatsapp_billing']) {
-                this.sendWhatsAppMessage(phone.trim(), billSlug);
-            }
-        },
-        
-        async openRecentBills() {
-            this.recentBillsModal.open = true;
-            this.recentBillsModal.loading = true;
-            try {
-                const res = await ApiService.fetchRecentBills();
-                this.recentBillsModal.bills = res.bills || [];
-            } catch(e) {
-                console.error(e);
-            } finally {
-                this.recentBillsModal.loading = false;
-            }
-        },
-        
-        resumeBill(bill) {
-            this.heldCartItems = [];
-            this.clearCart();
-            this.currentBillId = bill.id;
-            this.cart = bill.items.map(i => ({...i}));
-            // Store the original held items so the dynamic stock calculation doesn't double-deduct
-            this.heldCartItems = bill.items.map(i => ({...i}));
-            this.paymentMethod = bill.payment_method || 'Cash';
-            if (bill.customer_phone) {
-                this.customerPhone = bill.customer_phone;
-                this.searchCustomer();
-            }
-            
-            this.recentBillsModal.open = false;
-        },
-        
-        async cancelHeldBill(bill) {
-            if (!confirm(`Are you sure you want to cancel the held bill #${bill.bill_number}? This will return the items to stock.`)) {
-                return;
-            }
-            
-            try {
-                this.recentBillsModal.loading = true;
-                const response = await ApiService.request(`/billing/cancel/${bill.id}`, { method: 'POST' });
-                alert(response.message || "Bill cancelled");
-                
-                // Apply backend-provided stock values (single source of truth)
-                if (response.updated_items && response.updated_items.length > 0) {
-                    this.itemsData = this.itemsData.map(item => {
-                        const updated = response.updated_items.find(u => u.id === item.id);
-                        return updated ? { ...item, available_stock: updated.available_stock } : item;
-                    });
-                }
-                
-                // Remove cancelled bill from the modal list
-                this.recentBillsModal.bills = this.recentBillsModal.bills.filter(b => b.id !== bill.id);
-                this.recentBillsModal.loading = false;
-            } catch(e) {
-                alert(`Error: ${e.message}`);
-                this.recentBillsModal.loading = false;
-            }
-        },
-        
-        resendWhatsapp(bill) {
-            let phone = bill.customer_phone;
-            if (!phone) {
-                phone = prompt("Enter customer WhatsApp number:", "");
-            }
-            if (phone && phone.trim().length >= 10) {
-                this.sendWhatsAppMessage(phone.trim(), bill.id);
-            }
-        },
-        
-        sendWhatsAppMessage(phone, billSlug) {
-            const cleanPhone = phone.replace(/\D/g, '');
-            if (!cleanPhone) return;
-            // Use backend route to generate consistent, DRY WhatsApp message format
-            const url = `/admin/bill/${encodeURIComponent(billSlug)}/whatsapp-redirect?phone=${encodeURIComponent(cleanPhone)}`;
-            window.open(url, '_blank');
-        },
-
-        formatMoney(value) {
-            return currencySymbol + parseFloat(value).toFixed(2);
-        }
-    };
-}
-</script>
+<script src="/static/js/pos/pos-app.js"></script>
 {% endblock %}

@@ -225,34 +225,20 @@
         modal.classList.remove('flex');
     }
 
-    async function sendBillWhatsApp(billId, phoneNumber = null) {
+    function sendBillWhatsApp(billId, phoneNumber = null) {
         if (!phoneNumber || phoneNumber === 'None') {
             phoneNumber = prompt('Enter customer phone number:');
             if (!phoneNumber) return;
         }
 
-        const confirmSend = confirm(`Send bill via WhatsApp to ${phoneNumber}?`);
-        if (!confirmSend) return;
+        const cleanPhone = phoneNumber.replace(/\D/g, '');
+        if (!cleanPhone) return;
 
-        try {
-            const formData = new FormData();
-            if (phoneNumber) formData.append('phone_number', phoneNumber);
-
-            const response = await fetch(`/admin/bill/${billId}/send-whatsapp`, {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await response.json();
-
-            if (result.success && result.whatsapp_url) {
-                window.open(result.whatsapp_url, '_blank');
-            } else {
-                alert('❌ Error: ' + (result.error || 'Failed to send bill'));
-            }
-        } catch (error) {
-            alert('❌ Error sending bill: ' + error.message);
-        }
+        // Use the shared backend redirect route (single source of truth for
+        // WhatsApp message formatting) and open it synchronously on the click
+        // so the browser doesn't treat it as a blocked popup.
+        const url = `/admin/bill/${encodeURIComponent(billId)}/whatsapp-redirect?phone=${encodeURIComponent(cleanPhone)}`;
+        window.open(url, '_blank');
     }
 
 </script>

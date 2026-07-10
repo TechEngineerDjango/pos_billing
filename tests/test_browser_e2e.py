@@ -592,7 +592,7 @@ class TestExhaustiveFunctionalitySuite:
         time.sleep(1)
         
         # Resilient Feature Check: Ensure critical features are checked (manual fallback if preset fails)
-        critical_features = ["cash_calculator", "whatsapp_bill", "customer_management", "sale_report", "kitchen"]
+        critical_features = ["cash_calculator", "whatsapp_billing", "customer_management", "sale_report", "kitchen"]
         for feat in critical_features:
             checkbox = plan_form.locator(f"input[value='{feat}']")
             if not checkbox.is_checked():
@@ -761,7 +761,7 @@ class TestExhaustiveFunctionalitySuite:
         # Test Customer Adding (New Customer)
         browser_page.fill("input[data-input='customer-search-phone']", "9094855498")
         time.sleep(1)
-        expect(browser_page.locator("text=NEW")).to_be_visible()
+        expect(browser_page.get_by_text("NEW", exact=True)).to_be_visible()
         browser_page.fill("input[placeholder='Customer Name *']", "Mega Customer")
         
         # Test Cash Calculator
@@ -769,7 +769,7 @@ class TestExhaustiveFunctionalitySuite:
         expect(browser_page.locator("#pos-cash-calc-label")).to_be_visible()
         browser_page.fill("#pos-cash-amount-input", "500")
         time.sleep(0.5)
-        expect(browser_page.locator("text=Return Change:")).to_be_visible()
+        expect(browser_page.locator("text=Return Change")).to_be_visible()
         expect(browser_page.locator("#pos-cash-change-amount")).to_contain_text("250.00")
         print("✅ E2E: Cash Calculator change logic checked")
         
@@ -953,7 +953,7 @@ def _run_pos_cashier_workflow(page: Page, viewport: dict, cashier_user: str,
     phone_input.wait_for(state="visible", timeout=5000)
     phone_input.fill("9094855498")
     time.sleep(1)
-    expect(page.locator("text=NEW")).to_be_visible()
+    expect(page.get_by_text("NEW", exact=True)).to_be_visible()
     page.fill("input[placeholder='Customer Name *']", "Viewport Customer")
 
     # --- Cash Calculator ---
@@ -961,7 +961,7 @@ def _run_pos_cashier_workflow(page: Page, viewport: dict, cashier_user: str,
     expect(page.locator("#pos-cash-calc-label")).to_be_visible()
     page.fill("#pos-cash-amount-input", "500")
     time.sleep(0.5)
-    expect(page.locator("text=Return Change:")).to_be_visible()
+    expect(page.locator("text=Return Change")).to_be_visible()
     print(f"  ✅ [{viewport['width']}px] Cash Calculator verified")
 
     # --- Submit Bill ---
@@ -1012,7 +1012,7 @@ def _run_full_lifecycle(page: Page, viewport: dict):
     page.locator("#plan-pro-preset").click()
     time.sleep(1)
 
-    critical_features = ["cash_calculator", "whatsapp_bill", "customer_management",
+    critical_features = ["cash_calculator", "whatsapp_billing", "customer_management",
                          "sale_report", "kitchen"]
     for feat in critical_features:
         checkbox = plan_form.locator(f"input[value='{feat}']")

@@ -4,7 +4,7 @@ import urllib.parse
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request, Form, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, Request, UploadFile, File, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -778,66 +778,12 @@ async def get_bill_detail(
     })
 
 
-@router.post("/bill/{bill_slug}/send-whatsapp")
-async def send_bill_whatsapp(
-    bill_slug: str,
-    phone_number: str = Form(None),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
-):
-    from sqlalchemy.orm import selectinload
-    from app.infrastructure.integrations.whatsapp import whatsapp_service
-    from app.domains.billing.service import BillingService
-    
-    if current_user.role not in ["owner", "superadmin", "cashier"]:
-         return JSONResponse({"error": "Unauthorized"}, status_code=403)
-    
-    target_shop_id = current_user.shop_id
-    
-    query = select(Bill).where(Bill.slug == bill_slug).options(selectinload(Bill.customer))
-    if current_user.role != "superadmin":
-        query = query.where(Bill.shop_id == target_shop_id)
-    
-    result = await db.execute(query)
-    bill = result.scalars().first()
-    
-    if not bill:
-        return JSONResponse({"error": "Bill not found"}, status_code=404)
-    
-    if not phone_number and bill.customer:
-        phone_number = bill.customer.phone_number
-    
-    if not phone_number:
-        return JSONResponse({"error": "No phone number provided"}, status_code=400)
-    
-    current_bill_shop_id = bill.shop_id or target_shop_id
-    shop_res = await db.execute(select(Shop).where(Shop.id == current_bill_shop_id))
-    shop = shop_res.scalars().first()
-    
-    message = BillingService.format_whatsapp_bill_message(
-        bill_number=bill.bill_number,
-        items_snapshot=bill.items_snapshot or [],
-        total_amount=float(bill.total_amount),
-        shop_name=shop.name if shop else "Restaurant",
-        currency=shop.currency_symbol if shop else "₹",
-        bill_date=shop_local(bill.timestamp, shop).strftime("%d-%b-%Y %I:%M %p") if bill.timestamp else "",
-        footer_message=shop.receipt_footer if shop and hasattr(shop, 'receipt_footer') else "Thank you for your order!"
-    )
-    from app.core.config import settings
-    customer_country_code = (bill.customer.country_code if bill.customer else None) or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE
-    whatsapp_url = whatsapp_service.generate_wa_link(phone_number, message, customer_country_code)
-    
-    return JSONResponse({
-        "success": True,
-        "whatsapp_url": whatsapp_url,
-        "message": "Bill formatted for WhatsApp"
-    })
-
 @router.get("/bill/{bill_slug}/whatsapp-redirect", response_class=HTMLResponse)
 async def whatsapp_redirect_page(
     bill_slug: str,
     phone: str,
     request: Request,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -848,18 +794,23 @@ async def whatsapp_redirect_page(
     from sqlalchemy.orm import selectinload
     from app.infrastructure.integrations.whatsapp import whatsapp_service
     from app.domains.billing.service import BillingService
-    
+
+    if current_user.role not in ["owner", "superadmin", "cashier"]:
+        return HTMLResponse("<h1>Error: Unauthorized</h1>", status_code=403)
+
     query = select(Bill).where(Bill.slug == bill_slug).options(selectinload(Bill.customer))
+    if current_user.role != "superadmin":
+        query = query.where(Bill.shop_id == current_user.shop_id)
     result = await db.execute(query)
     bill = result.scalars().first()
-    
+
     if not bill:
          return HTMLResponse("<h1>Error: Bill not found</h1>", status_code=404)
 
     current_bill_shop_id = bill.shop_id
     shop_res = await db.execute(select(Shop).where(Shop.id == current_bill_shop_id))
     shop = shop_res.scalars().first()
-    
+
     message = BillingService.format_whatsapp_bill_message(
         bill_number=bill.bill_number,
         items_snapshot=bill.items_snapshot or [],
