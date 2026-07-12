@@ -134,6 +134,10 @@ class Shop(Base):
     logo_size = Column(Integer, default=40)               # px (height)
     watermark_opacity = Column(Float, default=0.1)  # 0.0 to 1.0 (not money)
     
+    # GST / Tax Settings
+    gst_registered = Column(Boolean, default=False)
+    gst_number = Column(String(15), nullable=True)
+    
     # Advanced Customization
     card_bg_color = Column(String, default="#1e293b")     # Slate-800
     sidebar_bg_color = Column(String, default="#0f172a")  # Slate-900
@@ -230,6 +234,8 @@ class Shop(Base):
             "upi_id": self.upi_id,
             "subscription_id": self.subscription_id,
             "is_active": self.is_active,
+            "gst_registered": self.gst_registered,
+            "gst_number": self.gst_number,
             "subscription_name": self.subscription.name if self.subscription else None,
             "billing_start_date": self.billing_start_date.isoformat() if self.billing_start_date else None,
             "next_billing_date": self.next_billing_date.isoformat() if self.next_billing_date else None
@@ -300,10 +306,31 @@ class Customer(Base):
     shop_id = Column(Integer, ForeignKey("shops.id"), nullable=False)
     shop = relationship("Shop", back_populates="customers")
 
+    # Credit System Fields
+    credit_limit = Column(Numeric(10, 2), default=0.00)
+    credit_balance = Column(Numeric(10, 2), default=0.00)
+    payment_term_type = Column(String, nullable=True) # 'weekly', 'monthly', 'net_days'
+    payment_term_value = Column(Integer, nullable=True) # Int representing the day/offset
+
     # Relationships
     bills = relationship("Bill", back_populates="customer")
 
     created_at = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "slug": self.slug,
+            "name": self.name,
+            "phone_number": self.phone_number,
+            "country_code": self.country_code,
+            "shop_id": self.shop_id,
+            "credit_limit": float(self.credit_limit) if self.credit_limit else 0.0,
+            "credit_balance": float(self.credit_balance) if self.credit_balance else 0.0,
+            "payment_term_type": self.payment_term_type,
+            "payment_term_value": self.payment_term_value,
+            "created_at": self.created_at.isoformat() if self.created_at else None
+        }
 
 
 # ============================================================================

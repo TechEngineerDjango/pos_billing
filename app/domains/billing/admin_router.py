@@ -627,7 +627,10 @@ async def add_customer(
         name=data.name,
         phone_number=phone_number,
         country_code=country_code,
-        shop_id=target_shop_id
+        shop_id=target_shop_id,
+        credit_limit=data.credit_limit,
+        payment_term_type=data.payment_term_type,
+        payment_term_value=data.payment_term_value
     )
     db.add(new_customer)
     await db.commit()
@@ -700,6 +703,9 @@ async def update_customer(
         customer.phone_number = re.sub(r'\D', '', data.phone_number)
         if data.country_code:
             customer.country_code = data.country_code
+        customer.credit_limit = data.credit_limit
+        customer.payment_term_type = data.payment_term_type
+        customer.payment_term_value = data.payment_term_value
         await db.commit()
     
     return RedirectResponse(url=f"/admin/?shop_id={effective_shop_id}&tab=customers", status_code=303)

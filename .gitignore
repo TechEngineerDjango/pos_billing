@@ -55,6 +55,11 @@ static/uploads/*
 # Scratch / temp
 scratch/
 
+# Agent config (local only)
+.agents/
+ai-tools/
+*.pem
+
 # Frontend Build Tools
 node_modules/
 package.json

@@ -86,6 +86,9 @@ class CustomerCreate(BaseModel):
     phone_number: str
     country_code: Optional[str] = None  # Phone country code (e.g., "91" for India); if None, uses shop's default
     shop_id: Optional[int] = None
+    credit_limit: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0)
+    payment_term_type: Optional[str] = None # 'weekly', 'monthly', 'net_days'
+    payment_term_value: Optional[int] = None
 
 @as_form
 class SubscriptionCreate(BaseModel):
@@ -101,6 +104,10 @@ class ShopCreate(BaseModel):
     currency_symbol: str = "₹"
     country_code: Optional[str] = None  # Phone country code (e.g., "91" for India); defaults to system DEFAULT_COUNTRY_CODE
     subscription_id: Optional[int] = None
+    
+    # GST / Tax Settings
+    gst_registered: bool = False
+    gst_number: Optional[str] = None
 
     # Visual configs
     font_color: str = "#ffffff"

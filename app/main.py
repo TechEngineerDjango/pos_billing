@@ -22,6 +22,7 @@ from app.domains.billing import admin_router as admin
 from app.domains.tenancy import router as superadmin
 from app.domains.inventory import router as inventory
 from app.domains.platform_billing import router as platform_billing
+from app.domains.customers import router as customers
 from app.core.config import settings
 from app.domains.auth.router import get_password_hash
 from app.core.middleware.request_id import RequestIDMiddleware
@@ -115,6 +116,7 @@ app.include_router(admin.router)
 app.include_router(superadmin.router)
 app.include_router(inventory.router)
 app.include_router(platform_billing.router)
+app.include_router(customers.router)
 
 
 @app.get("/")
