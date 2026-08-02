@@ -376,17 +376,16 @@ async def create_subscription(
     current_user: User = Depends(require_superadmin),
     data: SubscriptionCreate = Depends(SubscriptionCreate.as_form)
 ):
-    """Create a new subscription plan."""
-    # Parse feature list from potential list of strings or comma-separated string
-    features_raw = ",".join(data.features) if data.features else ""
-    feature_list = [f.strip() for f in features_raw.split(",") if f.strip()]
-    
-    new_sub = Subscription(
-        name=data.name,
-        price=data.price,
-        enabled_features=feature_list
-    )
+    """Create a new subscription plan, with M2M feature links."""
+    new_sub = Subscription(name=data.name, price=data.price)
     db.add(new_sub)
+    await db.flush()
+
+    if data.feature_keys:
+        feat_res = await db.execute(select(Feature).where(Feature.key.in_(data.feature_keys)))
+        for feature in feat_res.scalars().all():
+            db.add(PlanFeature(plan_id=new_sub.id, feature_id=feature.id))
+
     await db.commit()
     return RedirectResponse(url="/superadmin/?tab=plans", status_code=303)
 
@@ -398,21 +397,17 @@ async def update_subscription(
     current_user: User = Depends(require_superadmin),
     data: SubscriptionCreate = Depends(SubscriptionCreate.as_form)
 ):
-    """Update an existing subscription plan."""
+    """Update an existing subscription plan's name/price. Feature assignment
+    is handled separately via /plans/{plan_id}/features (M2M)."""
     result = await db.execute(select(Subscription).where(Subscription.id == sub_id))
     sub = result.scalars().first()
-    
+
     if not sub:
         return RedirectResponse(url="/superadmin/?tab=plans&error=Plan not found", status_code=303)
-    
-    # Parse feature list from potential list of strings or comma-separated string
-    features_raw = ",".join(data.features) if data.features else ""
-    feature_list = [f.strip() for f in features_raw.split(",") if f.strip()]
-    
+
     sub.name = data.name
     sub.price = data.price
-    sub.enabled_features = feature_list
-    
+
     await db.commit()
     return RedirectResponse(url="/superadmin/?tab=plans", status_code=303)
 
@@ -495,7 +490,7 @@ async def toggle_feature(
 
 
 # ============================================================================
-# PLAN → FEATURE M2M ASSIGNMENT (replaces legacy JSON enabled_features)
+# PLAN → FEATURE M2M ASSIGNMENT
 # ============================================================================
 
 @router.post("/plans/{plan_id}/features")
@@ -509,7 +504,6 @@ async def assign_plan_features(
     """
     Set the M2M feature links for a plan.
     Replaces ALL existing links for the plan with the submitted set.
-    Also clears the legacy enabled_features JSON column for this plan.
     Invalidates the Redis feature cache for every shop on this plan.
     """
     from sqlalchemy import delete as sa_delete
@@ -526,9 +520,6 @@ async def assign_plan_features(
     # Insert the new M2M links
     for fid in feature_ids:
         db.add(PlanFeature(plan_id=plan_id, feature_id=fid))
-
-    # Clear legacy JSON column — M2M is now authoritative
-    plan.enabled_features = []
 
     await db.commit()
 

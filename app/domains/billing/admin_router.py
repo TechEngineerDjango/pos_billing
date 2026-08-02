@@ -8,10 +8,10 @@ from fastapi import APIRouter, Depends, Request, UploadFile, File, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, cast, String, func, and_
+from sqlalchemy import select, delete, cast, String, func, and_, or_
 
 from app.core.database import get_db
-from app.shared.models import User, MenuItem, Bill, Shop, Customer
+from app.shared.models import User, MenuItem, Bill, Shop, Customer, DEFAULT_LOW_STOCK_THRESHOLD
 from app.domains.auth.router import get_current_user, get_optional_current_user
 from app.shared.schemas import UserCreate, MenuItemCreate, CustomerCreate, ShopCreate
 from app.infrastructure.integrations.image import save_uploaded_image
@@ -20,6 +20,7 @@ from app.core.dependencies.csrf import verify_csrf
 from app.domains.inventory.sku import generate_sku
 from app.shared.time_utils import utc_iso, shop_local
 from app.shared.timezones import TIMEZONE_CHOICES
+from app.domains.expenses.service import CATEGORIES as EXPENSE_CATEGORIES
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(verify_csrf)])
 import os
@@ -40,9 +41,8 @@ async def admin_overview(
     db: AsyncSession = Depends(get_db)
 ):
     from sqlalchemy.orm import selectinload
-    from app.shared.features import get_shop_features
     from app.domains.features.service import FeatureService
-    
+
     if current_user.role not in ["owner", "superadmin"]:
         return RedirectResponse(url="/auth/login")
     
@@ -170,7 +170,7 @@ async def admin_overview(
                 if not bill_date:
                     continue
                 
-                # Ensure bill_date is aware (SQLite often returns naive even if timezone=True)
+                # Ensure bill_date is aware (asyncpg can return naive datetimes for TIMESTAMPTZ columns)
                 if bill_date.tzinfo is None:
                     bill_date = bill_date.replace(tzinfo=timezone.utc)
                 
@@ -304,6 +304,7 @@ async def admin_overview(
         "low_stock_count": low_stock_count,
         "default_country_code": default_country_code,
         "timezone_choices": TIMEZONE_CHOICES,
+        "expense_categories": EXPENSE_CATEGORIES,
     })
 
 
@@ -398,6 +399,80 @@ async def admin_branding(
     if current_user.role not in ["owner", "superadmin"]:
         return RedirectResponse(url="/auth/login")
     return RedirectResponse(url="/admin/?tab=branding")
+
+
+@router.get("/admin/menu/search")
+@router.get("/menu/search")
+async def search_menu_items(
+    q: str = "",
+    limit: int = 20,
+    offset: int = 0,
+    active_only: bool = True,
+    stock_status: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Type-ahead menu item search — backs the Rate Cards item picker
+    (active_only=true, minimal fields) and the Menu/Inventory tabs'
+    search-driven lists (active_only=false, full fields), same scalability
+    treatment as customer search: capped, paginated, server-side, no
+    full-table embed. stock_status (untracked/out/low/ok) mirrors the badge
+    logic already shown per row in the Inventory tab."""
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+    conditions = [MenuItem.shop_id == current_user.shop_id]
+    if active_only:
+        conditions.append(MenuItem.is_active == True)
+    query_clean = q.strip()
+    if query_clean:
+        conditions.append(or_(MenuItem.name.ilike(f"%{query_clean}%"), MenuItem.sku.ilike(f"%{query_clean}%")))
+    if stock_status:
+        threshold = func.coalesce(MenuItem.low_stock_threshold, DEFAULT_LOW_STOCK_THRESHOLD)
+        if stock_status == "untracked":
+            conditions.append(MenuItem.stock_quantity.is_(None))
+        elif stock_status == "out":
+            conditions.append(and_(MenuItem.stock_quantity.isnot(None), MenuItem.stock_quantity <= 0))
+        elif stock_status == "low":
+            conditions.append(and_(
+                MenuItem.stock_quantity.isnot(None), MenuItem.stock_quantity > 0, MenuItem.stock_quantity <= threshold,
+            ))
+        elif stock_status == "ok":
+            conditions.append(and_(MenuItem.stock_quantity.isnot(None), MenuItem.stock_quantity > threshold))
+
+    # Single round trip: count(*) over() computes the total matching-row
+    # count as a window function on every returned row, instead of a
+    # separate COUNT(*) query. Note: if offset skips past every matching
+    # row, this returns zero rows and total falls back to 0 rather than the
+    # true count — acceptable here since total only drives "Load More"
+    # visibility, and the client never requests an offset beyond what it
+    # already knows total to be from an earlier page.
+    result = await db.execute(
+        select(MenuItem, func.count().over().label("total_count"))
+        .where(*conditions).order_by(MenuItem.name).limit(limit).offset(offset)
+    )
+    rows = result.all()
+    items = [row[0] for row in rows]
+    total = rows[0][1] if rows else 0
+    return {
+        "status": "success",
+        "total": total,
+        "items": [
+            {
+                "id": m.id,
+                "slug": m.slug,
+                "name": m.name,
+                "price": float(m.price),
+                "unit": m.unit,
+                "category": m.category,
+                "sku": m.sku,
+                "image_url": m.image_url,
+                "is_active": m.is_active,
+                "stock_quantity": m.stock_quantity,
+                "low_stock_threshold": m.low_stock_threshold,
+            }
+            for m in items
+        ],
+    }
 
 
 # Simple Action to Add Menu Item (Form Post)
@@ -628,6 +703,7 @@ async def add_customer(
         phone_number=phone_number,
         country_code=country_code,
         shop_id=target_shop_id,
+        is_credit_customer=data.is_credit_customer,
         credit_limit=data.credit_limit,
         payment_term_type=data.payment_term_type,
         payment_term_value=data.payment_term_value
@@ -659,23 +735,39 @@ async def customer_edit_page(
     if not customer:
         return RedirectResponse(url="/admin/", status_code=303)
     
-    # Get shop for context
+    # Get shop for context (subscription eagerly loaded — needed for the
+    # credit_billing feature check below, FeatureService reads it)
+    from sqlalchemy.orm import selectinload
     shop = None
     if customer and customer.shop_id:
-        shop_res = await db.execute(select(Shop).where(Shop.id == customer.shop_id))
+        shop_res = await db.execute(
+            select(Shop).where(Shop.id == customer.shop_id).options(selectinload(Shop.subscription))
+        )
         shop = shop_res.scalars().first()
     elif current_user.shop_id:
-        shop_res = await db.execute(select(Shop).where(Shop.id == current_user.shop_id))
+        shop_res = await db.execute(
+            select(Shop).where(Shop.id == current_user.shop_id).options(selectinload(Shop.subscription))
+        )
         shop = shop_res.scalars().first()
-    
+
     from app.core.config import settings
     default_country_code = customer.country_code or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE
+
+    # UX-only gate (FIX-11): hides the credit-terms form for shops without the
+    # entitlement so they don't see an option that the backend will reject
+    # anyway (CustomerService.set_credit_terms is the authoritative check).
+    # This page has no Alpine "$store.features" wiring (that store is only
+    # initialized by pos-app.js on the POS page), so the gate is applied
+    # server-side with the same FeatureService the backend check uses.
+    from app.domains.features.service import FeatureService
+    credit_billing_enabled = await FeatureService(db=db).is_feature_enabled(shop, "credit_billing")
 
     return templates.TemplateResponse(request, "customer_edit.html", {
         "customer": customer,
         "shop": shop,
         "user": current_user,
         "default_country_code": default_country_code,
+        "credit_billing_enabled": credit_billing_enabled,
     })
 
 
@@ -703,9 +795,11 @@ async def update_customer(
         customer.phone_number = re.sub(r'\D', '', data.phone_number)
         if data.country_code:
             customer.country_code = data.country_code
-        customer.credit_limit = data.credit_limit
-        customer.payment_term_type = data.payment_term_type
-        customer.payment_term_value = data.payment_term_value
+        # Credit terms (is_credit_customer/credit_limit/payment_term_type/value)
+        # are owned exclusively by POST /admin/customers/{slug}/credit-terms
+        # (CustomerService.set_credit_terms) now — not touched here, so this
+        # name/phone-only form never silently resets them to CustomerCreate's
+        # defaults.
         await db.commit()
     
     return RedirectResponse(url=f"/admin/?shop_id={effective_shop_id}&tab=customers", status_code=303)
@@ -773,7 +867,7 @@ async def get_bill_detail(
     shop_res = await db.execute(select(Shop).where(Shop.id == bill.shop_id))
     shop = shop_res.scalars().first()
     
-    local_ts = shop_local(bill.timestamp, shop)
+    local_ts = shop_local(bill.timestamp, shop.timezone if shop else "UTC")
     return JSONResponse({
         "bill_number": bill.bill_number,
         "timestamp": local_ts.strftime("%Y-%m-%d %H:%M") if local_ts else "",
@@ -823,8 +917,10 @@ async def whatsapp_redirect_page(
         total_amount=float(bill.total_amount),
         shop_name=shop.name if shop else "Restaurant",
         currency=shop.currency_symbol if shop else "₹",
-        bill_date=shop_local(bill.timestamp, shop).strftime("%d-%b-%Y %I:%M %p") if bill.timestamp else "",
-        footer_message=shop.receipt_footer if shop and hasattr(shop, 'receipt_footer') else "Thank you for your order!"
+        bill_date=shop_local(bill.timestamp, shop.timezone if shop else "UTC").strftime("%d-%b-%Y %I:%M %p") if bill.timestamp else "",
+        footer_message=shop.receipt_footer if shop and hasattr(shop, 'receipt_footer') else "Thank you for your order!",
+        due_date=shop_local(bill.due_date, shop.timezone if shop else "UTC").strftime("%d-%b-%Y") if bill.due_date else "",
+        payment_status=bill.payment_status or "",
     )
     from app.core.config import settings
     customer_country_code = (bill.customer.country_code if bill.customer else None) or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE
@@ -875,35 +971,33 @@ async def check_features(
     Useful for verifying subscription-based feature gating.
     """
     from sqlalchemy.orm import selectinload
-    from app.shared.features import get_shop_features, FEATURES
-    
+    from app.domains.features.service import FeatureService
+
     if not current_user.shop_id:
         return JSONResponse({
             "error": "No shop assigned to this user",
             "user_role": current_user.role,
-            "available_features": list(FEATURES.keys())
         })
-    
+
     # Get shop with subscription
     shop_res = await db.execute(
         select(Shop).where(Shop.id == current_user.shop_id).options(selectinload(Shop.subscription))
     )
     shop = shop_res.scalars().first()
-    
+
     if not shop:
         return JSONResponse({"error": "Shop not found"})
-    
-    # Get feature status
-    shop_features = get_shop_features(shop)
-    
+
+    # Get feature status (authoritative source: FeatureService — M2M catalog)
+    shop_features = await FeatureService(db=db).get_all_features_for_shop(shop)
+
     # Separate enabled and disabled features
-    enabled = [k for k, v in shop_features.items() if v.get("enabled")]
-    disabled = [k for k, v in shop_features.items() if not v.get("enabled")]
-    
+    enabled = [k for k, v in shop_features.items() if v]
+    disabled = [k for k, v in shop_features.items() if not v]
+
     return JSONResponse({
         "shop_name": shop.name,
         "subscription": shop.subscription.name if shop.subscription else "None (Free tier)",
-        "subscription_features": shop.subscription.enabled_features if shop.subscription else [],
         "user_role": current_user.role,
         "enabled_features": enabled,
         "disabled_features": disabled,

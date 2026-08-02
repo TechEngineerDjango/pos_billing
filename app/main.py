@@ -23,11 +23,14 @@ from app.domains.tenancy import router as superadmin
 from app.domains.inventory import router as inventory
 from app.domains.platform_billing import router as platform_billing
 from app.domains.customers import router as customers
+from app.domains.expenses import router as expenses
+from app.domains.credit import router as credit
 from app.core.config import settings
 from app.domains.auth.router import get_password_hash
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.middleware.csrf import CSRFMiddleware
 from app.workers.billing_cron import billing_worker_loop
+from app.workers.credit_statement_cron import credit_statement_worker_loop
 
 
 # ---------------------------------------------------------------------------
@@ -77,11 +80,13 @@ async def lifespan(app: FastAPI):
             logger.info("Superadmin user created. Visit /superadmin/ to configure features and plans.")
 
     billing_task = asyncio.create_task(billing_worker_loop())
+    credit_statement_task = asyncio.create_task(credit_statement_worker_loop())
 
     yield
 
     # Shutdown
     billing_task.cancel()
+    credit_statement_task.cancel()
     logger.info("Closing Database Connection...")
     await close_redis()
     logger.info("Redis connection closed.")
@@ -117,6 +122,8 @@ app.include_router(superadmin.router)
 app.include_router(inventory.router)
 app.include_router(platform_billing.router)
 app.include_router(customers.router)
+app.include_router(expenses.router)
+app.include_router(credit.router)
 
 
 @app.get("/")

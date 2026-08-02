@@ -15,13 +15,13 @@ import json
 import re
 
 from app.core.database import get_db
-from app.shared.models import Bill, MenuItem, Shop, User, Customer, Subscription, PlanFeature, StockMovement
+from app.shared.models import Bill, MenuItem, Shop, User, Customer, Subscription, PlanFeature, StockMovement, DEFAULT_LOW_STOCK_THRESHOLD
 from app.domains.features.service import FeatureService
 from app.core.redis import get_redis
 from app.infrastructure.integrations.printer import print_bill_bg
 from app.infrastructure.integrations.notifications import get_notification_service
 from app.domains.auth.router import get_current_user, get_optional_current_user
-from app.shared.schemas import CartItem, BillCreate, BillActionResponse
+from app.shared.schemas import CartItem, BillCreate, BillActionResponse, CustomerSearchResponse
 from app.core.dependencies.csrf import verify_csrf
 from app.core.dependencies.features import require_feature
 from app.core.config import settings
@@ -212,7 +212,7 @@ async def get_recent_bills(
                 "timestamp": b.timestamp.isoformat() if b.timestamp else None,
                 # Pre-formatted in the shop's local timezone so the POS UI can
                 # display it directly, without doing its own timezone math in JS.
-                "timestamp_display": shop_local(b.timestamp, shop).strftime("%d %b %Y, %I:%M %p") if b.timestamp else None,
+                "timestamp_display": shop_local(b.timestamp, shop.timezone if shop else "UTC").strftime("%d %b %Y, %I:%M %p") if b.timestamp else None,
                 "items": b.items_snapshot,
                 "payment_method": getattr(b, "payment_method", "Cash"),
                 "customer_name": b.customer.name if b.customer else None,
@@ -306,7 +306,7 @@ async def get_item_by_sku_for_pos(
     if not item:
         raise HTTPException(status_code=404, detail=f"No item found with SKU '{sku}'")
 
-    threshold = item.low_stock_threshold or 5.0
+    threshold = item.low_stock_threshold or DEFAULT_LOW_STOCK_THRESHOLD
     item_dict = item.to_dict()
     available = item_dict.get("available_stock")
 
@@ -318,7 +318,7 @@ async def get_item_by_sku_for_pos(
     })
 
 
-@router.get("/customer/search")
+@router.get("/customer/search", response_model=CustomerSearchResponse)
 async def search_customer(
     query: str,
     db: AsyncSession = Depends(get_db),
@@ -327,11 +327,11 @@ async def search_customer(
 ):
     """Search for customer by phone number or name in current shop."""
     if not current_user.shop_id:
-        return JSONResponse({"found": False})
+        return CustomerSearchResponse(found=False)
     
     query_clean = query.strip()
     if not query_clean or len(query_clean) < 3:
-        return JSONResponse({"found": False})
+        return CustomerSearchResponse(found=False)
     
     from sqlalchemy import or_
     phone_clean = re.sub(r'\D', '', query_clean)
@@ -348,14 +348,21 @@ async def search_customer(
     customer = result.scalars().first()
     
     if customer:
-        return JSONResponse({
-            "found": True,
-            "id": customer.id,
-            "name": customer.name,
-            "phone_number": customer.phone_number
-        })
+        return CustomerSearchResponse(
+            found=True,
+            id=customer.id,
+            name=customer.name,
+            phone_number=customer.phone_number,
+            company_name=customer.company_name,
+            gst_number=customer.gst_number,
+            is_credit_customer=customer.is_credit_customer,
+            credit_limit=float(customer.credit_limit) if customer.credit_limit else 0.0,
+            credit_balance=float(customer.credit_balance) if customer.credit_balance else 0.0,
+            payment_term_type=customer.payment_term_type,
+            payment_term_value=customer.payment_term_value
+        )
     else:
-        return JSONResponse({"found": False})
+        return CustomerSearchResponse(found=False)
 
 
 @router.get("/bill/{bill_id}", response_class=HTMLResponse)
@@ -398,6 +405,6 @@ async def view_bill(
     return templates.TemplateResponse(request, "bill_detail.html", {
         "bill": bill,
         "shop": shop,
-        "user": current_user
+        "user": current_user,
     })
 

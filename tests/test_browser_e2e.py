@@ -295,7 +295,68 @@ class TestPOSPage:
             upi_btn.first.click(timeout=5000)
             time.sleep(0.3)
             print("✅ UPI payment button found and clickable")
-    
+
+    def test_credit_button_hidden_after_non_default_payment_method_click(self, browser_page: Page):
+        """
+        FIX-12 regression test.
+
+        The Credit payment-method button (data-payment-method="credit") must
+        stay hidden after the cashier picks a non-default payment method
+        (UPI) — regardless of the credit_billing feature flag or the
+        selected customer's is_credit_customer status (this dev environment
+        has credit_billing disabled, so it must never appear here).
+
+        Root cause under test: the button combines x-show (which toggles
+        `display: none` on the element's `style` attribute) with :style
+        (which fully REPLACES the whole `style` attribute whenever its own
+        dependency, paymentMethod, changes) on the same element. Clicking
+        "Cash" is a no-op because paymentMethod already defaults to 'Cash'
+        (pos-app.js) — no dependency change, so the leak doesn't trigger.
+        Clicking "UPI" is a real paymentMethod change: :style re-runs,
+        clobbers the `display: none` that x-show had set, and the Credit
+        button leaks into view even though x-show's own condition is still
+        false.
+        """
+        _login_owner(browser_page)
+        browser_page.goto(f"{BASE_URL}/billing/")
+        browser_page.wait_for_load_state("domcontentloaded")
+
+        # Add an item to the cart (same interaction pattern as test_add_item_to_cart)
+        item_cards = browser_page.locator(".cursor-pointer")
+        expect(item_cards.first).to_be_visible()
+        item_cards.first.click()
+        time.sleep(0.5)
+
+        # Search for and select a customer (same pattern as _run_pos_cashier_workflow)
+        phone_input = browser_page.locator("input[data-input='customer-search-phone']")
+        phone_input.wait_for(state="visible", timeout=5000)
+        phone_input.fill("9094855498")
+        time.sleep(1)
+        if browser_page.get_by_text("NEW", exact=True).is_visible():
+            browser_page.fill("input[placeholder='Customer Name *']", "FIX12 Test Customer")
+
+        credit_btn = browser_page.locator("[data-payment-method='credit']")
+        cash_btn = browser_page.locator("[data-payment-method='cash']")
+        upi_btn = browser_page.locator("[data-payment-method='upi']")
+
+        # Initially hidden — credit_billing is off / customer isn't credit-eligible
+        assert credit_btn.is_visible() is False, "Credit button should be hidden initially"
+
+        # Clicking Cash is a no-op (paymentMethod already defaults to 'Cash') — should stay hidden
+        cash_btn.click()
+        time.sleep(0.3)
+        assert credit_btn.is_visible() is False, "Credit button should stay hidden after clicking Cash"
+
+        # Clicking UPI is a real paymentMethod change — this is where FIX-12's bug leaks
+        # the Credit button through by clobbering x-show's display:none via :style
+        upi_btn.click()
+        time.sleep(0.3)
+        assert credit_btn.is_visible() is False, (
+            "Credit button leaked visible after clicking UPI — :style clobbered "
+            "x-show's display:none (FIX-12)"
+        )
+        print("✅ Credit button stayed hidden through Cash/UPI clicks")
+
     def test_create_bill_flow(self, browser_page: Page):
         """Test complete bill creation flow"""
         _login_owner(browser_page)
@@ -549,7 +610,7 @@ class TestLoginLockout:
         from sqlalchemy import create_engine, text
         from app.core.config import settings
         # Create a sync engine for the cleanup
-        sync_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://").replace("sqlite+aiosqlite://", "sqlite://")
+        sync_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
         sync_engine = create_engine(sync_url)
         with sync_engine.connect() as conn:
             conn.execute(text("DELETE FROM login_attempts"))

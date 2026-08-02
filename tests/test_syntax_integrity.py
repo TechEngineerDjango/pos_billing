@@ -22,11 +22,17 @@ async def test_pos_template_integrity(async_client: AsyncClient):
     assert response.status_code == 200
     
     html = response.text
-    
+
     # Check for core structural elements we just added/fixed
     assert '<script id="pos-items-data" type="application/json">' in html
-    assert 'JSON.parse(document.getElementById(\'pos-items-data\').textContent)' in html
-    
+    assert '<script src="/static/js/pos/pos-app.js"></script>' in html
+
+    # The consumer of the Data Island lives in the external pos-app.js bundle,
+    # not inlined into the page — verify that file still reads the island by id.
+    with open("app/frontend/static/js/pos/pos-app.js") as f:
+        pos_js = f.read()
+    assert "JSON.parse(document.getElementById('pos-items-data').textContent)" in pos_js
+
     # Ensure no common Jinja syntax remnants from errors
     assert 'itemsData: {{' not in html  # It should be rendered to actual JSON
     assert '{{ items | tojson | safe }' not in html

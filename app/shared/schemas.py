@@ -2,7 +2,10 @@ from pydantic import BaseModel, Field, validator
 from typing import List, Optional, Type
 from fastapi import Form
 from decimal import Decimal
+from datetime import date
 import inspect
+
+from app.shared.models import DEFAULT_LOW_STOCK_THRESHOLD
 
 def as_form(cls: Type[BaseModel]):
     """
@@ -32,6 +35,19 @@ def as_form(cls: Type[BaseModel]):
 class CartItem(BaseModel):
     id: int
     qty: float = Field(..., gt=0)  # float accepts whole (2) and fractional (1.6 kg) quantities; JSON-serializable
+
+class CustomerSearchResponse(BaseModel):
+    found: bool
+    id: Optional[int] = None
+    name: Optional[str] = None
+    phone_number: Optional[str] = None
+    company_name: Optional[str] = None
+    gst_number: Optional[str] = None
+    is_credit_customer: Optional[bool] = None
+    credit_limit: Optional[float] = None
+    credit_balance: Optional[float] = None
+    payment_term_type: Optional[str] = None
+    payment_term_value: Optional[int] = None
 
 class BillCreate(BaseModel):
     items: List[CartItem]
@@ -69,7 +85,7 @@ class MenuItemCreate(BaseModel):
     shop_id: Optional[int] = None
     unit: Optional[str] = None  # None/'piece' = fixed price; 'kg'/'g'/'liter'/'ml' = rate per unit
     sku: Optional[str] = None   # If provided, overrides auto-generated SKU
-    low_stock_threshold: Optional[float] = Field(default=5.0, ge=0)
+    low_stock_threshold: Optional[float] = Field(default=DEFAULT_LOW_STOCK_THRESHOLD, ge=0)
     tax_rate: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0, le=100)
 
     @validator("unit", pre=True)
@@ -86,15 +102,177 @@ class CustomerCreate(BaseModel):
     phone_number: str
     country_code: Optional[str] = None  # Phone country code (e.g., "91" for India); if None, uses shop's default
     shop_id: Optional[int] = None
+    
+    # B2B Fields
+    company_name: Optional[str] = None
+    gst_number: Optional[str] = None
+    
+    # Credit Fields
+    is_credit_customer: bool = False
     credit_limit: Optional[Decimal] = Field(default=Decimal("0.00"), ge=0)
     payment_term_type: Optional[str] = None # 'weekly', 'monthly', 'net_days'
     payment_term_value: Optional[int] = None
+
+
+@as_form
+class CustomerCreditTermsUpdate(BaseModel):
+    is_credit_customer: bool = False
+    credit_limit: Optional[Decimal] = Field(default=None, ge=0)
+    payment_term_type: Optional[str] = None
+    payment_term_value: Optional[int] = None
+
+    @validator("payment_term_type")
+    def require_payment_term_type_for_credit(cls, v, values):
+        if values.get("is_credit_customer") and not v:
+            raise ValueError("payment_term_type is required when is_credit_customer is true")
+        return v
+
+    @validator("payment_term_value")
+    def require_payment_term_value_for_credit(cls, v, values):
+        if values.get("is_credit_customer") and v is None:
+            raise ValueError("payment_term_value is required when is_credit_customer is true")
+        return v
+
+
+class CustomerItemPriceCreate(BaseModel):
+    menu_item_id: int
+    price: Decimal = Field(..., ge=0)
+    valid_from: date
+    valid_to: Optional[date] = None
+
+    @validator("valid_to")
+    def valid_to_after_valid_from(cls, v, values):
+        if v is not None and "valid_from" in values and v < values["valid_from"]:
+            raise ValueError("valid_to must be on or after valid_from")
+        return v
+
+
+class CustomerItemPriceUpdate(BaseModel):
+    price: Decimal = Field(..., ge=0)
+    valid_from: date
+    valid_to: Optional[date] = None
+
+    @validator("valid_to")
+    def valid_to_after_valid_from(cls, v, values):
+        if v is not None and "valid_from" in values and v < values["valid_from"]:
+            raise ValueError("valid_to must be on or after valid_from")
+        return v
+
+
+class CreditBillSummary(BaseModel):
+    id: int
+    slug: str
+    bill_number: str
+    total_amount: Decimal
+    payment_status: str
+    amount_paid: Decimal
+    due_date: Optional[str]
+    timestamp: Optional[str]
+    credit_statement_id: Optional[int]
+
+
+class CreditStatementSummary(BaseModel):
+    id: int
+    slug: str
+    customer_id: int
+    statement_number: str
+    period_start: Optional[str]
+    period_end: Optional[str]
+    total_amount: Decimal
+    amount_paid: Decimal
+    status: str
+    due_date: Optional[str]
+
+
+class CreditLedgerResponse(BaseModel):
+    customer_id: int
+    credit_balance: Decimal
+    credit_limit: Optional[Decimal]
+    payment_term_type: Optional[str]
+    payment_term_value: Optional[int]
+    unpaid_bills: List[CreditBillSummary]
+    statements: List[CreditStatementSummary]
+
+
+class CreditPaymentCreate(BaseModel):
+    """Exactly one of statement_slug (pay down a rolled-up statement) or
+    bill_slug (pay off a single Completed Credit bill directly, before it's
+    been rolled into any statement) must be provided."""
+    statement_slug: Optional[str] = None
+    bill_slug: Optional[str] = None
+    amount: Decimal = Field(..., gt=0)
+    idempotency_key: str
+    payment_method: str
+    note: Optional[str] = None
+
+    @validator("bill_slug")
+    def exactly_one_target(cls, v, values):
+        statement_slug = values.get("statement_slug")
+        if bool(statement_slug) == bool(v):
+            raise ValueError("Provide exactly one of statement_slug or bill_slug")
+        return v
+
+
+class CreditFullSettlementCreate(BaseModel):
+    """Pays off a customer's entire outstanding credit balance in one action
+    — every open statement and every un-statemented unpaid Credit bill.
+    No amount field: it's defined as paying exactly what's currently owed."""
+    idempotency_key: str
+    payment_method: str
+    note: Optional[str] = None
+
+
+class CreditPaymentResponse(BaseModel):
+    id: int
+    slug: str
+    customer_id: int
+    credit_statement_id: Optional[int]
+    bill_id: Optional[int]
+    amount: Decimal
+    payment_method: str
+    paid_at: Optional[str]
+    note: Optional[str]
+    recorded_by_user_id: Optional[int]
+
+
+class ExpenseCreate(BaseModel):
+    category: str
+    description: str
+    amount: Decimal = Field(..., gt=0)
+    tax_amount: Decimal = Field(default=Decimal("0.00"), ge=0)
+    vendor_name: Optional[str] = None
+    expense_date: date
+    payment_method: str
+
+
+class ExpenseUpdate(ExpenseCreate):
+    pass
+
+
+class ExpenseResponse(BaseModel):
+    id: int
+    slug: str
+    category: str
+    description: str
+    amount: Decimal
+    tax_amount: Decimal
+    vendor_name: Optional[str]
+    expense_date: date
+    payment_method: str
+    created_at: Optional[str]
+    is_voided: bool
+
+
+class ExpenseListResponse(BaseModel):
+    status: str
+    expenses: List[ExpenseResponse]
+
 
 @as_form
 class SubscriptionCreate(BaseModel):
     name: str
     price: Decimal
-    features: List[str] = []
+    feature_keys: List[str] = []
 
 @as_form
 class ShopCreate(BaseModel):
@@ -159,6 +337,13 @@ class StockRestockRequest(BaseModel):
     qty: float = Field(gt=0, description="Quantity to add (must be positive)")
     note: Optional[str] = Field(None, max_length=255)
     source: str = Field(default="manual", description="'manual' or 'scanner'")
+    unit_cost: Optional[Decimal] = Field(
+        default=None, ge=0,
+        description="Cost paid per unit for this restock. If provided (>0), "
+                     "auto-creates an 'Inventory Purchase' expense entry for "
+                     "qty * unit_cost — omit to restock without logging an expense."
+    )
+    payment_method: str = Field(default="Cash", description="Only used if unit_cost is provided")
 
 
 @as_form

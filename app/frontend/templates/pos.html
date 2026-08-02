@@ -343,7 +343,9 @@
                 <!-- Payment Method -->
                 <div>
                     <label class="text-xs font-bold uppercase opacity-60 mb-2 block">Payment Method</label>
-                    <div class="grid grid-cols-2 gap-1.5 p-1 rounded-2xl" style="background-color: var(--card-bg);">
+                    <div class="grid gap-1.5 p-1 rounded-2xl"
+                        :class="($store.features['credit_billing'] && foundCustomer?.is_credit_customer) ? 'grid-cols-3' : 'grid-cols-2'"
+                        style="background-color: var(--card-bg);">
                         <button data-payment-method="cash" id="pos-cash-method-btn" @click="paymentMethod = 'Cash'"
                             :class="paymentMethod === 'Cash' ? 'shadow-md' : 'opacity-50 hover:opacity-90'"
                             :style="paymentMethod === 'Cash' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font);'"
@@ -356,7 +358,21 @@
                             class="py-2.5 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 text-sm">
                             <span>📱</span> UPI
                         </button>
+                        <template x-if="$store.features['credit_billing'] && foundCustomer?.is_credit_customer">
+                        <button data-payment-method="credit"
+                            @click="paymentMethod = 'Credit'"
+                            :class="paymentMethod === 'Credit' ? 'shadow-md' : 'opacity-50 hover:opacity-90'"
+                            :style="paymentMethod === 'Credit' ? 'background-color: var(--cash-upi-bg); color: var(--cash-upi-font);' : 'color: var(--billing-font);'"
+                            class="py-2.5 rounded-xl font-bold transition-all duration-200 flex items-center justify-center gap-2 text-sm">
+                            <span>🧾</span> Credit
+                        </button>
+                        </template>
                     </div>
+                    <!-- Remaining credit headroom, shown once Credit is selected for an eligible customer -->
+                    <p x-show="paymentMethod === 'Credit' && foundCustomer?.is_credit_customer" x-cloak
+                        class="text-xs mt-2 opacity-70">
+                        Available credit: <span x-text="formatMoney(Math.max(0, (foundCustomer?.credit_limit || 0) - (foundCustomer?.credit_balance || 0)))"></span>
+                    </p>
                 </div>
 
                 <!-- UPI Dynamic QR -->

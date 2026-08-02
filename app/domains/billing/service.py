@@ -1,25 +1,36 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from fastapi import HTTPException
 import datetime as dt
 from datetime import timezone
 from decimal import Decimal, ROUND_HALF_UP
+from typing import Optional
 import re
 import logging
 
-from app.shared.models import Bill, MenuItem, Shop, User, Customer, StockMovement
+from app.shared.models import Bill, MenuItem, Shop, User, Customer, StockMovement, DEFAULT_LOW_STOCK_THRESHOLD
 from app.infrastructure.integrations.notifications import get_notification_service
 from app.shared.schemas import BillCreate
-from app.shared.time_utils import shop_local
+from app.shared.time_utils import shop_local, shop_day_range_utc
+from app.domains.features.service import FeatureService
+from app.domains.billing.payment_strategies import get_payment_method_handler
+from app.domains.customers.service import CustomerService
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_LOW_STOCK_THRESHOLD = 5.0
 
 class BillingService:
     def __init__(self, db: AsyncSession):
         self.db = db
         self.notification_svc = get_notification_service(db)
+        self.customer_service = CustomerService(db)
+
+    async def _resolve_unit_price(self, menu_item: MenuItem, customer_id, as_of_date):
+        """Rate-card price (FEAT-3) if the customer has an active override for
+        this item, else MenuItem.price — applies to every payment method."""
+        return await self.customer_service.get_effective_price(
+            customer_id, menu_item.id, as_of_date, menu_item.price
+        )
 
     @staticmethod
     def _collect_updated_stock(stock_updates: list[tuple]) -> list[dict]:
@@ -35,6 +46,58 @@ class BillingService:
             }
             for item, _ in stock_updates
         ]
+
+    async def _resolve_customer_id(self, shop: Shop, bill_in: BillCreate) -> Optional[int]:
+        """Resolves the customer for a bill: validates a client-supplied
+        customer_id belongs to this shop (never trust it blindly — it drives
+        rate-card pricing and credit-balance mutation), or looks up/creates
+        by phone number, scoped to this shop, same as before."""
+        if bill_in.customer_id:
+            customer_res = await self.db.execute(
+                select(Customer).where(
+                    Customer.id == bill_in.customer_id,
+                    Customer.shop_id == shop.id,
+                )
+            )
+            customer = customer_res.scalars().first()
+            if not customer:
+                raise HTTPException(status_code=400, detail="Customer not found in this shop")
+            return int(customer.id)
+
+        if bill_in.customer_phone and shop.id:
+            phone = re.sub(r'\D', '', bill_in.customer_phone)
+            if phone:
+                customer_res = await self.db.execute(
+                    select(Customer).where(
+                        Customer.shop_id == shop.id,
+                        Customer.phone_number == phone
+                    )
+                )
+                customer = customer_res.scalars().first()
+                if not customer:
+                    customer_name = bill_in.customer_name or f"Customer {phone[-4:]}"
+                    from app.core.config import settings
+                    customer_country_code = bill_in.customer_country_code or shop.country_code or settings.DEFAULT_COUNTRY_CODE
+                    customer = Customer(
+                        name=customer_name,
+                        phone_number=phone,
+                        country_code=customer_country_code,
+                        shop_id=shop.id
+                    )
+                    self.db.add(customer)
+                    await self.db.flush()
+                return int(customer.id)
+
+        return None
+
+    @staticmethod
+    async def _finalize_payment_method(db, bill, customer_id, total_amount, status, payment_method, shop_tz="UTC"):
+        try:
+            await get_payment_method_handler(payment_method).on_finalize(
+                db, bill, customer_id, total_amount, status, shop_tz
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
     async def _dispatch_low_stock_alerts(self, shop_id: int, alerts_to_check: list[dict]):
         """Evaluate and send low stock alerts asynchronously to avoid blocking DB locks."""
@@ -56,13 +119,26 @@ class BillingService:
         shop = None
         shop_id = current_user.shop_id
         if shop_id:
-            shop_res = await self.db.execute(select(Shop).where(Shop.id == shop_id))
+            shop_res = await self.db.execute(
+                select(Shop).where(Shop.id == shop_id).options(selectinload(Shop.subscription))
+            )
             shop = shop_res.scalars().first()
 
         if not shop:
             raise HTTPException(
                 status_code=400,
                 detail="No shop associated with this account. Cannot create bill."
+            )
+
+        # Defense-in-depth entitlement gate (contract_standards #5): a
+        # customer row can already be flagged is_credit_customer=True from
+        # before the shop's subscription was downgraded — set_credit_terms's
+        # write-time check alone is not enough, so re-check here at
+        # bill-creation time, independent of the customer row's own flag.
+        if bill_in.payment_method == "Credit" and not await FeatureService(db=self.db).is_feature_enabled(shop, "credit_billing"):
+            raise HTTPException(
+                status_code=400,
+                detail="Your subscription plan does not include Credit Billing.",
             )
 
         # Bill number format: SHOPCODE-YYYYMMDD-NNNN (shop code + date + a daily counter).
@@ -76,24 +152,32 @@ class BillingService:
         # session timezone (e.g. IST) while Python computed "today" in UTC. Those
         # two didn't agree near midnight, so the count query sometimes returned 0
         # for a day that already had bills, and two bills got the same sequence
-        # number (duplicate bill_number crash). Fix: convert both sides to the
-        # shop's configured timezone (shop.timezone) before comparing dates, so
-        # "today" always means the same calendar day on both sides of the query.
-        today = shop_local(dt.datetime.now(timezone.utc), shop).date()
-        date_str = today.strftime("%Y%m%d")
+        # number (duplicate bill_number crash). Fix: compute the shop-local day's
+        # UTC boundaries in Python and use a range comparison, so "today" always
+        # means the same calendar day regardless of DB session timezone.
         shop_tz = shop.timezone or "UTC"
+        today = shop_local(dt.datetime.now(timezone.utc), shop_tz).date()
+        date_str = today.strftime("%Y%m%d")
+        day_start_utc, day_end_utc = shop_day_range_utc(today, shop_tz)
 
         # Count how many bills this shop already has for today (shop-local day),
         # then the new bill becomes count + 1.
         count_res = await self.db.execute(
             select(func.count(Bill.id)).where(
                 Bill.shop_id == shop.id,
-                func.date(func.timezone(shop_tz, Bill.timestamp)) == today
+                Bill.timestamp >= day_start_utc,
+                Bill.timestamp < day_end_utc,
             )
         )
         today_count = count_res.scalar() or 0
         seq = str(today_count + 1).zfill(4)  # 0001, 0002, 0003, ...
         bill_number = f"{shop_code}-{date_str}-{seq}"
+
+        # Handle customer — resolved BEFORE the pricing loop below, since rate
+        # -card price resolution (FEAT-3) needs customer_id per line. Also
+        # validates a client-supplied customer_id actually belongs to this
+        # shop, since it drives credit-balance mutation and rate-card pricing.
+        customer_id = await self._resolve_customer_id(shop, bill_in)
 
         subtotal_amount = Decimal("0.00")
         tax_amount = Decimal("0.00")
@@ -134,12 +218,16 @@ class BillingService:
                            f"Available: {available}, Requested: {cart_item.qty}"
                 )
 
+            # Rate-card price (FEAT-3) if this customer has an active override
+            # for this item, else MenuItem.price — applies to every payment method.
+            unit_price = await self._resolve_unit_price(menu_item, customer_id, today)
+
             TWO_PLACES = Decimal("0.01")
-            line_subtotal = (menu_item.price * Decimal(str(cart_item.qty))).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+            line_subtotal = (unit_price * Decimal(str(cart_item.qty))).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
             tax_rate = menu_item.tax_rate if menu_item.tax_rate is not None else Decimal("0.00")
             line_tax = (line_subtotal * (tax_rate / Decimal("100.00"))).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
             line_total = (line_subtotal + line_tax).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
-            
+
             subtotal_amount += line_subtotal
             tax_amount += line_tax
             total_amount += line_total
@@ -149,7 +237,7 @@ class BillingService:
                 "name": menu_item.name,
                 "sku": menu_item.sku,
                 "category": menu_item.category,
-                "price": float(menu_item.price),
+                "price": float(unit_price),
                 "unit": menu_item.unit,
                 "qty": cart_item.qty,
                 "tax_rate": float(tax_rate),
@@ -158,32 +246,6 @@ class BillingService:
                 "line_total": float(line_total),
             })
             stock_updates.append((menu_item, cart_item.qty))
-
-        # Handle customer
-        customer_id = None
-        if bill_in.customer_phone and shop.id:
-            phone = re.sub(r'\D', '', bill_in.customer_phone)
-            if phone:
-                customer_res = await self.db.execute(
-                    select(Customer).where(
-                        Customer.shop_id == shop.id,
-                        Customer.phone_number == phone
-                    )
-                )
-                customer = customer_res.scalars().first()
-                if not customer:
-                    customer_name = bill_in.customer_name or f"Customer {phone[-4:]}"
-                    from app.core.config import settings
-                    customer_country_code = bill_in.customer_country_code or shop.country_code or settings.DEFAULT_COUNTRY_CODE
-                    customer = Customer(
-                        name=customer_name,
-                        phone_number=phone,
-                        country_code=customer_country_code,
-                        shop_id=shop.id
-                    )
-                    self.db.add(customer)
-                    await self.db.flush()
-                customer_id = int(customer.id)
 
         shop_data = {
             "name": str(shop.name),
@@ -201,6 +263,7 @@ class BillingService:
 
         # Prevent MissingGreenlet on lazy-load post-commit by extracting primitive
         shop_id = int(shop.id)
+        shop_tz = getattr(shop, "timezone", None) or "UTC"
 
         # Atomic bill + stock deduction
         try:
@@ -216,6 +279,11 @@ class BillingService:
                 customer_id=customer_id,
                 status=bill_in.status,
             )
+            
+            await self._finalize_payment_method(
+                self.db, new_bill, customer_id, total_amount, bill_in.status, bill_in.payment_method, shop_tz
+            )
+            
             self.db.add(new_bill)
             await self.db.flush()
 
@@ -270,7 +338,7 @@ class BillingService:
 
         # Bill is stored in UTC; convert to the shop's configured timezone here so
         # the receipt/response always shows the shop's own local time, not UTC.
-        local_ts = shop_local(new_bill.timestamp, shop)
+        local_ts = shop_local(new_bill.timestamp, shop_tz)
         bill_data = {
             "bill_number": new_bill.bill_number,
             "items_snapshot": items_snapshot,
@@ -308,6 +376,37 @@ class BillingService:
 
         if bill.status == "Completed":
             raise HTTPException(status_code=400, detail="Cannot edit a completed bill")
+
+        # Needed for rate-card resolution (FEAT-3) below — as_of_date must be
+        # the shop's local day, same as create_bill.
+        shop_res_for_pricing = await self.db.execute(
+            select(Shop).where(Shop.id == shop_id).options(selectinload(Shop.subscription))
+        )
+        shop_for_pricing = shop_res_for_pricing.scalars().first()
+        if not shop_for_pricing:
+            raise HTTPException(status_code=400, detail="No shop associated with this account. Cannot update bill.")
+
+        # Same defense-in-depth entitlement gate as create_bill: re-check
+        # "credit_billing" at update time too, independent of the customer
+        # row's own is_credit_customer flag (shop may have been downgraded
+        # since the bill/customer were originally created).
+        if bill_in.payment_method == "Credit" and not await FeatureService(db=self.db).is_feature_enabled(shop_for_pricing, "credit_billing"):
+            raise HTTPException(
+                status_code=400,
+                detail="Your subscription plan does not include Credit Billing.",
+            )
+
+        today = shop_local(dt.datetime.now(timezone.utc), shop_for_pricing.timezone or "UTC").date()
+
+        # Re-resolve the customer from the edit payload (same as create_bill) —
+        # previously this was silently ignored and the bill's original
+        # customer_id was used forever, so attaching/changing a customer while
+        # editing a Held bill never worked. Falls back to the bill's existing
+        # customer_id when the payload doesn't resolve one, so a plain
+        # cart-quantity edit that doesn't touch customer fields never clears
+        # an existing attachment.
+        resolved_customer_id = await self._resolve_customer_id(shop_for_pricing, bill_in)
+        customer_id = resolved_customer_id if resolved_customer_id is not None else bill.customer_id
 
         subtotal_amount = Decimal("0.00")
         tax_amount = Decimal("0.00")
@@ -360,19 +459,22 @@ class BillingService:
             if available is not None and cart_item.qty > available:
                 raise HTTPException(status_code=400, detail=f"Insufficient stock for '{menu_item.name}'")
 
+            # Rate-card price (FEAT-3), same as create_bill.
+            unit_price = await self._resolve_unit_price(menu_item, customer_id, today)
+
             TWO_PLACES = Decimal("0.01")
-            line_subtotal = (menu_item.price * Decimal(str(cart_item.qty))).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
+            line_subtotal = (unit_price * Decimal(str(cart_item.qty))).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
             tax_rate = menu_item.tax_rate if menu_item.tax_rate is not None else Decimal("0.00")
             line_tax = (line_subtotal * (tax_rate / Decimal("100.00"))).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
             line_total = (line_subtotal + line_tax).quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
-            
+
             subtotal_amount += line_subtotal
             tax_amount += line_tax
             total_amount += line_total
 
             items_snapshot.append({
                 "id": menu_item.id, "name": menu_item.name, "sku": menu_item.sku,
-                "category": menu_item.category, "price": float(menu_item.price), "unit": menu_item.unit,
+                "category": menu_item.category, "price": float(unit_price), "unit": menu_item.unit,
                 "qty": cart_item.qty, "tax_rate": float(tax_rate),
                 "line_subtotal": float(line_subtotal), "line_tax": float(line_tax), "line_total": float(line_total),
             })
@@ -386,6 +488,12 @@ class BillingService:
             bill.status = bill_in.status  # type: ignore
             bill.items_snapshot = items_snapshot  # type: ignore
             bill.timestamp = dt.datetime.now(timezone.utc)  # type: ignore
+            bill.customer_id = customer_id  # type: ignore
+
+            await self._finalize_payment_method(
+                self.db, bill, customer_id, total_amount, bill_in.status, bill_in.payment_method,
+                shop_for_pricing.timezone or "UTC",
+            )
 
             alerts_to_check = []
             if bill_in.status == "Completed":
@@ -413,6 +521,8 @@ class BillingService:
 
             await self.db.commit()
             await self.db.refresh(bill)
+        except HTTPException:
+            raise
         except Exception as exc:
             await self.db.rollback()
             logger.error(f"Failed to update bill: {str(exc)}", exc_info=True)
@@ -436,7 +546,9 @@ class BillingService:
         }
 
         # Same as create_bill: show the shop's local time, not the raw UTC value.
-        local_ts = shop_local(bill.timestamp, shop)
+        # Avoid MissingGreenlet on post-commit timezone lookup
+        shop_tz = getattr(shop, "timezone", None) or "UTC" if shop else "UTC"
+        local_ts = shop_local(bill.timestamp, shop_tz)
         bill_data = {
             "bill_number": bill.bill_number, "items_snapshot": items_snapshot,
             "subtotal_amount": float(subtotal_amount), "tax_amount": float(tax_amount), "total_amount": float(total_amount),
@@ -505,6 +617,8 @@ class BillingService:
             updated_stock_data = self._collect_updated_stock(cancel_stock_updates)
 
             await self.db.commit()
+        except HTTPException:
+            raise
         except Exception as exc:
             await self.db.rollback()
             logger.error(f"Failed to cancel bill: {str(exc)}", exc_info=True)
@@ -524,7 +638,9 @@ class BillingService:
         shop_name: str,
         currency: str = "₹",
         bill_date: str = "",
-        footer_message: str = "Thank you for your order! your order will be delivered soon..."
+        footer_message: str = "Thank you for your order! your order will be delivered soon...",
+        due_date: str = "",
+        payment_status: str = "",
     ) -> str:
         """Single source of truth for WhatsApp bill receipt message format (Domain Layer)."""
         items_text = "\n".join([
@@ -534,6 +650,12 @@ class BillingService:
 
         date_line = f"Date: {bill_date}\n" if bill_date else ""
 
+        # Credit sales (Unpaid / PartiallyPaid) get an extra line calling out the
+        # due date; Cash/UPI bills (payment_status "Paid") are unaffected.
+        credit_line = ""
+        if payment_status in ("Unpaid", "PartiallyPaid") and due_date:
+            credit_line = f"\n*This is a credit sale — Payment Due: {due_date}*\n"
+
         return f"""*{shop_name}*
 *Tax Invoice*
 Bill #{bill_number}
@@ -541,5 +663,5 @@ Bill #{bill_number}
 {items_text}
 
 *Total: {currency}{total_amount:.2f}*
-
+{credit_line}
 {footer_message}"""

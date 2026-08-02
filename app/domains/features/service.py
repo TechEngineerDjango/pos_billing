@@ -6,8 +6,7 @@ Responsibility chain (in order):
   2. Redis cache hit  →  instant return
   3. Tenant override  →  overrides always win (grant or deny)
   4. Plan features    →  check M2M plan-feature table
-  5. Legacy fallback  →  check JSON enabled_features for old plans
-  6. Cache result     →  write back to Redis with TTL
+  5. Cache result     →  write back to Redis with TTL
 
 This service NEVER imports from routers. It is called by the
 `require_feature()` dependency in app/core/dependencies/features.py.
@@ -67,7 +66,7 @@ class FeatureService:
             await self._cache_set(shop.id, feature_key, result)
             return result
 
-        # 5. Plan feature resolution (M2M first, legacy JSON fallback)
+        # 5. Plan feature resolution (M2M)
         result = await self._resolve_from_plan(shop, feature_key)
 
         # 6. Write to cache
@@ -134,8 +133,7 @@ class FeatureService:
 
     async def _resolve_from_plan(self, shop: Shop, feature_key: str) -> bool:
         """
-        Resolves feature access from the plan.
-        Priority: M2M plan_features table → legacy JSON enabled_features.
+        Resolves feature access from the plan's M2M plan_features table.
         Superadmin users always have all features.
         """
         # Superadmin bypass
@@ -145,14 +143,8 @@ class FeatureService:
         if not shop.subscription:
             return False
 
-        # M2M resolution (new system)
         plan_feature_keys = await self._repo.get_plan_feature_keys(shop.subscription.id)
-        if plan_feature_keys:
-            return feature_key in plan_feature_keys
-
-        # Legacy JSON fallback (old system — during migration window)
-        legacy_features = shop.subscription.enabled_features or []
-        return feature_key in legacy_features
+        return feature_key in plan_feature_keys
 
     async def _cache_get(self, shop_id: int, feature_key: str) -> Optional[bool]:
         if self._redis is None:

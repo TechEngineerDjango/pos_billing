@@ -1,5 +1,4 @@
 asyncpg==0.30.0
-aiosqlite==0.22.1
 alembic==1.18.1
 annotated-doc==0.0.4
 annotated-types==0.7.0

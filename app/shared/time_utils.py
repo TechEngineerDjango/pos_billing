@@ -21,17 +21,36 @@ def utc_iso(value: dt.datetime | None) -> str | None:
     return _as_utc(value).isoformat()
 
 
-def shop_local(value: dt.datetime | None, shop=None) -> dt.datetime | None:
-    """Convert a UTC timestamp to the given shop's configured display timezone.
-
-    Falls back to UTC if the shop has no timezone set or the name is invalid.
-    Returns a tz-aware datetime — callers format it with their own .strftime().
+def shop_local(dt: dt.datetime, tz_name: str) -> dt.datetime:
     """
-    if value is None:
-        return None
-    tz_name = getattr(shop, "timezone", None) or "UTC"
+    Converts a naive or UTC datetime to the specified timezone.
+    Always returns a naive datetime representing local time to avoid formatting issues.
+    """
+    if not dt:
+        return dt
+        
+    try:
+        target_tz = ZoneInfo(tz_name)
+    except Exception:
+        target_tz = ZoneInfo("UTC")
+        
+    # If dt is naive, assume UTC. Otherwise, keep it aware.
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+        
+    local_dt = dt.astimezone(target_tz)
+
+    # Strip tzinfo so it renders as 'YYYY-MM-DD HH:MM:SS' consistently
+    return local_dt.replace(tzinfo=None)
+
+
+def shop_day_range_utc(local_date: dt.date, tz_name: str) -> tuple[dt.datetime, dt.datetime]:
+    """UTC [start, end) bounds for a shop-local calendar day, for range queries."""
     try:
         tz = ZoneInfo(tz_name)
     except Exception:
         tz = ZoneInfo("UTC")
-    return _as_utc(value).astimezone(tz)
+
+    start_local = dt.datetime.combine(local_date, dt.time.min, tzinfo=tz)
+    end_local = start_local + dt.timedelta(days=1)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)

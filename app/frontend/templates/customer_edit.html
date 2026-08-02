@@ -69,6 +69,101 @@
                 </div>
 
             </form>
+
+            <!-- Credit Terms — separate form, own endpoint (FEAT-6). Balance
+                 display and payment collection live in the Credit Book tab,
+                 not here. UX-only gate (FIX-11): backend (CustomerService.
+                 set_credit_terms) is the authoritative check — this just
+                 hides the option for shops whose subscription doesn't
+                 include credit_billing, computed server-side since this page
+                 has no Alpine $store.features (that's pos.html-only). -->
+            {% if credit_billing_enabled %}
+            <form action="/admin/customers/{{ customer.slug }}/credit-terms" method="POST"
+                class="space-y-4 relative z-10 mt-8 pt-8 border-t border-gray-100 dark:border-white/5"
+                x-data="{ isCredit: {{ 'true' if customer.is_credit_customer else 'false' }}, paymentTermType: '{{ customer.payment_term_type or 'weekly' }}' }">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+
+                <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5 space-y-4">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" name="is_credit_customer" value="true" x-model="isCredit"
+                            class="w-5 h-5 rounded accent-green-500">
+                        <span class="text-[10px] text-gray-500 font-bold uppercase">Credit Eligible Customer</span>
+                    </label>
+
+                    <div x-show="isCredit" x-cloak class="grid grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Credit
+                                Limit</label>
+                            <input type="number" step="0.01" min="0" name="credit_limit"
+                                value="{{ customer.credit_limit or 0 }}"
+                                class="w-full bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Payment
+                                Term</label>
+                            <select name="payment_term_type" x-model="paymentTermType" :required="isCredit"
+                                class="w-full bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="net_days">Net Days</option>
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <!-- Each term type gets its own input, wrapped in <template x-if> (not
+                                 x-show) so only the active one exists in the DOM at submit time —
+                                 x-show would leave the other two hidden-but-present <input>s in the
+                                 form and all three would submit under the same
+                                 name="payment_term_value", corrupting the value (same class of bug
+                                 as the POS Credit button fix earlier in this project). -->
+                            <template x-if="paymentTermType === 'weekly'">
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Due Day
+                                        (each week)</label>
+                                    <select name="payment_term_value" :required="isCredit"
+                                        class="w-full bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                                        <option value="0" {% if customer.payment_term_type=='weekly' and customer.payment_term_value==0 %}selected{% endif %}>Monday</option>
+                                        <option value="1" {% if customer.payment_term_type=='weekly' and customer.payment_term_value==1 %}selected{% endif %}>Tuesday</option>
+                                        <option value="2" {% if customer.payment_term_type=='weekly' and customer.payment_term_value==2 %}selected{% endif %}>Wednesday</option>
+                                        <option value="3" {% if customer.payment_term_type=='weekly' and customer.payment_term_value==3 %}selected{% endif %}>Thursday</option>
+                                        <option value="4" {% if customer.payment_term_type=='weekly' and customer.payment_term_value==4 %}selected{% endif %}>Friday</option>
+                                        <option value="5" {% if customer.payment_term_type=='weekly' and customer.payment_term_value==5 %}selected{% endif %}>Saturday</option>
+                                        <option value="6" {% if customer.payment_term_type=='weekly' and customer.payment_term_value==6 %}selected{% endif %}>Sunday</option>
+                                    </select>
+                                </div>
+                            </template>
+                            <template x-if="paymentTermType === 'monthly'">
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Due Day
+                                        (each month)</label>
+                                    <select name="payment_term_value" :required="isCredit"
+                                        class="w-full bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                                        {% for d in range(1, 32) %}
+                                        <option value="{{ d }}" {% if customer.payment_term_type=='monthly' and customer.payment_term_value==d %}selected{% endif %}>{{ d }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <p class="text-[10px] text-gray-600 mt-1">Shorter months use their last day
+                                        (e.g. 31 becomes Feb 28/29).</p>
+                                </div>
+                            </template>
+                            <template x-if="paymentTermType === 'net_days'">
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Number of
+                                        Days</label>
+                                    <input type="number" min="0" name="payment_term_value" :required="isCredit"
+                                        value="{{ customer.payment_term_value if customer.payment_term_type=='net_days' else 30 }}"
+                                        class="w-full bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-[var(--ledger,#2B3A67)] text-white font-black uppercase tracking-widest py-5 rounded-[2rem] hover:opacity-90 transition-all shadow-xl text-sm">
+                    Save Credit Terms
+                </button>
+            </form>
+            {% endif %}
         </div>
 
     </div>

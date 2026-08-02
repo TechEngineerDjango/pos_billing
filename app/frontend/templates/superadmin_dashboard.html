@@ -889,13 +889,13 @@
                     <div class="space-y-3 flex-1 relative">
                         <p class="text-[10px] text-gray-500 uppercase tracking-widest font-bold mb-2">Features
                             Included:</p>
-                        {% if sub.enabled_features %}
-                        {% for feature in sub.enabled_features %}
+                        {% if sub.plan_feature_links %}
+                        {% for link in sub.plan_feature_links %}
                         <div class="flex items-center gap-3 text-sm text-gray-300">
                             <div
                                 class="w-5 h-5 rounded-full bg-teal-500/20 flex items-center justify-center text-[10px] text-teal-400">
                                 ✓</div>
-                            {{ feature }}
+                            {{ link.feature.name if link.feature else link.feature_id }}
                         </div>
                         {% endfor %}
                         {% else %}
@@ -923,15 +923,8 @@
                                         class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-teal-500">
                                 </div>
                             </div>
-                            <div class="flex-1">
-                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Features
-                                    (comma-separated)</label>
-                                <textarea name="features" rows="3"
-                                    class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:ring-teal-500 resize-none">{{ sub.enabled_features | join(', ') if sub.enabled_features else '' }}</textarea>
-                                <p class="text-[10px] text-gray-600 mt-1">Available: pos_basic, menu_management,
-                                    cash_calculator, customer_management, sales_reports, staff_management,
-                                    whatsapp_billing, branding_studio, custom_logo, advanced_analytics</p>
-                            </div>
+                            <p class="text-[10px] text-gray-600">Feature assignment is managed in the Plan → Feature
+                                section below.</p>
                             <div class="flex gap-3">
                                 <button type="button" @click="showEdit = false"
                                     class="flex-1 border border-white/10 text-white py-2 rounded-xl font-bold text-sm hover:bg-white/5 transition-all">Cancel</button>
@@ -1173,7 +1166,7 @@
                             <label
                                 class="flex items-center gap-3 bg-white/5 hover:bg-white/10 p-3 rounded-xl cursor-pointer transition-all border border-white/5 hover:border-indigo-500/30">
                                 <input type="checkbox" name="feature_ids" value="{{ f.id }}" {% if f.id in
-                                    plan_feature_ids or f.key in (plan.enabled_features or []) %}checked{% endif %}
+                                    plan_feature_ids %}checked{% endif %}
                                     class="w-4 h-4 accent-indigo-500 rounded">
                                 <div>
                                     <p class="text-xs font-bold text-white">{{ f.name }}</p>
@@ -1501,9 +1494,6 @@
                             <span x-text="selectedFeatures.length"></span> feature(s) selected
                         </div>
                     </div>
-
-                    <!-- Hidden input for legacy compatibility -->
-                    <input type="hidden" name="features" :value="selectedFeatures.join(',')">
                 </div>
                 <div class="pt-6 flex gap-4">
                     <button type="button" @click="showPlanModal = false"

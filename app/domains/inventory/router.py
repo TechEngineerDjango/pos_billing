@@ -18,6 +18,7 @@ import io
 import logging
 import datetime as dt
 from datetime import timezone
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -31,10 +32,12 @@ from app.core.dependencies.csrf import verify_csrf
 from app.core.dependencies.features import require_feature
 from app.domains.auth.services import require_owner_or_above, require_any_staff
 from app.domains.auth.router import get_current_user
-from app.shared.models import MenuItem, StockMovement, User, Shop
+from app.shared.models import MenuItem, StockMovement, User, Shop, DEFAULT_LOW_STOCK_THRESHOLD
 from app.shared.schemas import StockRestockRequest, SkuUpdateRequest
 from app.domains.inventory.sku import generate_sku, validate_sku_format
 from app.infrastructure.integrations.notifications import get_notification_service
+from app.domains.expenses.service import ExpenseService
+from app.shared.time_utils import shop_local
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +97,7 @@ async def list_inventory(
     data = []
     low_stock_count = 0
     for item in items:
-        threshold = item.low_stock_threshold or 5.0
+        threshold = item.low_stock_threshold or DEFAULT_LOW_STOCK_THRESHOLD
         is_tracked = item.stock_quantity is not None
         is_low = is_tracked and item.stock_quantity <= threshold
         is_out = is_tracked and item.stock_quantity <= 0
@@ -141,7 +144,7 @@ async def get_low_stock_alerts(
 
     alerts = []
     for item in items:
-        threshold = item.low_stock_threshold or 5.0
+        threshold = item.low_stock_threshold or DEFAULT_LOW_STOCK_THRESHOLD
         if item.stock_quantity <= threshold:
             alerts.append({
                 **item.to_dict(),
@@ -184,7 +187,7 @@ async def get_item_by_sku(
             detail=f"No active item found with SKU '{sku}' in this shop",
         )
 
-    threshold = item.low_stock_threshold or 5.0
+    threshold = item.low_stock_threshold or DEFAULT_LOW_STOCK_THRESHOLD
     is_tracked = item.stock_quantity is not None
     return JSONResponse({
         **item.to_dict(),
@@ -286,6 +289,28 @@ async def restock_item(
         created_at=dt.datetime.now(timezone.utc),
     )
     db.add(movement)
+
+    # Auto-log an "Inventory Purchase" expense when a cost was given — same
+    # transaction as the stock movement so a restock and its expense entry
+    # are always created together or not at all.
+    if data.unit_cost is not None and data.unit_cost > 0:
+        shop_res = await db.execute(select(Shop.timezone).where(Shop.id == target_shop_id))
+        shop_tz = shop_res.scalar_one_or_none() or "UTC"
+        expense_date = shop_local(dt.datetime.now(timezone.utc), shop_tz).date()
+        amount = (data.unit_cost * Decimal(str(data.qty))).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        await ExpenseService(db).create_expense(
+            shop_id=target_shop_id,
+            category="Inventory Purchase",
+            description=f"Restock: {item.name} x{data.qty}",
+            amount=amount,
+            tax_amount=Decimal("0.00"),
+            vendor_name=None,
+            expense_date=expense_date,
+            payment_method=data.payment_method,
+            created_by_user_id=current_user.id,
+        )
 
     try:
         await db.commit()

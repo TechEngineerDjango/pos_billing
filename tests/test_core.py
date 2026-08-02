@@ -96,4 +96,7 @@ async def test_pos_page_load(async_client: AsyncClient):
     # 2. Access POS page
     response = await async_client.get("/billing/")
     assert response.status_code == 200
-    assert "BurgerPOS" in response.text or "Burger" in response.text
+    # Shop branding is tenant-driven (not a hardcoded "BurgerPOS" string) —
+    # verify the shop's own name renders, and that this is really the POS page.
+    assert "Test Shop" in response.text
+    assert '<script id="pos-items-data" type="application/json">' in response.text

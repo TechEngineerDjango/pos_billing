@@ -2,7 +2,7 @@
 {% from "partials/country_picker.html" import country_picker %}
 
 {% block content %}
-<div class="h-[calc(100vh-4rem)] flex overflow-hidden bg-[#F5F5F7] dark:bg-[#0f172a]" x-data="dashboardApp()">
+<div class="h-[calc(100vh-4rem)] flex overflow-hidden bg-[#F5F5F7] dark:bg-[#0f172a]" x-data="dashboardApp('{{ shop.currency_symbol or '₹' }}')">
 
     <!-- Sidebar Navigation (Desktop) -->
     <aside
@@ -95,6 +95,49 @@
             </button>
             {% endif %}
 
+            {% if features.customer_management %}
+            <button @click="switchTab('rate_cards')" data-tab="rate_cards"
+                :class="{'bg-amber-500 text-white shadow-lg shadow-amber-500/30': activeTab === 'rate_cards', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'rate_cards'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 7h.01M7 3h5.586a1 1 0 01.707.293l6.414 6.414a1 1 0 010 1.414l-8.586 8.586a1 1 0 01-1.414 0l-6.414-6.414A1 1 0 013 12.586V7a4 4 0 014-4z">
+                        </path>
+                    </svg>
+                </div>
+                <span class="font-medium hidden lg:block">Rate Cards</span>
+            </button>
+            {% endif %}
+
+            {% if features.customer_management %}
+            <button @click="switchTab('credit_book')" data-tab="credit_book"
+                :class="{'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30': activeTab === 'credit_book', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'credit_book'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 7v14m0-14C10.5 5.5 8 4.5 5 4.5c-1 0-1.5.2-1.5.2v13.6s.5-.2 1.5-.2c3 0 5.5 1 7 2.5m0-14c1.5-1.5 4-2.5 7-2.5 1 0 1.5.2 1.5.2v13.6s-.5-.2-1.5-.2c-3 0-5.5 1-7 2.5">
+                        </path>
+                    </svg>
+                </div>
+                <span class="font-medium hidden lg:block">Credit Book</span>
+            </button>
+            {% endif %}
+
+            <button @click="switchTab('expenses')" data-tab="expenses"
+                :class="{'bg-teal-500 text-white shadow-lg shadow-teal-500/30': activeTab === 'expenses', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'expenses'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V8a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                </div>
+                <span class="font-medium hidden lg:block">Expenses</span>
+            </button>
+
             <div class="pt-4 mt-4 border-t border-gray-100 dark:border-white/5">
                 <a href="/billing/"
                     class="w-full flex items-center gap-3 p-3 rounded-xl bg-orange-500/10 text-orange-600 hover:bg-orange-500 hover:text-white transition-all duration-200 font-bold group">
@@ -186,6 +229,37 @@
             {% endif %}
         </button>
         {% endif %}
+        {% if features.customer_management %}
+        <button @click="switchTab('rate_cards')"
+            :class="{'text-amber-400 bg-white/10': activeTab === 'rate_cards', 'text-gray-400': activeTab !== 'rate_cards'}"
+            class="p-3 rounded-xl transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M7 7h.01M7 3h5.586a1 1 0 01.707.293l6.414 6.414a1 1 0 010 1.414l-8.586 8.586a1 1 0 01-1.414 0l-6.414-6.414A1 1 0 013 12.586V7a4 4 0 014-4z">
+                </path>
+            </svg>
+        </button>
+        {% endif %}
+        {% if features.customer_management %}
+        <button @click="switchTab('credit_book')"
+            :class="{'text-indigo-400 bg-white/10': activeTab === 'credit_book', 'text-gray-400': activeTab !== 'credit_book'}"
+            class="p-3 rounded-xl transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 7v14m0-14C10.5 5.5 8 4.5 5 4.5c-1 0-1.5.2-1.5.2v13.6s.5-.2 1.5-.2c3 0 5.5 1 7 2.5m0-14c1.5-1.5 4-2.5 7-2.5 1 0 1.5.2 1.5.2v13.6s-.5-.2-1.5-.2c-3 0-5.5 1-7 2.5">
+                </path>
+            </svg>
+        </button>
+        {% endif %}
+        <button @click="switchTab('expenses')"
+            :class="{'text-teal-400 bg-white/10': activeTab === 'expenses', 'text-gray-400': activeTab !== 'expenses'}"
+            class="p-3 rounded-xl transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V8a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2z">
+                </path>
+            </svg>
+        </button>
     </div>
 
     <!-- Main Content Area -->
@@ -357,53 +431,66 @@
                 </button>
             </div>
 
+            <input type="text" x-model="menuSearch" @input="onMenuSearchInput()" placeholder="Search by name or SKU..."
+                class="w-full mb-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-2xl px-5 py-3 text-sm dark:text-white shadow-sm">
+
+            <template x-if="!menuLoading && menuItems.length === 0">
+                <p class="text-center text-sm text-gray-400 py-10" x-text="menuSearch ? 'No items match your search.' : 'No menu items yet.'"></p>
+            </template>
+
             <div id="menu-items-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {% for item in menu_items %}
-                <div
-                    class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-[2rem] p-6 shadow-sm group hover:border-orange-500/50 transition-all">
+                <template x-for="item in menuItems" :key="item.slug">
                     <div
-                        class="h-40 w-full mb-4 rounded-2xl overflow-hidden bg-gray-100 dark:bg-slate-900 flex items-center justify-center relative">
-                        {% if item.image_url %}
-                        <img src="{{ item.image_url }}" alt="{{ item.name }}" class="w-full h-full object-cover">
-                        {% else %}
-                        <span class="text-4xl">🍔</span>
-                        {% endif %}
-                    </div>
-                    <h3 class="font-bold text-lg mb-1 dark:text-white">{{ item.name }}</h3>
-                    <p class="text-xs uppercase font-bold tracking-widest text-gray-500 mb-4">{{ item.category }}</p>
-                    <div class="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-white/5">
-                        <p class="text-orange-500 font-black text-xl tracking-tighter">
-                            {{ shop.currency_symbol }}{{ "%.2f"|format(item.price) }}
-                            {% if item.unit and item.unit != 'piece' %}
-                            <span class="text-xs font-bold text-gray-400 ml-1">/ {{ item.unit }}</span>
-                            {% endif %}
-                        </p>
-                        <div class="flex gap-2">
-                            <a id="admin-edit-item-btn" href="/admin/menu/edit/{{ item.slug }}"
-                                class="p-2 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
-                                    </path>
-                                </svg>
-                            </a>
-                            <form action="/admin/menu/delete/{{ item.slug }}" method="POST"
-                                onsubmit="return confirm('Archive this item?')">
-                                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                                <input type="hidden" name="shop_id" value="{{ shop.id }}">
-                                <button
-                                    class="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+                        class="bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-[2rem] p-6 shadow-sm group hover:border-orange-500/50 transition-all">
+                        <div
+                            class="h-40 w-full mb-4 rounded-2xl overflow-hidden bg-gray-100 dark:bg-slate-900 flex items-center justify-center relative">
+                            <template x-if="item.image_url">
+                                <img :src="item.image_url" :alt="item.name" class="w-full h-full object-cover">
+                            </template>
+                            <template x-if="!item.image_url">
+                                <span class="text-4xl">🍔</span>
+                            </template>
+                        </div>
+                        <h3 class="font-bold text-lg mb-1 dark:text-white" x-text="item.name"></h3>
+                        <p class="text-xs uppercase font-bold tracking-widest text-gray-500 mb-4" x-text="item.category"></p>
+                        <div class="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-white/5">
+                            <p class="text-orange-500 font-black text-xl tracking-tighter">
+                                <span x-text="formatCurrency(item.price)"></span>
+                                <span x-show="item.unit && item.unit !== 'piece'" class="text-xs font-bold text-gray-400 ml-1" x-text="'/ ' + item.unit"></span>
+                            </p>
+                            <div class="flex gap-2">
+                                <a id="admin-edit-item-btn" :href="'/admin/menu/edit/' + item.slug"
+                                    class="p-2 rounded-xl bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z">
                                         </path>
                                     </svg>
-                                </button>
-                            </form>
+                                </a>
+                                <form :action="'/admin/menu/delete/' + item.slug" method="POST"
+                                    onsubmit="return confirm('Archive this item?')">
+                                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                                    <input type="hidden" name="shop_id" value="{{ shop.id }}">
+                                    <button
+                                        class="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                            </path>
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
-                </div>
-                {% endfor %}
+                </template>
+            </div>
+            <div class="flex items-center justify-between mt-6" x-show="menuItems.length > 0">
+                <p class="text-xs text-gray-400" x-text="'Showing ' + menuItems.length + ' of ' + menuTotal"></p>
+                <button x-show="menuItems.length < menuTotal" @click="loadMoreMenuItems()" :disabled="menuLoading"
+                    class="text-xs font-black uppercase tracking-widest text-orange-500 hover:text-orange-600 disabled:opacity-50">
+                    <span x-text="menuLoading ? 'Loading...' : 'Load More'"></span>
+                </button>
             </div>
         </div>
 
@@ -421,6 +508,9 @@
                 </button>
             </div>
 
+            <input type="text" x-model="customerSearch" @input="onCustomerSearchInput()" placeholder="Search by name or phone..."
+                class="w-full mb-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-2xl px-5 py-3 text-sm dark:text-white shadow-sm">
+
             <div
                 class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 overflow-x-auto">
                 <table class="w-full text-left">
@@ -428,33 +518,54 @@
                         <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
                             <th class="p-6">Customer Identity</th>
                             <th class="p-6">Contact Number</th>
+                            <th class="p-6">Credit Status</th>
+                            <th class="p-6 text-right">Credit Limit</th>
+                            <th class="p-6">Next Due Date</th>
                             <th class="p-6 text-right">Utility</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-white/5">
-                        {% for customer in customers %}
-                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                            <td class="p-6 font-bold text-gray-900 dark:text-white uppercase tracking-tighter">{{
-                                customer.name }}</td>
-                            <td class="p-6 text-gray-500 font-mono text-sm tracking-widest">{{ customer.phone_number }}
-                            </td>
-                            <td class="p-6 text-right">
-                                <div class="flex justify-end gap-3">
-                                    <a href="/admin/customer/edit/{{ customer.slug }}"
-                                        class="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600">Modify</a>
-                                    <form action="/admin/customer/delete/{{ customer.slug }}" method="POST" class="inline"
-                                        onsubmit="return confirm('Forget this customer?')">
-                                        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                                        <input type="hidden" name="shop_id" value="{{ shop.id }}">
-                                        <button
-                                            class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600">Purge</button>
-                                    </form>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                        <template x-if="!customersLoading && customerRows.length === 0">
+                            <tr><td colspan="6" class="p-10 text-center text-sm text-gray-400" x-text="customerSearch ? 'No customers match your search.' : 'No customers yet.'"></td></tr>
+                        </template>
+                        <template x-for="customer in customerRows" :key="customer.slug">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <td class="p-6 font-bold text-gray-900 dark:text-white uppercase tracking-tighter" x-text="customer.name"></td>
+                                <td class="p-6 text-gray-500 font-mono text-sm tracking-widest" x-text="customer.phone_number"></td>
+                                <td class="p-6">
+                                    <span :class="customer.is_credit_customer ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-400'"
+                                        class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+                                        x-text="customer.is_credit_customer ? 'Credit' : 'Cash Only'"></span>
+                                </td>
+                                <td class="p-6 text-right text-gray-700 dark:text-gray-300 font-bold text-sm"
+                                    x-text="customer.is_credit_customer ? formatCurrency(customer.credit_limit) : '—'"></td>
+                                <td class="p-6 text-sm"
+                                    :class="customer.next_due_date && customer.next_due_date < todayIso ? 'text-red-500 font-bold' : 'text-gray-500'"
+                                    x-text="customer.is_credit_customer ? (customer.next_due_date || 'No dues') : '—'"></td>
+                                <td class="p-6 text-right">
+                                    <div class="flex justify-end gap-3 items-center">
+                                        <a :href="'/admin/customer/edit/' + customer.slug"
+                                            class="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600">Modify</a>
+                                        <form :action="'/admin/customer/delete/' + customer.slug" method="POST" class="inline"
+                                            onsubmit="return confirm('Forget this customer?')">
+                                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                                            <input type="hidden" name="shop_id" value="{{ shop.id }}">
+                                            <button
+                                                class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600">Purge</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
+            </div>
+            <div class="flex items-center justify-between mt-6" x-show="customerRows.length > 0">
+                <p class="text-xs text-gray-400" x-text="'Showing ' + customerRows.length + ' of ' + customerTotal"></p>
+                <button x-show="customerRows.length < customerTotal" @click="loadMoreCustomersTab()" :disabled="customersLoading"
+                    class="text-xs font-black uppercase tracking-widest text-green-500 hover:text-green-600 disabled:opacity-50">
+                    <span x-text="customersLoading ? 'Loading...' : 'Load More'"></span>
+                </button>
             </div>
         </div>
 
@@ -634,7 +745,7 @@
                         <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
                             <td class="p-6 font-mono text-blue-500 text-sm italic">#{{ bill.bill_number }}</td>
                             <td class="p-6 text-xs font-bold text-gray-500 uppercase tracking-tighter">
-                                <span>{{ (bill.timestamp | shop_local(shop)).strftime('%d %b %Y | %H:%M') }}</span>
+                                <span>{{ (bill.timestamp | shop_local(shop.timezone if shop else "UTC")).strftime('%d %b %Y | %H:%M') }}</span>
                             </td>
                             <td class="p-6">
                                 <span
@@ -731,6 +842,19 @@
             </div>
             {% endif %}
 
+            <div class="flex flex-col sm:flex-row gap-3 mb-6">
+                <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search by name or SKU..."
+                    class="flex-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-2xl px-5 py-3 text-sm dark:text-white shadow-sm">
+                <select x-model="stockStatus" @change="onStockStatusChange()"
+                    class="sm:w-56 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-2xl px-5 py-3 text-sm dark:text-white shadow-sm">
+                    <option value="">All Stock Statuses</option>
+                    <option value="untracked">Untracked</option>
+                    <option value="out">Out of Stock</option>
+                    <option value="low">Low Stock</option>
+                    <option value="ok">OK</option>
+                </select>
+            </div>
+
             <!-- Inventory Table -->
             <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 overflow-x-auto">
                 <table class="w-full text-left">
@@ -745,68 +869,67 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-white/5">
-                        {% for item in menu_items %}
-                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" id="inv-row-{{ item.id }}">
-                            <td class="p-5">
-                                <div class="flex items-center gap-3">
-                                    {% if item.image_url %}
-                                    <img src="{{ item.image_url }}" class="w-10 h-10 rounded-xl object-cover" alt="">
-                                    {% else %}
-                                    <div class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-lg">📦</div>
-                                    {% endif %}
-                                    <div>
-                                        <p class="font-bold text-gray-900 dark:text-white text-sm">{{ item.name }}</p>
-                                        <p class="text-[10px] text-gray-400 uppercase font-bold tracking-widest">{{ item.category }}</p>
+                        <template x-if="!loading && items.length === 0">
+                            <tr><td colspan="6" class="p-10 text-center text-sm text-gray-400" x-text="search ? 'No items match your search.' : 'No menu items yet.'"></td></tr>
+                        </template>
+                        <template x-for="item in items" :key="item.slug">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" :id="'inv-row-' + item.id">
+                                <td class="p-5">
+                                    <div class="flex items-center gap-3">
+                                        <template x-if="item.image_url">
+                                            <img :src="item.image_url" class="w-10 h-10 rounded-xl object-cover" alt="">
+                                        </template>
+                                        <template x-if="!item.image_url">
+                                            <div class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-lg">📦</div>
+                                        </template>
+                                        <div>
+                                            <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="item.name"></p>
+                                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-widest" x-text="item.category"></p>
+                                        </div>
                                     </div>
-                                </div>
-                            </td>
-                            <td class="p-5">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-mono text-xs text-blue-500 bg-blue-500/10 px-2 py-1 rounded-lg">{{ item.sku or '—' }}</span>
-                                    {% if item.sku %}
-                                    <a href="/admin/inventory/{{ item.id }}/qr" target="_blank" title="Print QR Label"
-                                        class="text-gray-400 hover:text-emerald-500 transition-colors">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                                        </svg>
-                                    </a>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td class="p-5 text-center">
-                                {% if item.stock_quantity is not none %}
-                                <span class="font-black text-lg {{ 'text-red-500' if item.stock_quantity <= 0 else ('text-amber-500' if item.stock_quantity <= (item.low_stock_threshold or 5) else 'text-gray-900 dark:text-white') }}">
-                                    {{ item.stock_quantity | int }}
-                                </span>
-                                {% else %}
-                                <span class="text-gray-400 text-sm">—</span>
-                                {% endif %}
-                            </td>
-                            <td class="p-5 text-center text-sm text-gray-500">
-                                {{ (item.low_stock_threshold or 5) | int }}
-                            </td>
-                            <td class="p-5 text-center">
-                                {% if item.stock_quantity is none %}
-                                <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 rounded-lg">Untracked</span>
-                                {% elif item.stock_quantity <= 0 %}
-                                <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-red-500/10 text-red-500 rounded-lg">🚫 Out</span>
-                                {% elif item.stock_quantity <= (item.low_stock_threshold or 5) %}
-                                <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg">⚠ Low</span>
-                                {% else %}
-                                <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg">✓ OK</span>
-                                {% endif %}
-                            </td>
-                            <td class="p-5 text-right">
-                                <button @click="openRestockModal({{ item.id }}, '{{ item.name | e }}', {{ item.stock_quantity or 0 }})"
-                                    class="text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-600 transition-colors">
-                                    + Restock
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
+                                </td>
+                                <td class="p-5">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-mono text-xs text-blue-500 bg-blue-500/10 px-2 py-1 rounded-lg" x-text="item.sku || '—'"></span>
+                                        <a :href="'/admin/inventory/' + item.id + '/qr'" x-show="item.sku" target="_blank" title="Print QR Label"
+                                            class="text-gray-400 hover:text-emerald-500 transition-colors">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </td>
+                                <td class="p-5 text-center">
+                                    <span x-show="item.stock_quantity != null" class="font-black text-lg"
+                                        :class="item.stock_quantity <= 0 ? 'text-red-500' : (item.stock_quantity <= (item.low_stock_threshold || 5) ? 'text-amber-500' : 'text-gray-900 dark:text-white')"
+                                        x-text="Math.trunc(item.stock_quantity)"></span>
+                                    <span x-show="item.stock_quantity == null" class="text-gray-400 text-sm">—</span>
+                                </td>
+                                <td class="p-5 text-center text-sm text-gray-500" x-text="Math.trunc(item.low_stock_threshold || 5)"></td>
+                                <td class="p-5 text-center">
+                                    <span x-show="item.stock_quantity == null" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 rounded-lg">Untracked</span>
+                                    <span x-show="item.stock_quantity != null && item.stock_quantity <= 0" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-red-500/10 text-red-500 rounded-lg">🚫 Out</span>
+                                    <span x-show="item.stock_quantity != null && item.stock_quantity > 0 && item.stock_quantity <= (item.low_stock_threshold || 5)" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg">⚠ Low</span>
+                                    <span x-show="item.stock_quantity != null && item.stock_quantity > (item.low_stock_threshold || 5)" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg">✓ OK</span>
+                                </td>
+                                <td class="p-5 text-right">
+                                    <button @click="openRestockModal(item.id, item.name, item.stock_quantity || 0)"
+                                        class="text-[10px] font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-600 transition-colors">
+                                        + Restock
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
                     </tbody>
                 </table>
+            </div>
+            <div class="flex items-center justify-between mt-6" x-show="items.length > 0">
+                <p class="text-xs text-gray-400" x-text="'Showing ' + items.length + ' of ' + total"></p>
+                <button x-show="items.length < total" @click="loadMoreItems()" :disabled="loading"
+                    class="text-xs font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-600 disabled:opacity-50">
+                    <span x-text="loading ? 'Loading...' : 'Load More'"></span>
+                </button>
             </div>
 
             <!-- Restock Modal -->
@@ -825,6 +948,25 @@
                             <input type="number" name="qty" min="0.01" step="0.01" required
                                 class="w-full bg-transparent border-0 dark:text-white font-bold text-2xl p-0 focus:ring-0" placeholder="0">
                         </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Cost / Unit
+                                    (optional)</label>
+                                <input type="number" name="unit_cost" min="0" step="0.01"
+                                    class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0" placeholder="0.00">
+                            </div>
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Paid Via</label>
+                                <select name="payment_method"
+                                    class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                    <option value="Cash">Cash</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="Card">Card</option>
+                                </select>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-gray-600 -mt-2">Enter a cost per unit to automatically log this
+                            restock as an "Inventory Purchase" expense — leave blank to skip.</p>
                         <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Note (optional)</label>
                             <input type="text" name="note" placeholder="e.g. Received delivery"
@@ -843,6 +985,666 @@
             <!-- QR Scanner Modal (lazy-loaded) -->
     <!-- Scanner Component Injection -->
     {% include 'components/scanner.html' %}
+        </div>
+        {% endif %}
+
+        <!-- EXPENSES TAB -->
+        <!-- Outer div only depends on the shared activeTab (same pattern as the
+             server-rendered tabs) so the shell always shows; the fetch-driven
+             Alpine component is scoped to the inner div so a failure there
+             can't blank the whole panel. -->
+        <div x-show="activeTab === 'expenses'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10">
+        <div x-data="expensesApp('{{ shop.currency_symbol or '₹' }}', '{{ expense_categories[0] if expense_categories else '' }}')" x-init="init()">
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <p class="text-sm font-bold text-teal-500 uppercase tracking-widest mb-1">Outgoings</p>
+                    <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Expenses</h1>
+                </div>
+                <button @click="openAddModal()"
+                    class="bg-teal-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-teal-600 transition-all shadow-lg shadow-teal-500/20">
+                    Add Expense
+                </button>
+            </div>
+
+            <!-- Total Card -->
+            <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 p-6 mb-6 flex items-center gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-teal-500/10 flex items-center justify-center text-2xl">💸</div>
+                <div>
+                    <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Total (filtered)</p>
+                    <p class="text-2xl font-black text-gray-900 dark:text-white" x-text="formatCurrency(totalAmount())"></p>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 p-6 mb-6 flex flex-wrap gap-4 items-end">
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Search</label>
+                    <input type="text" x-model="search" placeholder="Description or vendor..."
+                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
+                    <select x-model="filters.category" @change="fetchExpenses()"
+                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                        <option value="">All Categories</option>
+                        {% for cat in expense_categories %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">From</label>
+                    <input type="date" x-model="filters.date_from" @change="fetchExpenses()"
+                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">To</label>
+                    <input type="date" x-model="filters.date_to" @change="fetchExpenses()"
+                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                </div>
+                <button @click="search = ''; filters = {category: '', date_from: '', date_to: ''}; fetchExpenses()"
+                    class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors pb-2">
+                    Clear
+                </button>
+            </div>
+
+            <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-4"></p>
+
+            <!-- Expenses Table -->
+            <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-50 dark:bg-slate-900/50">
+                        <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
+                            <th class="p-5">Date</th>
+                            <th class="p-5">Category</th>
+                            <th class="p-5">Description</th>
+                            <th class="p-5">Vendor</th>
+                            <th class="p-5">Method</th>
+                            <th class="p-5 text-right">Amount</th>
+                            <th class="p-5 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                        <template x-if="!loading && expenses.length === 0">
+                            <tr><td colspan="7" class="p-8 text-center text-gray-400 text-sm">No expenses recorded yet.</td></tr>
+                        </template>
+                        <template x-for="expense in filteredExpenses()" :key="expense.slug">
+                            <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" :class="{'opacity-40': expense.is_voided}">
+                                <td class="p-5 text-sm text-gray-500" x-text="expense.expense_date"></td>
+                                <td class="p-5">
+                                    <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-teal-500/10 text-teal-500 rounded-lg" x-text="expense.category"></span>
+                                </td>
+                                <td class="p-5 font-bold text-gray-900 dark:text-white text-sm" x-text="expense.description"></td>
+                                <td class="p-5 text-sm text-gray-500" x-text="expense.vendor_name || '—'"></td>
+                                <td class="p-5 text-sm text-gray-500" x-text="expense.payment_method"></td>
+                                <td class="p-5 text-right font-black text-gray-900 dark:text-white" x-text="formatCurrency(expense.amount)"></td>
+                                <td class="p-5 text-right">
+                                    <template x-if="expense.is_voided">
+                                        <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Voided</span>
+                                    </template>
+                                    <div class="flex justify-end gap-3" x-show="!expense.is_voided">
+                                        <button @click="openEditModal(expense)" class="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 transition-colors">Edit</button>
+                                        <button @click="voidExpense(expense)" class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600 transition-colors">Void</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Add/Edit Expense Modal -->
+            <div x-show="showModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" x-cloak x-transition>
+                <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 relative shadow-2xl border border-white/5 max-h-[90vh] overflow-y-auto"
+                    @click.away="showModal = false">
+                    <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-6 dark:text-white" x-text="editingSlug ? 'Edit Expense' : 'Add Expense'"></h2>
+                    <p x-show="formError" x-text="formError" class="text-red-500 text-sm font-bold mb-4"></p>
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
+                            <select x-model="form.category" class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                {% for cat in expense_categories %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Description</label>
+                            <input type="text" x-model="form.description" placeholder="e.g. July rent"
+                                class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Amount</label>
+                                <input type="number" min="0.01" step="0.01" x-model="form.amount" placeholder="0.00"
+                                    class="w-full bg-transparent border-0 dark:text-white font-bold text-xl p-0 focus:ring-0">
+                            </div>
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Tax</label>
+                                <input type="number" min="0" step="0.01" x-model="form.tax_amount" placeholder="0.00"
+                                    class="w-full bg-transparent border-0 dark:text-white font-bold text-xl p-0 focus:ring-0">
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Vendor (optional)</label>
+                            <input type="text" x-model="form.vendor_name" placeholder="e.g. ABC Supplies"
+                                class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Date</label>
+                                <input type="date" x-model="form.expense_date"
+                                    class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                            </div>
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Payment Method</label>
+                                <select x-model="form.payment_method" class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                    <option value="Cash">Cash</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="Card">Card</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 pt-4">
+                            <button type="button" @click="showModal = false"
+                                class="flex-1 bg-gray-100 dark:bg-white/5 text-gray-500 font-black uppercase tracking-widest py-4 rounded-2xl text-xs">Cancel</button>
+                            <button type="button" @click="saveExpense()" :disabled="saving"
+                                class="flex-1 bg-teal-500 text-white font-black uppercase tracking-widest py-4 rounded-2xl text-xs shadow-lg shadow-teal-500/20 disabled:opacity-50">
+                                <span x-text="saving ? 'Saving...' : 'Save'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- CREDIT BOOK TAB -->
+        {% if features.customer_management %}
+        <div x-show="activeTab === 'credit_book'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10">
+        <div x-data="creditBookApp('{{ shop.currency_symbol or '₹' }}', '{{ shop.upi_id if shop else '' }}', '{{ shop.name if shop else '' }}')" x-init="init()">
+
+            <!-- ============ LIST VIEW ============ -->
+            <template x-if="view === 'list'">
+            <div>
+                <div class="flex justify-between items-center gap-4 mb-4">
+                    <div class="flex items-baseline gap-3 min-w-0">
+                        <h1 class="text-2xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase shrink-0">Credit Book</h1>
+                        <p class="text-xs text-gray-400 truncate hidden md:block">The khata, digitized — sorted by who needs collecting from first.</p>
+                    </div>
+                    <button @click="generateStatements()" :disabled="generating"
+                        class="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 shrink-0">
+                        <span x-text="generating ? 'Generating...' : 'Generate Statements Now'"></span>
+                    </button>
+                </div>
+                <p x-show="notice" x-text="notice" class="text-indigo-500 text-sm font-bold mb-3"></p>
+                <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-3"></p>
+
+                <!-- Stat cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 px-4 py-2.5 flex items-center justify-between gap-3">
+                        <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Total Outstanding</p>
+                        <p class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap" x-text="formatCurrency(stats.total_outstanding)"></p>
+                    </div>
+                    <div class="bg-red-500/5 rounded-2xl shadow-sm border border-red-500/10 px-4 py-2.5 flex items-center justify-between gap-3">
+                        <p class="text-[10px] text-red-400 uppercase font-black tracking-widest">Overdue<span class="text-red-400/70 font-bold normal-case tracking-normal" x-text="' · ' + stats.overdue_count + ' acct' + (stats.overdue_count === 1 ? '' : 's')"></span></p>
+                        <p class="text-lg font-black text-red-500 whitespace-nowrap" x-text="formatCurrency(stats.overdue_amount)"></p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 px-4 py-2.5 flex items-center justify-between gap-3">
+                        <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Active Credit Accounts</p>
+                        <p class="text-lg font-black text-gray-900 dark:text-white" x-text="stats.active_accounts"></p>
+                    </div>
+                </div>
+
+                <!-- Toolbar: search, sort, filters -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-3 mb-3 flex flex-wrap items-center gap-2">
+                    <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search account..."
+                        class="flex-1 min-w-[12rem] bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
+
+                    <select x-model="sortBy" @change="fetchAccounts()"
+                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
+                        <option value="urgency">Sort: Urgency</option>
+                        <option value="balance">Sort: Balance</option>
+                        <option value="overdue_days">Sort: Days Overdue</option>
+                        <option value="name">Sort: Name</option>
+                    </select>
+                    <button @click="order = (order === 'asc' ? 'desc' : 'asc'); fetchAccounts()"
+                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white font-bold">
+                        <span x-text="order === 'asc' ? '↑ Asc' : '↓ Desc'"></span>
+                    </button>
+
+                    <select x-model="paymentTermType" @change="fetchAccounts()"
+                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
+                        <option value="">All Terms</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="net_days">Net Days</option>
+                    </select>
+
+                    <label class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 font-bold whitespace-nowrap">
+                        <input type="checkbox" x-model="overdueOnly" @change="fetchAccounts()" class="rounded">
+                        Overdue only
+                    </label>
+
+                    <div class="flex items-center gap-2">
+                        <input type="date" x-model="dueFrom" @change="fetchAccounts()" title="Due from"
+                            class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
+                        <span class="text-gray-400 text-sm">to</span>
+                        <input type="date" x-model="dueTo" @change="fetchAccounts()" title="Due to"
+                            class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
+                    </div>
+
+                    <button @click="clearFilters()" class="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white ml-auto">Clear</button>
+                </div>
+
+                <!-- Outstanding balances list -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
+                    <div class="px-4 py-2.5 border-b border-gray-100 dark:border-white/5">
+                        <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Outstanding Balances</p>
+                    </div>
+                    <template x-if="!loading && accounts.length === 0">
+                        <p class="p-10 text-center text-sm text-gray-400"
+                            x-text="(search || overdueOnly || paymentTermType || dueFrom || dueTo) ? 'No accounts match these filters.' : 'No credit-enabled customers yet. Enable credit for a customer from the Customers tab.'"></p>
+                    </template>
+                    <template x-if="!loading && accounts.length > 0">
+                        <div class="px-5 py-2 flex items-center gap-4 border-b border-gray-100 dark:border-white/5 text-[10px] text-gray-400 uppercase font-black tracking-widest">
+                            <span class="w-12 text-center shrink-0">Usage</span>
+                            <span class="flex-1">Customer</span>
+                            <span class="text-right">Outstanding</span>
+                            <span class="w-[6.5rem] text-right shrink-0">Actions</span>
+                        </div>
+                    </template>
+                    <div class="divide-y divide-gray-100 dark:divide-white/5">
+                        <template x-for="a in accounts" :key="a.slug">
+                            <div class="p-5 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <div class="w-12 h-12 rounded-full flex items-center justify-center shrink-0" :style="ringStyle(a)">
+                                    <div class="w-9 h-9 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-[10px] font-black" :style="`color: ${ringColor(a)}`">
+                                        <span x-text="a.utilization_pct != null ? Math.round(a.utilization_pct) + '%' : '—'"></span>
+                                    </div>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="a.name"></p>
+                                        <span x-show="a.days_overdue > 0" class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-red-500/10 text-red-500" x-text="a.days_overdue + 'd overdue'"></span>
+                                        <span x-show="a.payment_term_type" class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-400" x-text="a.payment_term_type"></span>
+                                    </div>
+                                    <p class="text-xs text-gray-400 font-mono mt-0.5" x-text="a.phone_number"></p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="font-black text-gray-900 dark:text-white" x-text="formatCurrency(a.credit_balance)"></p>
+                                    <p class="text-[10px] text-gray-400" x-text="a.credit_limit ? ('of ' + formatCurrency(a.credit_limit) + ' limit') : 'no limit'"></p>
+                                </div>
+                                <div class="flex items-center gap-2 shrink-0 w-[6.5rem] justify-end">
+                                    <button @click="openWhatsApp(a)" title="Send WhatsApp reminder"
+                                        class="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.195 1.603 6.012L.031 24l6.104-1.6c1.765.952 3.75 1.455 5.896 1.455 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.854c-1.84 0-3.64-.495-5.218-1.433l-.373-.223-3.87 1.014 1.034-3.77-.245-.39A9.85 9.85 0 012.181 12.03C2.181 6.59 6.6 2.17 12.031 2.17c5.431 0 9.85 4.42 9.85 9.86 0 5.44-4.419 9.855-9.85 9.855h-.001zm5.398-7.37c-.296-.148-1.75-.864-2.02-.962-.27-.099-.467-.148-.664.148-.197.296-.763.962-.934 1.16-.172.197-.344.221-.64.074-1.393-.69-2.527-1.464-3.486-3.037-.123-.2-.014-.308.134-.455.133-.133.296-.345.444-.518.148-.172.197-.296.296-.492.099-.197.049-.37-.025-.518-.074-.148-.664-1.603-.91-2.195-.24-.577-.482-.498-.664-.508-.172-.01-.37-.01-.567-.01-.197 0-.518.074-.789.37-.27.296-1.035 1.012-1.035 2.466 0 1.455 1.06 2.86 1.208 3.057.148.197 2.083 3.183 5.044 4.464 2.085.897 2.802.775 3.32.735.617-.048 1.75-.714 1.996-1.405.247-.69.247-1.282.173-1.405-.074-.123-.27-.197-.567-.345z"/></svg>
+                                    </button>
+                                    <button @click="openDetail(a)"
+                                        class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:opacity-80">View</button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+            </template>
+
+            <!-- ============ DETAIL VIEW (replaces the list — not a modal) ============ -->
+            <template x-if="view === 'detail'">
+            <div>
+                <button @click="closeDetail()" class="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-white mb-3">
+                    <span>←</span> Back to Credit Book
+                </button>
+
+                <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-3"></p>
+
+                <template x-if="ledgerLoading">
+                    <p class="text-sm text-gray-400 py-10 text-center">Loading...</p>
+                </template>
+
+                <template x-if="!ledgerLoading && ledger">
+                    <div class="space-y-3">
+                        <!-- Identity + balance summary, all in one compact row -->
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-4 flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <button @click="openWhatsApp(selectedCustomer)" title="Send WhatsApp reminder"
+                                    class="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.195 1.603 6.012L.031 24l6.104-1.6c1.765.952 3.75 1.455 5.896 1.455 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.854c-1.84 0-3.64-.495-5.218-1.433l-.373-.223-3.87 1.014 1.034-3.77-.245-.39A9.85 9.85 0 012.181 12.03C2.181 6.59 6.6 2.17 12.031 2.17c5.431 0 9.85 4.42 9.85 9.86 0 5.44-4.419 9.855-9.85 9.855h-.001zm5.398-7.37c-.296-.148-1.75-.864-2.02-.962-.27-.099-.467-.148-.664.148-.197.296-.763.962-.934 1.16-.172.197-.344.221-.64.074-1.393-.69-2.527-1.464-3.486-3.037-.123-.2-.014-.308.134-.455.133-.133.296-.345.444-.518.148-.172.197-.296.296-.492.099-.197.049-.37-.025-.518-.074-.148-.664-1.603-.91-2.195-.24-.577-.482-.498-.664-.508-.172-.01-.37-.01-.567-.01-.197 0-.518.074-.789.37-.27.296-1.035 1.012-1.035 2.466 0 1.455 1.06 2.86 1.208 3.057.148.197 2.083 3.183 5.044 4.464 2.085.897 2.802.775 3.32.735.617-.048 1.75-.714 1.996-1.405.247-.69.247-1.282.173-1.405-.074-.123-.27-.197-.567-.345z"/></svg>
+                                </button>
+                                <div class="min-w-0">
+                                    <h1 class="text-lg font-black text-gray-900 dark:text-white italic tracking-tighter uppercase truncate" x-text="selectedCustomer ? selectedCustomer.name : ''"></h1>
+                                    <p class="text-xs text-gray-400" x-text="selectedCustomer ? selectedCustomer.phone_number : ''"></p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="text-right">
+                                    <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Outstanding</p>
+                                    <p class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap" x-text="formatCurrency(ledger.credit_balance)"></p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Limit</p>
+                                    <p class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap"
+                                        x-text="ledger.credit_limit != null ? formatCurrency(ledger.credit_limit) : 'None'"></p>
+                                </div>
+                                <button @click="startFullSettlement()" :disabled="!(Number(ledger.credit_balance) > 0)"
+                                    class="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-40 shrink-0">
+                                    Settle Full Balance
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Inline payment panel — replaces the old stacked modal entirely -->
+                        <template x-if="paymentTarget">
+                            <div class="bg-indigo-500/5 border border-indigo-500/20 rounded-2xl p-4">
+                                <h2 class="text-sm font-black italic tracking-tighter uppercase mb-1 dark:text-white">Record Payment</h2>
+                                <p class="text-xs text-gray-500 mb-3" x-text="paymentTargetLabel()"></p>
+                                <p x-show="formError" x-text="formError" class="text-red-500 text-sm font-bold mb-3"></p>
+                                <div class="grid sm:grid-cols-2 gap-3">
+                                    <div class="bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Amount</label>
+                                        <input type="number" min="0.01" step="0.01" x-model="paymentForm.amount" placeholder="0.00"
+                                            :readonly="paymentTarget.type === 'full'"
+                                            :class="paymentTarget.type === 'full' ? 'opacity-70' : ''"
+                                            class="w-full bg-transparent border-0 dark:text-white font-bold text-xl p-0 focus:ring-0">
+                                    </div>
+                                    <div class="bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Payment Method</label>
+                                        <select x-model="paymentForm.payment_method" class="w-full bg-transparent border-0 dark:text-white font-bold text-sm p-0 focus:ring-0">
+                                            <option value="Cash">Cash</option>
+                                            <option value="UPI">UPI</option>
+                                            <option value="Card">Card</option>
+                                        </select>
+                                    </div>
+                                    <div class="bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5 sm:col-span-2">
+                                        <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Note (optional)</label>
+                                        <input type="text" x-model="paymentForm.note" class="w-full bg-transparent border-0 dark:text-white font-bold text-sm p-0 focus:ring-0">
+                                    </div>
+                                </div>
+
+                                <!-- UPI QR — same wa.me-style deep link the POS checkout screen uses -->
+                                <template x-if="paymentForm.payment_method === 'UPI'">
+                                    <div class="mt-3 flex items-center gap-4 bg-white dark:bg-white/5 rounded-xl p-3">
+                                        <template x-if="shopUpiId">
+                                            <img :src="upiQrUrl()" alt="UPI QR Code" class="w-24 h-24 rounded-lg bg-white p-1 shadow shrink-0">
+                                        </template>
+                                        <p class="text-xs text-gray-400" x-show="!shopUpiId">Set a UPI ID in shop settings to show a scannable QR code here.</p>
+                                        <p class="text-xs text-gray-400" x-show="shopUpiId">Scan with any UPI app to collect <span x-text="formatCurrency(paymentForm.amount)" class="font-bold"></span>, then mark it paid below.</p>
+                                    </div>
+                                </template>
+
+                                <div class="flex gap-3 pt-3">
+                                    <button type="button" @click="cancelPayment()"
+                                        class="flex-1 bg-white dark:bg-white/5 text-gray-500 font-black uppercase tracking-widest py-2.5 rounded-xl text-xs border border-gray-200 dark:border-white/10">Cancel</button>
+                                    <button type="button" @click="submitPayment()" :disabled="saving"
+                                        class="flex-1 bg-indigo-500 text-white font-black uppercase tracking-widest py-2.5 rounded-xl text-xs shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+                                        <span x-text="saving ? 'Saving...' : 'Mark as Paid'"></span>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
+                            <div class="px-4 py-2 border-b border-gray-100 dark:border-white/5">
+                                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Unpaid Bills</p>
+                            </div>
+                            <template x-if="ledger.unpaid_bills.length === 0">
+                                <p class="p-4 text-sm text-gray-400">Nothing outstanding.</p>
+                            </template>
+                            <div class="divide-y divide-gray-100 dark:divide-white/5">
+                                <template x-for="bill in ledger.unpaid_bills" :key="bill.slug">
+                                    <div class="p-3 flex justify-between items-center">
+                                        <div>
+                                            <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="bill.bill_number"></p>
+                                            <p class="text-xs text-gray-400" x-text="bill.due_date ? ('Due ' + bill.due_date.slice(0,10)) : ''"></p>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-black text-gray-900 dark:text-white text-sm" x-text="formatCurrency(bill.total_amount - bill.amount_paid)"></p>
+                                            <template x-if="!bill.credit_statement_id">
+                                                <button @click="startPayment('bill', bill)" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors">Pay Now</button>
+                                            </template>
+                                            <template x-if="bill.credit_statement_id">
+                                                <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">In Statement</span>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
+                            <div class="px-4 py-2 border-b border-gray-100 dark:border-white/5">
+                                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Statements</p>
+                                <p class="text-[11px] text-gray-400 mt-0.5">A statement bundles this customer's bills into one periodic invoice (e.g. monthly) so they can pay them off together instead of one by one.</p>
+                            </div>
+                            <template x-if="ledger.statements.length === 0">
+                                <p class="p-4 text-sm text-gray-400">No statements generated yet — use "Generate Statements Now" from the Credit Book list.</p>
+                            </template>
+                            <div class="divide-y divide-gray-100 dark:divide-white/5">
+                                <template x-for="statement in ledger.statements" :key="statement.slug">
+                                    <div class="p-3 flex justify-between items-center">
+                                        <div>
+                                            <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="statement.statement_number"></p>
+                                            <p class="text-xs text-gray-400" x-text="statement.period_start + ' → ' + statement.period_end"></p>
+                                        </div>
+                                        <div class="text-right flex items-center gap-3">
+                                            <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg"
+                                                :class="{'bg-emerald-500/10 text-emerald-500': statement.status === 'Paid', 'bg-amber-500/10 text-amber-500': statement.status === 'PartiallyPaid', 'bg-red-500/10 text-red-500': statement.status === 'Overdue', 'bg-gray-100 dark:bg-white/10 text-gray-400': statement.status === 'Open' || statement.status === 'Sent'}"
+                                                x-text="statement.status"></span>
+                                            <p class="font-black text-gray-900 dark:text-white text-sm" x-text="formatCurrency(statement.total_amount - statement.amount_paid)"></p>
+                                            <template x-if="statement.status !== 'Paid'">
+                                                <button @click="startPayment('statement', statement)" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors">Pay</button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Bill History — every Credit bill (paid and unpaid), filterable by date/amount/status -->
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
+                            <div class="px-4 py-2 border-b border-gray-100 dark:border-white/5">
+                                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Bill History</p>
+                            </div>
+                            <div class="p-3 border-b border-gray-100 dark:border-white/5 flex flex-wrap items-center gap-2">
+                                <input type="date" x-model="billsFilters.date_from" @change="onBillsFilterChange()" title="Date from"
+                                    class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                                <span class="text-gray-400 text-xs">to</span>
+                                <input type="date" x-model="billsFilters.date_to" @change="onBillsFilterChange()" title="Date to"
+                                    class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                                <input type="number" step="0.01" x-model="billsFilters.min_amount" @change="onBillsFilterChange()" placeholder="Min amount"
+                                    class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                                <input type="number" step="0.01" x-model="billsFilters.max_amount" @change="onBillsFilterChange()" placeholder="Max amount"
+                                    class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                                <select x-model="billsFilters.status" @change="onBillsFilterChange()"
+                                    class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                                    <option value="">All Statuses</option>
+                                    <option value="Paid">Paid</option>
+                                    <option value="Unpaid">Unpaid</option>
+                                    <option value="PartiallyPaid">Partially Paid</option>
+                                </select>
+                                <button @click="clearBillsFilters()" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white ml-auto">Clear</button>
+                            </div>
+                            <template x-if="!billsLoading && bills.length === 0">
+                                <p class="p-4 text-sm text-gray-400">No bills match these filters.</p>
+                            </template>
+                            <div class="divide-y divide-gray-100 dark:divide-white/5">
+                                <template x-for="bill in bills" :key="bill.slug">
+                                    <div class="p-3 flex justify-between items-center">
+                                        <div>
+                                            <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="bill.bill_number"></p>
+                                            <p class="text-xs text-gray-400" x-text="bill.timestamp ? bill.timestamp.slice(0,10) : ''"></p>
+                                        </div>
+                                        <div class="text-right flex items-center gap-3">
+                                            <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg"
+                                                :class="{'bg-emerald-500/10 text-emerald-500': bill.payment_status === 'Paid', 'bg-amber-500/10 text-amber-500': bill.payment_status === 'PartiallyPaid', 'bg-gray-100 dark:bg-white/10 text-gray-400': bill.payment_status === 'Unpaid'}"
+                                                x-text="bill.payment_status"></span>
+                                            <p class="font-black text-gray-900 dark:text-white text-sm" x-text="formatCurrency(bill.total_amount)"></p>
+                                            <a :href="'/bill/' + bill.id" target="_blank" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors">View</a>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <div class="p-3 flex items-center justify-between" x-show="bills.length > 0">
+                                <p class="text-xs text-gray-400" x-text="'Showing ' + bills.length + ' of ' + billsTotal"></p>
+                                <button x-show="bills.length < billsTotal" @click="loadMoreBills()" :disabled="billsLoading"
+                                    class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 disabled:opacity-50">
+                                    <span x-text="billsLoading ? 'Loading...' : 'Load More'"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+            </template>
+
+        </div>
+        </div>
+        {% endif %}
+
+        <!-- RATE CARDS TAB -->
+        {% if features.customer_management %}
+        <div x-show="activeTab === 'rate_cards'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10">
+        <div x-data="rateCardsApp('{{ shop.currency_symbol or '₹' }}')" x-init="init()">
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <p class="text-sm font-bold text-amber-500 uppercase tracking-widest mb-1">Negotiated Pricing</p>
+                    <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Rate Cards</h1>
+                </div>
+                <button @click="openAddModal()" :disabled="!selectedCustomer"
+                    class="bg-amber-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-40">
+                    Add Price Override
+                </button>
+            </div>
+            <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-4"></p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Customer picker -->
+                <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden lg:col-span-1 h-fit">
+                    <div class="p-5 border-b border-gray-100 dark:border-white/5">
+                        <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Customers</p>
+                        <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search by name or phone..."
+                            class="w-full mt-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                    </div>
+                    <template x-if="!searchLoading && customers.length === 0">
+                        <p class="p-6 text-sm text-gray-400" x-text="search ? 'No matching customers.' : 'No customers yet.'"></p>
+                    </template>
+                    <div class="divide-y divide-gray-100 dark:divide-white/5 max-h-[32rem] overflow-y-auto">
+                        <template x-for="c in customers" :key="c.slug">
+                            <button @click="selectCustomer(c)" class="w-full text-left p-5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                                :class="{'bg-amber-500/10': selectedCustomer && selectedCustomer.slug === c.slug}">
+                                <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="c.name"></p>
+                                <p class="text-xs text-gray-400 font-mono" x-text="c.phone_number"></p>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Rate card detail: full price-validity table -->
+                <div class="lg:col-span-2">
+                    <template x-if="!selectedCustomer">
+                        <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 p-10 text-center text-gray-400">
+                            Select a customer to view or set negotiated prices.
+                        </div>
+                    </template>
+
+                    <template x-if="selectedCustomer">
+                        <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
+                            <div class="p-5 border-b border-gray-100 dark:border-white/5">
+                                <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest" x-text="selectedCustomer.name + ' — Rate History'"></p>
+                            </div>
+                            <template x-if="!loading && tableRows().length === 0">
+                                <p class="p-6 text-sm text-gray-400">No custom prices set for this customer yet — they pay standard menu prices.</p>
+                            </template>
+                            <div x-show="tableRows().length > 0" class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead class="bg-gray-50 dark:bg-slate-900/50">
+                                        <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
+                                            <th class="p-4">Item</th>
+                                            <th class="p-4 text-right">Price</th>
+                                            <th class="p-4">Valid From</th>
+                                            <th class="p-4">Valid To</th>
+                                            <th class="p-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                                        <template x-for="row in tableRows()" :key="row.slug">
+                                            <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                                <td class="p-4 font-bold text-gray-900 dark:text-white text-sm" x-text="row.menu_item_name"></td>
+                                                <td class="p-4 text-right font-black text-gray-900 dark:text-white" x-text="formatCurrency(row.price)"></td>
+                                                <td class="p-4 text-sm text-gray-500" x-text="row.valid_from"></td>
+                                                <td class="p-4 text-sm text-gray-500" x-text="row.effectiveValidTo"></td>
+                                                <td class="p-4 text-right">
+                                                    <div class="flex justify-end gap-3">
+                                                        <button @click="openEditModal(row)" class="text-[10px] font-black uppercase tracking-widest text-blue-500 hover:text-blue-600">Edit</button>
+                                                        <button @click="deletePrice(row)" class="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600">Delete</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Add/Edit Price Override Modal -->
+            <div x-show="showModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" x-cloak x-transition>
+                <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] p-10 relative shadow-2xl border border-white/5" @click.away="showModal = false">
+                    <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-2 dark:text-white" x-text="editingSlug ? 'Edit Price Override' : 'Add Price Override'"></h2>
+                    <p class="text-sm text-gray-500 mb-6" x-text="selectedCustomer ? 'For ' + selectedCustomer.name : ''"></p>
+                    <p x-show="formError" x-text="formError" class="text-red-500 text-sm font-bold mb-4"></p>
+                    <div class="space-y-4">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5 relative">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Menu Item</label>
+                            <template x-if="!editingSlug">
+                                <div>
+                                    <input type="text" x-model="itemSearch" @input="onItemSearchInput()" placeholder="Search item by name or SKU..."
+                                        class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                    <div x-show="itemSearch && itemResults.length > 0"
+                                        class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl max-h-48 overflow-y-auto z-10">
+                                        <template x-for="item in itemResults" :key="item.id">
+                                            <button type="button" @click="pickItem(item)"
+                                                class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5 dark:text-white"
+                                                x-text="item.name + ' (list ' + formatCurrency(item.price) + ')'"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                            <template x-if="editingSlug">
+                                <p class="font-bold dark:text-white" x-text="itemSearch"></p>
+                            </template>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Negotiated Price</label>
+                            <input type="number" min="0" step="0.01" x-model="form.price" placeholder="0.00"
+                                class="w-full bg-transparent border-0 dark:text-white font-bold text-xl p-0 focus:ring-0">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Valid From</label>
+                                <input type="date" x-model="form.valid_from" class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                            </div>
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Valid To (optional)</label>
+                                <input type="date" x-model="form.valid_to" class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                            </div>
+                        </div>
+                        <p class="text-xs text-gray-400">Leave "Valid To" blank for an open-ended (sticky) rate — it stays in effect until a newer rate is added for this item.</p>
+                        <div class="flex gap-3 pt-4">
+                            <button type="button" @click="showModal = false"
+                                class="flex-1 bg-gray-100 dark:bg-white/5 text-gray-500 font-black uppercase tracking-widest py-4 rounded-2xl text-xs">Cancel</button>
+                            <button type="button" @click="savePrice()" :disabled="saving"
+                                class="flex-1 bg-amber-500 text-white font-black uppercase tracking-widest py-4 rounded-2xl text-xs shadow-lg shadow-amber-500/20 disabled:opacity-50">
+                                <span x-text="saving ? 'Saving...' : 'Save'"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </div>
         {% endif %}
 
     </main>

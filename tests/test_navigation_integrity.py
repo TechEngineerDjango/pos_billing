@@ -36,12 +36,19 @@ async def test_sticky_tab_navigation(async_client: AsyncClient, db_session):
     # Access dashboard with specific tab
     response = await async_client.get("/admin/?tab=reports")
     assert response.status_code == 200
-    # The Alpine.js initialization should catch 'reports'
-    assert "activeTab: params.get('tab') || 'overview'" in response.text
-    
+    # dashboardApp()'s Alpine state (incl. the sticky-tab init) lives in the
+    # external dashboard-app.js bundle, not inlined into the page — verify
+    # the page wires up that component and loads the bundle containing the logic.
+    assert 'x-data="dashboardApp(' in response.text
+    assert '<script src="/static/js/dashboard/dashboard-app.js"></script>' in response.text
+
+    with open("app/frontend/static/js/dashboard/dashboard-app.js") as f:
+        dashboard_js = f.read()
+    assert "activeTab: params.get('tab') || 'overview'" in dashboard_js
+
     # Verify that 'Reports' section is logically active (not hidden by default)
-    # Note: Logic is handled in browser, but we verify the HTML contains the correct initialization code fix
-    assert "params.get('tab')" in response.text
+    # Note: Logic is handled in browser, but we verify the bundle contains the correct initialization code fix
+    assert "params.get('tab')" in dashboard_js
 
 @pytest.mark.asyncio
 async def test_unauthorized_access_redirection(async_client: AsyncClient):

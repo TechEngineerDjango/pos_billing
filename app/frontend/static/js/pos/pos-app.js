@@ -405,6 +405,7 @@ function posApp() {
             this.customerName = '';
             this.customerInfo = '';
             this.customerId = null;
+            this.foundCustomer = null;
             this.currentBillId = null;
         },
 
@@ -460,6 +461,13 @@ function posApp() {
                 this.customerName = '';
                 this.isNewCustomer = true;
             }
+            // Credit is only ever an *option* the cashier opts into for an eligible
+            // customer — never auto-selected. But if a Credit payment was already
+            // selected and the customer just changed/cleared/turned out ineligible,
+            // it can no longer be submitted against them, so fall back to Cash.
+            if (this.paymentMethod === 'Credit' && !this.foundCustomer?.is_credit_customer) {
+                this.paymentMethod = 'Cash';
+            }
         },
 
         selectCustomer() {
@@ -476,6 +484,10 @@ function posApp() {
             this.customerInfo = '';
             this.customerId = null;
             this.isNewCustomer = false;
+            this.foundCustomer = null;
+            if (this.paymentMethod === 'Credit') {
+                this.paymentMethod = 'Cash';
+            }
         },
 
         async submitBill(status = "Completed") {
@@ -513,6 +525,10 @@ function posApp() {
             }
             if (this.isNewCustomer && !this.customerName) {
                 alert('Please enter customer name for new customer');
+                return false;
+            }
+            if (this.paymentMethod === 'Credit' && !this.foundCustomer?.is_credit_customer) {
+                alert('Credit billing requires a registered, credit-eligible customer');
                 return false;
             }
             return true;

@@ -33,11 +33,16 @@ async def test_dashboard_shows_menu_items(async_client: AsyncClient, db_session)
     
     assert response.status_code == 200
     html = response.text
-    
-    # Verify menu items are in the response
-    assert "Classic Burger" in html
+
     # Owners should NOT see Design tab
     assert "switchTab('design')" not in html
+
+    # The Menu tab is search-driven (fetched via /admin/menu/search), not
+    # embedded in the dashboard's initial HTML — same scalability treatment
+    # as Credit Book/Rate Cards, so the item won't appear in `html` itself.
+    search_response = await async_client.get("/admin/menu/search")
+    names = {i["name"] for i in search_response.json()["items"]}
+    assert "Classic Burger" in names
     # But should see Menu Management
     assert "Catalog Control" in html
 

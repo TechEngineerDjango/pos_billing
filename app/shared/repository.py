@@ -28,3 +28,6 @@ class BaseRepository(Generic[T]):
             query = query.where(getattr(self.model, key) == value)
         result = await self.db.execute(query)
         return list(result.scalars().all())
+
+    async def delete(self, entity: T) -> None:
+        await self.db.delete(entity)

@@ -38,10 +38,7 @@ class FeatureRepository:
     # ------------------------------------------------------------------
 
     async def get_plan_feature_keys(self, plan_id: int) -> set[str]:
-        """
-        Returns the set of active feature keys enabled for a given plan.
-        Falls back gracefully if no M2M links exist (legacy mode).
-        """
+        """Returns the set of active feature keys enabled for a given plan."""
         result = await self._db.execute(
             select(Feature.key)
             .join(PlanFeature, PlanFeature.feature_id == Feature.id)
