@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 import re
 import logging
+import textwrap
 
 from app.shared.models import Bill, MenuItem, Shop, User, Customer, StockMovement, DEFAULT_LOW_STOCK_THRESHOLD
 from app.infrastructure.integrations.notifications import get_notification_service
@@ -630,6 +631,45 @@ class BillingService:
             "updated_items": updated_stock_data,
         }
 
+    #: Fixed monospace column widths for the WhatsApp item table — a single
+    #: header row (No/Item/Qty/Price/Tax/Amt) with every item as one grid
+    #: row underneath, matching the 80mm/48-column physical printer layout
+    #: (app/infrastructure/integrations/printer.py uses the same 48-column
+    #: convention for its wider paper setting). Must be wrapped in ``` for
+    #: WhatsApp to render it as a fixed-width (monospace) block, the only
+    #: way column alignment survives WhatsApp's renderer.
+    #: Long item names wrap onto continuation lines instead of being
+    #: clipped; continuation lines are padded to exactly _WA_ITEM_W and the
+    #: Qty/Price/Tax/Amt columns are left blank on them, so wrapped text
+    #: stays confined to the Item column and never overlaps the numeric
+    #: columns to its right.
+    _WA_NO_W = 3
+    _WA_ITEM_W = 14
+    _WA_QTY_W = 8
+    _WA_PRICE_W = 8
+    _WA_TAX_W = 7
+    _WA_AMT_W = 8
+    _WA_LINE_WIDTH = _WA_NO_W + _WA_ITEM_W + _WA_QTY_W + _WA_PRICE_W + _WA_TAX_W + _WA_AMT_W
+
+    #: Short display labels for MenuItem.unit (app/shared/models.py) —
+    #: 'liter' shows as 'ltr'; piece/no-unit items show no unit at all.
+    _WA_UNIT_LABELS = {
+        "kg": "kg",
+        "g": "g",
+        "liter": "ltr",
+        "ml": "ml",
+        "piece": "",
+        "": "",
+        None: "",
+    }
+
+    @staticmethod
+    def _wa_qty_str(qty) -> str:
+        """1.0 -> '1', 0.5 -> '0.5' — avoids a misleading trailing '.0' on
+        piece-based items while keeping fractional weights/volumes exact."""
+        qty_f = float(qty)
+        return str(int(qty_f)) if qty_f == int(qty_f) else str(qty_f)
+
     @staticmethod
     def format_whatsapp_bill_message(
         bill_number: str,
@@ -641,12 +681,63 @@ class BillingService:
         footer_message: str = "Thank you for your order! your order will be delivered soon...",
         due_date: str = "",
         payment_status: str = "",
+        subtotal_amount: Optional[float] = None,
+        tax_amount: Optional[float] = None,
     ) -> str:
-        """Single source of truth for WhatsApp bill receipt message format (Domain Layer)."""
-        items_text = "\n".join([
-            f"{item.get('qty', 1)} x {item.get('name', 'Item')} - {currency}{float(item.get('line_total', 0)):.2f}"
-            for item in items_snapshot
-        ])
+        """Single source of truth for WhatsApp bill receipt message format (Domain Layer).
+
+        Item table is a fixed-width monospace grid wrapped in a ``` code
+        fence (the only way WhatsApp preserves column alignment): one
+        header row (No/Item/Qty/Price/Tax/Amt) and one row per item. Long
+        item names wrap onto continuation lines confined to the Item
+        column so they never bleed into the numeric columns. Below the
+        grid, Subtotal/Tax/Total are broken out on their own rows —
+        subtotal_amount/tax_amount default to summing the per-line values
+        when the caller doesn't have the bill-level columns handy.
+        """
+        if tax_amount is None:
+            tax_amount = sum(float(it.get('line_tax', 0) or 0) for it in items_snapshot)
+        if subtotal_amount is None:
+            subtotal_amount = total_amount - tax_amount
+        NO_W = BillingService._WA_NO_W
+        ITEM_W = BillingService._WA_ITEM_W
+        QTY_W = BillingService._WA_QTY_W
+        PRICE_W = BillingService._WA_PRICE_W
+        TAX_W = BillingService._WA_TAX_W
+        AMT_W = BillingService._WA_AMT_W
+        LINE_W = BillingService._WA_LINE_WIDTH
+        sep = "-" * LINE_W
+        blank_row_tail = f"{'':<{ITEM_W}}{'':>{QTY_W}}{'':>{PRICE_W}}{'':>{TAX_W}}{'':>{AMT_W}}"
+
+        table_lines = [
+            f"{'No':<{NO_W}}{'Item':<{ITEM_W}}{'Qty':>{QTY_W}}{'Price':>{PRICE_W}}{'Tax':>{TAX_W}}{'Amt':>{AMT_W}}",
+            sep,
+        ]
+        for i, item in enumerate(items_snapshot, start=1):
+            name = str(item.get('name', 'Item')).strip()
+            unit_label = BillingService._WA_UNIT_LABELS.get(item.get('unit'), item.get('unit') or '')
+            qty_str = BillingService._wa_qty_str(item.get('qty', 1))
+            qty_unit_str = f"{qty_str} {unit_label}".strip()
+            price_str = f"{currency}{float(item.get('price', 0)):.2f}"
+            tax_str = f"{currency}{float(item.get('line_tax', 0)):.2f}"
+            amount_str = f"{currency}{float(item.get('line_total', 0)):.2f}"
+
+            wrapped_name = textwrap.wrap(name, width=ITEM_W) or [""]
+            table_lines.append(
+                f"{i:<{NO_W}}{wrapped_name[0]:<{ITEM_W}}{qty_unit_str:>{QTY_W}}"
+                f"{price_str:>{PRICE_W}}{tax_str:>{TAX_W}}{amount_str:>{AMT_W}}"
+            )
+            for cont in wrapped_name[1:]:
+                table_lines.append(f"{'':<{NO_W}}{cont:<{ITEM_W}}{blank_row_tail[ITEM_W:]}")
+        table_lines.append(sep)
+        label_w = NO_W + ITEM_W + QTY_W + PRICE_W + TAX_W
+        subtotal_str = f"{currency}{subtotal_amount:.2f}"
+        tax_total_str = f"{currency}{tax_amount:.2f}"
+        total_str = f"{currency}{total_amount:.2f}"
+        table_lines.append(f"{'SUBTOTAL':<{label_w}}{subtotal_str:>{AMT_W}}")
+        table_lines.append(f"{'TAX':<{label_w}}{tax_total_str:>{AMT_W}}")
+        table_lines.append(f"{'TOTAL':<{label_w}}{total_str:>{AMT_W}}")
+        items_table = "```\n" + "\n".join(table_lines) + "\n```"
 
         date_line = f"Date: {bill_date}\n" if bill_date else ""
 
@@ -659,9 +750,6 @@ class BillingService:
         return f"""*{shop_name}*
 *Tax Invoice*
 Bill #{bill_number}
-{date_line}
-{items_text}
-
-*Total: {currency}{total_amount:.2f}*
+{date_line}{items_table}
 {credit_line}
 {footer_message}"""

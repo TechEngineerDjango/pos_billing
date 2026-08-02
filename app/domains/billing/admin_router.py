@@ -921,6 +921,8 @@ async def whatsapp_redirect_page(
         footer_message=shop.receipt_footer if shop and hasattr(shop, 'receipt_footer') else "Thank you for your order!",
         due_date=shop_local(bill.due_date, shop.timezone if shop else "UTC").strftime("%d-%b-%Y") if bill.due_date else "",
         payment_status=bill.payment_status or "",
+        subtotal_amount=float(bill.subtotal_amount) if bill.subtotal_amount is not None else None,
+        tax_amount=float(bill.tax_amount) if bill.tax_amount is not None else None,
     )
     from app.core.config import settings
     customer_country_code = (bill.customer.country_code if bill.customer else None) or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE
