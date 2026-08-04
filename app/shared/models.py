@@ -501,6 +501,7 @@ class Bill(Base):
     bill_number = Column(String, index=True, nullable=False)
     subtotal_amount = Column(Numeric(10, 2), nullable=True)  # Added for tax module
     tax_amount = Column(Numeric(10, 2), nullable=True)       # Added for tax module
+    delivery_charge = Column(Numeric(10, 2), nullable=False, default=0.00, server_default="0.00")
     total_amount = Column(Numeric(10, 2), nullable=False)
     payment_method = Column(String, default="Cash")  # Cash, UPI, Credit
     status = Column(String, default="Completed")     # Completed, Held, Cancelled
@@ -529,6 +530,7 @@ class Bill(Base):
             "id": self.id,
             "slug": self.slug,
             "bill_number": self.bill_number,
+            "delivery_charge": float(self.delivery_charge) if self.delivery_charge is not None else 0.0,
             "total_amount": float(self.total_amount),
             "payment_method": self.payment_method,
             "status": self.status,

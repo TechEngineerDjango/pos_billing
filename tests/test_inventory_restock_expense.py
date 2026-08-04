@@ -155,6 +155,54 @@ async def test_restock_expense_amount_rounds_to_two_decimals(
     assert expense.payment_method == "Cash"  # default when not specified
 
 
+async def test_restock_expense_captures_tax_amount(
+    db_session: AsyncSession, async_client: AsyncClient,
+):
+    shop = await _create_shop_with_inventory_feature(db_session, username="restock_owner_4")
+    item = MenuItem(name="Oil Can", price=200.0, category="Ingredients", shop_id=shop.id, stock_quantity=0)
+    db_session.add(item)
+    await db_session.commit()
+    await db_session.refresh(item)
+
+    await _login(async_client, "restock_owner_4")
+
+    response = await async_client.post(
+        f"/admin/inventory/{item.id}/restock",
+        data={"qty": "2", "unit_cost": "150.00", "tax_amount": "27.00", "payment_method": "Cash"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    exp_res = await db_session.execute(select(Expense).where(Expense.shop_id == shop.id))
+    expense = exp_res.scalars().first()
+    assert expense is not None
+    assert expense.amount == Decimal("300.00")  # 2 * 150.00, tax not multiplied by qty
+    assert expense.tax_amount == Decimal("27.00")
+
+
+async def test_restock_expense_tax_defaults_to_zero_when_omitted(
+    db_session: AsyncSession, async_client: AsyncClient,
+):
+    shop = await _create_shop_with_inventory_feature(db_session, username="restock_owner_5")
+    item = MenuItem(name="Salt Bag", price=15.0, category="Ingredients", shop_id=shop.id, stock_quantity=0)
+    db_session.add(item)
+    await db_session.commit()
+    await db_session.refresh(item)
+
+    await _login(async_client, "restock_owner_5")
+
+    response = await async_client.post(
+        f"/admin/inventory/{item.id}/restock",
+        data={"qty": "4", "unit_cost": "15.00"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    exp_res = await db_session.execute(select(Expense).where(Expense.shop_id == shop.id))
+    expense = exp_res.scalars().first()
+    assert expense.tax_amount == Decimal("0.00")
+
+
 async def test_restock_blocked_without_inventory_feature(
     db_session: AsyncSession, async_client: AsyncClient,
 ):

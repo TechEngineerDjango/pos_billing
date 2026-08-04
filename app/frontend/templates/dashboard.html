@@ -485,12 +485,25 @@
                     </div>
                 </template>
             </div>
-            <div class="flex items-center justify-between mt-6" x-show="menuItems.length > 0">
-                <p class="text-xs text-gray-400" x-text="'Showing ' + menuItems.length + ' of ' + menuTotal"></p>
-                <button x-show="menuItems.length < menuTotal" @click="loadMoreMenuItems()" :disabled="menuLoading"
-                    class="text-xs font-black uppercase tracking-widest text-orange-500 hover:text-orange-600 disabled:opacity-50">
-                    <span x-text="menuLoading ? 'Loading...' : 'Load More'"></span>
-                </button>
+            <div class="flex items-center justify-between mt-6 gap-3" x-show="menuTotal > 0">
+                <select x-model.number="menuLimit" @change="changeMenuLimit()"
+                    class="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 dark:text-white">
+                    <option value="10">10 / page</option>
+                    <option value="25">25 / page</option>
+                    <option value="50">50 / page</option>
+                    <option value="100">100 / page</option>
+                </select>
+                <div class="flex items-center gap-4">
+                    <button @click="goToMenuPage(menuPage - 1)" :disabled="menuPage <= 1 || menuLoading"
+                        class="text-xs font-black uppercase tracking-widest text-orange-500 hover:text-orange-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Prev
+                    </button>
+                    <p class="text-xs text-gray-400" x-text="'Page ' + menuPage + ' of ' + menuTotalPages"></p>
+                    <button @click="goToMenuPage(menuPage + 1)" :disabled="menuPage >= menuTotalPages || menuLoading"
+                        class="text-xs font-black uppercase tracking-widest text-orange-500 hover:text-orange-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -560,12 +573,25 @@
                     </tbody>
                 </table>
             </div>
-            <div class="flex items-center justify-between mt-6" x-show="customerRows.length > 0">
-                <p class="text-xs text-gray-400" x-text="'Showing ' + customerRows.length + ' of ' + customerTotal"></p>
-                <button x-show="customerRows.length < customerTotal" @click="loadMoreCustomersTab()" :disabled="customersLoading"
-                    class="text-xs font-black uppercase tracking-widest text-green-500 hover:text-green-600 disabled:opacity-50">
-                    <span x-text="customersLoading ? 'Loading...' : 'Load More'"></span>
-                </button>
+            <div class="flex items-center justify-between mt-6 gap-3" x-show="customerTotal > 0">
+                <select x-model.number="customerLimit" @change="changeCustomerLimit()"
+                    class="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 dark:text-white">
+                    <option value="10">10 / page</option>
+                    <option value="25">25 / page</option>
+                    <option value="50">50 / page</option>
+                    <option value="100">100 / page</option>
+                </select>
+                <div class="flex items-center gap-4">
+                    <button @click="goToCustomerPage(customerPage - 1)" :disabled="customerPage <= 1 || customersLoading"
+                        class="text-xs font-black uppercase tracking-widest text-green-500 hover:text-green-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Prev
+                    </button>
+                    <p class="text-xs text-gray-400" x-text="'Page ' + customerPage + ' of ' + customerTotalPages"></p>
+                    <button @click="goToCustomerPage(customerPage + 1)" :disabled="customerPage >= customerTotalPages || customersLoading"
+                        class="text-xs font-black uppercase tracking-widest text-green-500 hover:text-green-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -924,12 +950,25 @@
                     </tbody>
                 </table>
             </div>
-            <div class="flex items-center justify-between mt-6" x-show="items.length > 0">
-                <p class="text-xs text-gray-400" x-text="'Showing ' + items.length + ' of ' + total"></p>
-                <button x-show="items.length < total" @click="loadMoreItems()" :disabled="loading"
-                    class="text-xs font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-600 disabled:opacity-50">
-                    <span x-text="loading ? 'Loading...' : 'Load More'"></span>
-                </button>
+            <div class="flex items-center justify-between mt-6 gap-3" x-show="total > 0">
+                <select x-model.number="limit" @change="changeLimit()"
+                    class="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 dark:text-white">
+                    <option value="10">10 / page</option>
+                    <option value="25">25 / page</option>
+                    <option value="50">50 / page</option>
+                    <option value="100">100 / page</option>
+                </select>
+                <div class="flex items-center gap-4">
+                    <button @click="goToPage(page - 1)" :disabled="page <= 1 || loading"
+                        class="text-xs font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Prev
+                    </button>
+                    <p class="text-xs text-gray-400" x-text="'Page ' + page + ' of ' + totalPages"></p>
+                    <button @click="goToPage(page + 1)" :disabled="page >= totalPages || loading"
+                        class="text-xs font-black uppercase tracking-widest text-emerald-500 hover:text-emerald-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
             </div>
 
             <!-- Restock Modal -->
@@ -956,17 +995,23 @@
                                     class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0" placeholder="0.00">
                             </div>
                             <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
-                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Paid Via</label>
-                                <select name="payment_method"
-                                    class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
-                                    <option value="Cash">Cash</option>
-                                    <option value="UPI">UPI</option>
-                                    <option value="Card">Card</option>
-                                </select>
+                                <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Tax (optional)</label>
+                                <input type="number" name="tax_amount" min="0" step="0.01"
+                                    class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0" placeholder="0.00">
                             </div>
                         </div>
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Paid Via</label>
+                            <select name="payment_method"
+                                class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                <option value="Cash">Cash</option>
+                                <option value="UPI">UPI</option>
+                                <option value="Card">Card</option>
+                            </select>
+                        </div>
                         <p class="text-[10px] text-gray-600 -mt-2">Enter a cost per unit to automatically log this
-                            restock as an "Inventory Purchase" expense — leave blank to skip.</p>
+                            restock as an "Inventory Purchase" expense (tax is the total tax paid on the invoice) —
+                            leave cost blank to skip.</p>
                         <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Note (optional)</label>
                             <input type="text" name="note" placeholder="e.g. Received delivery"
@@ -1019,12 +1064,12 @@
             <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 p-6 mb-6 flex flex-wrap gap-4 items-end">
                 <div>
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Search</label>
-                    <input type="text" x-model="search" placeholder="Description or vendor..."
+                    <input type="text" x-model="search" @input="onSearchInput()" placeholder="Description or vendor..."
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
                 </div>
                 <div>
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
-                    <select x-model="filters.category" @change="fetchExpenses()"
+                    <select x-model="filters.category" @change="offset = 0; fetchExpenses()"
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
                         <option value="">All Categories</option>
                         {% for cat in expense_categories %}
@@ -1034,15 +1079,15 @@
                 </div>
                 <div>
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">From</label>
-                    <input type="date" x-model="filters.date_from" @change="fetchExpenses()"
+                    <input type="date" x-model="filters.date_from" @change="offset = 0; fetchExpenses()"
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
                 </div>
                 <div>
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">To</label>
-                    <input type="date" x-model="filters.date_to" @change="fetchExpenses()"
+                    <input type="date" x-model="filters.date_to" @change="offset = 0; fetchExpenses()"
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
                 </div>
-                <button @click="search = ''; filters = {category: '', date_from: '', date_to: ''}; fetchExpenses()"
+                <button @click="search = ''; filters = {category: '', date_from: '', date_to: ''}; offset = 0; fetchExpenses()"
                     class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors pb-2">
                     Clear
                 </button>
@@ -1068,7 +1113,7 @@
                         <template x-if="!loading && expenses.length === 0">
                             <tr><td colspan="7" class="p-8 text-center text-gray-400 text-sm">No expenses recorded yet.</td></tr>
                         </template>
-                        <template x-for="expense in filteredExpenses()" :key="expense.slug">
+                        <template x-for="expense in expenses" :key="expense.slug">
                             <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors" :class="{'opacity-40': expense.is_voided}">
                                 <td class="p-5 text-sm text-gray-500" x-text="expense.expense_date"></td>
                                 <td class="p-5">
@@ -1091,6 +1136,26 @@
                         </template>
                     </tbody>
                 </table>
+            </div>
+            <div class="flex items-center justify-between mt-6 gap-3" x-show="total > 0">
+                <select x-model.number="limit" @change="changeLimit()"
+                    class="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 dark:text-white">
+                    <option value="10">10 / page</option>
+                    <option value="25">25 / page</option>
+                    <option value="50">50 / page</option>
+                    <option value="100">100 / page</option>
+                </select>
+                <div class="flex items-center gap-4">
+                    <button @click="goToPage(page - 1)" :disabled="page <= 1 || loading"
+                        class="text-xs font-black uppercase tracking-widest text-teal-500 hover:text-teal-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Prev
+                    </button>
+                    <p class="text-xs text-gray-400" x-text="'Page ' + page + ' of ' + totalPages"></p>
+                    <button @click="goToPage(page + 1)" :disabled="page >= totalPages || loading"
+                        class="text-xs font-black uppercase tracking-widest text-teal-500 hover:text-teal-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
             </div>
 
             <!-- Add/Edit Expense Modal -->
@@ -1201,19 +1266,19 @@
                     <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search account..."
                         class="flex-1 min-w-[12rem] bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
 
-                    <select x-model="sortBy" @change="fetchAccounts()"
+                    <select x-model="sortBy" @change="accountsOffset = 0; fetchAccounts()"
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
                         <option value="urgency">Sort: Urgency</option>
                         <option value="balance">Sort: Balance</option>
                         <option value="overdue_days">Sort: Days Overdue</option>
                         <option value="name">Sort: Name</option>
                     </select>
-                    <button @click="order = (order === 'asc' ? 'desc' : 'asc'); fetchAccounts()"
+                    <button @click="order = (order === 'asc' ? 'desc' : 'asc'); accountsOffset = 0; fetchAccounts()"
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white font-bold">
                         <span x-text="order === 'asc' ? '↑ Asc' : '↓ Desc'"></span>
                     </button>
 
-                    <select x-model="paymentTermType" @change="fetchAccounts()"
+                    <select x-model="paymentTermType" @change="accountsOffset = 0; fetchAccounts()"
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
                         <option value="">All Terms</option>
                         <option value="weekly">Weekly</option>
@@ -1222,15 +1287,15 @@
                     </select>
 
                     <label class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 font-bold whitespace-nowrap">
-                        <input type="checkbox" x-model="overdueOnly" @change="fetchAccounts()" class="rounded">
+                        <input type="checkbox" x-model="overdueOnly" @change="accountsOffset = 0; fetchAccounts()" class="rounded">
                         Overdue only
                     </label>
 
                     <div class="flex items-center gap-2">
-                        <input type="date" x-model="dueFrom" @change="fetchAccounts()" title="Due from"
+                        <input type="date" x-model="dueFrom" @change="accountsOffset = 0; fetchAccounts()" title="Due from"
                             class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
                         <span class="text-gray-400 text-sm">to</span>
-                        <input type="date" x-model="dueTo" @change="fetchAccounts()" title="Due to"
+                        <input type="date" x-model="dueTo" @change="accountsOffset = 0; fetchAccounts()" title="Due to"
                             class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
                     </div>
 
@@ -1284,6 +1349,26 @@
                                 </div>
                             </div>
                         </template>
+                    </div>
+                    <div class="p-3 flex items-center justify-between gap-3" x-show="accountsTotal > 0">
+                        <select x-model.number="accountsLimit" @change="changeAccountsLimit()"
+                            class="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 dark:text-white">
+                            <option value="10">10 / page</option>
+                            <option value="25">25 / page</option>
+                            <option value="50">50 / page</option>
+                            <option value="100">100 / page</option>
+                        </select>
+                        <div class="flex items-center gap-4">
+                            <button @click="goToAccountsPage(accountsPage - 1)" :disabled="accountsPage <= 1 || loading"
+                                class="text-xs font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                                Prev
+                            </button>
+                            <p class="text-xs text-gray-400" x-text="'Page ' + accountsPage + ' of ' + accountsTotalPages"></p>
+                            <button @click="goToAccountsPage(accountsPage + 1)" :disabled="accountsPage >= accountsTotalPages || loading"
+                                class="text-xs font-black uppercase tracking-widest text-blue-500 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                                Next
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1484,12 +1569,25 @@
                                     </div>
                                 </template>
                             </div>
-                            <div class="p-3 flex items-center justify-between" x-show="bills.length > 0">
-                                <p class="text-xs text-gray-400" x-text="'Showing ' + bills.length + ' of ' + billsTotal"></p>
-                                <button x-show="bills.length < billsTotal" @click="loadMoreBills()" :disabled="billsLoading"
-                                    class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 disabled:opacity-50">
-                                    <span x-text="billsLoading ? 'Loading...' : 'Load More'"></span>
-                                </button>
+                            <div class="p-3 flex items-center justify-between gap-3" x-show="billsTotal > 0">
+                                <select x-model.number="billsLimit" @change="changeBillsLimit()"
+                                    class="text-[10px] bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 dark:text-white">
+                                    <option value="10">10 / page</option>
+                                    <option value="25">25 / page</option>
+                                    <option value="50">50 / page</option>
+                                    <option value="100">100 / page</option>
+                                </select>
+                                <div class="flex items-center gap-4">
+                                    <button @click="goToBillsPage(billsPage - 1)" :disabled="billsPage <= 1 || billsLoading"
+                                        class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                                        Prev
+                                    </button>
+                                    <p class="text-xs text-gray-400" x-text="'Page ' + billsPage + ' of ' + billsTotalPages"></p>
+                                    <button @click="goToBillsPage(billsPage + 1)" :disabled="billsPage >= billsTotalPages || billsLoading"
+                                        class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                                        Next
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -208,6 +208,7 @@ async def get_recent_bills(
                 "id": b.slug,
                 "bill_number": b.bill_number,
                 "status": getattr(b, "status", "Completed"),
+                "delivery_charge": float(b.delivery_charge) if b.delivery_charge is not None else 0.0,
                 "total_amount": float(b.total_amount),
                 "timestamp": b.timestamp.isoformat() if b.timestamp else None,
                 # Pre-formatted in the shop's local timezone so the POS UI can

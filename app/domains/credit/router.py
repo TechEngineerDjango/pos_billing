@@ -35,18 +35,22 @@ async def list_credit_accounts(
     payment_term_type: Optional[str] = None,
     due_from: Optional[date] = None,
     due_to: Optional[date] = None,
+    limit: int = 10,
+    offset: int = 0,
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Credit Book overview — every credit account for the shop, searchable,
     sortable (urgency/balance/overdue_days/name, asc or desc), and filterable
-    by overdue status, payment term, and due-date range. No pagination: this
-    is scoped to credit-enabled customers only, a bounded subset."""
+    by overdue status, payment term, and due-date range. Paginated (a plain
+    slice of the sorted list — see CreditService.list_accounts for why)."""
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
     service = CreditService(db)
     result = await service.list_accounts(
         current_user.shop_id, q=q, sort_by=sort_by, order=order,
         overdue_only=overdue_only, payment_term_type=payment_term_type,
-        due_from=due_from, due_to=due_to,
+        due_from=due_from, due_to=due_to, page_limit=limit, page_offset=offset,
     )
     return {
         "status": "success",
@@ -59,6 +63,7 @@ async def list_credit_accounts(
             }
             for a in result["accounts"]
         ],
+        "accounts_total": result["accounts_total"],
         "stats": {
             "total_outstanding": float(result["stats"]["total_outstanding"]),
             "overdue_amount": float(result["stats"]["overdue_amount"]),

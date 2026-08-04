@@ -305,7 +305,7 @@ async def restock_item(
             category="Inventory Purchase",
             description=f"Restock: {item.name} x{data.qty}",
             amount=amount,
-            tax_amount=Decimal("0.00"),
+            tax_amount=data.tax_amount if data.tax_amount is not None else Decimal("0.00"),
             vendor_name=None,
             expense_date=expense_date,
             payment_method=data.payment_method,

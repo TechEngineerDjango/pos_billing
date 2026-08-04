@@ -248,6 +248,11 @@ class BillingService:
             })
             stock_updates.append((menu_item, cart_item.qty))
 
+        # Manual delivery charge (POS-entered, not tied to any line item) —
+        # added to the grand total after item pricing, never taxed.
+        delivery_charge = Decimal(str(bill_in.delivery_charge or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_amount += delivery_charge
+
         shop_data = {
             "name": str(shop.name),
             "address": str(shop.address or ""),
@@ -272,6 +277,7 @@ class BillingService:
                 bill_number=bill_number,
                 subtotal_amount=subtotal_amount,
                 tax_amount=tax_amount,
+                delivery_charge=delivery_charge,
                 total_amount=total_amount,
                 payment_method=bill_in.payment_method,
                 items_snapshot=items_snapshot,
@@ -345,6 +351,7 @@ class BillingService:
             "items_snapshot": items_snapshot,
             "subtotal_amount": float(subtotal_amount),
             "tax_amount": float(tax_amount),
+            "delivery_charge": float(delivery_charge),
             "total_amount": float(total_amount),
             "date": local_ts.strftime("%Y-%m-%d %H:%M:%S") if local_ts else "",
         }
@@ -481,9 +488,15 @@ class BillingService:
             })
             stock_updates.append((menu_item, cart_item.qty))
 
+        # Manual delivery charge (POS-entered, not tied to any line item) —
+        # added to the grand total after item pricing, never taxed.
+        delivery_charge = Decimal(str(bill_in.delivery_charge or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_amount += delivery_charge
+
         try:
             bill.subtotal_amount = subtotal_amount  # type: ignore
             bill.tax_amount = tax_amount  # type: ignore
+            bill.delivery_charge = delivery_charge  # type: ignore
             bill.total_amount = total_amount  # type: ignore
             bill.payment_method = bill_in.payment_method  # type: ignore
             bill.status = bill_in.status  # type: ignore
@@ -552,7 +565,8 @@ class BillingService:
         local_ts = shop_local(bill.timestamp, shop_tz)
         bill_data = {
             "bill_number": bill.bill_number, "items_snapshot": items_snapshot,
-            "subtotal_amount": float(subtotal_amount), "tax_amount": float(tax_amount), "total_amount": float(total_amount),
+            "subtotal_amount": float(subtotal_amount), "tax_amount": float(tax_amount),
+            "delivery_charge": float(delivery_charge), "total_amount": float(total_amount),
             "date": local_ts.strftime("%Y-%m-%d %H:%M:%S") if local_ts else "",
         }
 
@@ -632,24 +646,27 @@ class BillingService:
         }
 
     #: Fixed monospace column widths for the WhatsApp item table — a single
-    #: header row (No/Item/Qty/Price/Tax/Amt) with every item as one grid
-    #: row underneath, matching the 80mm/48-column physical printer layout
-    #: (app/infrastructure/integrations/printer.py uses the same 48-column
-    #: convention for its wider paper setting). Must be wrapped in ``` for
-    #: WhatsApp to render it as a fixed-width (monospace) block, the only
-    #: way column alignment survives WhatsApp's renderer.
-    #: Long item names wrap onto continuation lines instead of being
-    #: clipped; continuation lines are padded to exactly _WA_ITEM_W and the
-    #: Qty/Price/Tax/Amt columns are left blank on them, so wrapped text
-    #: stays confined to the Item column and never overlaps the numeric
-    #: columns to its right.
-    _WA_NO_W = 3
-    _WA_ITEM_W = 14
-    _WA_QTY_W = 8
-    _WA_PRICE_W = 8
-    _WA_TAX_W = 7
+    #: header row (No/Item/Qty/Amt) with every item as one grid row
+    #: underneath. Kept deliberately narrow (~28 chars total) because
+    #: WhatsApp renders a ``` code block at the recipient's device font size,
+    #: which only fits ~28-30 monospace chars on a phone before wrapping —
+    #: there is no way to shrink the font from our side (plain text only), so
+    #: the layout width is the only lever. Per-item Price and Tax are dropped
+    #: from the grid (they'd blow the width budget) and instead surface in
+    #: the Subtotal/Tax/Total summary below; the line Amount is what a
+    #: customer actually verifies per row.
+    #: Columns are joined with a single-space _WA_GAP so a value that exactly
+    #: fills its own width still can't run into its neighbour. Long item
+    #: names wrap onto continuation lines confined to the Item column (Qty
+    #: and Amt blank on those lines).
+    _WA_GAP = " "
+    _WA_NO_W = 2
+    _WA_ITEM_W = 9
+    _WA_QTY_W = 6
     _WA_AMT_W = 8
-    _WA_LINE_WIDTH = _WA_NO_W + _WA_ITEM_W + _WA_QTY_W + _WA_PRICE_W + _WA_TAX_W + _WA_AMT_W
+    _WA_LINE_WIDTH = (
+        _WA_NO_W + _WA_ITEM_W + _WA_QTY_W + _WA_AMT_W + 3 * len(_WA_GAP)
+    )
 
     #: Short display labels for MenuItem.unit (app/shared/models.py) —
     #: 'liter' shows as 'ltr'; piece/no-unit items show no unit at all.
@@ -683,60 +700,64 @@ class BillingService:
         payment_status: str = "",
         subtotal_amount: Optional[float] = None,
         tax_amount: Optional[float] = None,
+        delivery_charge: float = 0.0,
     ) -> str:
         """Single source of truth for WhatsApp bill receipt message format (Domain Layer).
 
         Item table is a fixed-width monospace grid wrapped in a ``` code
         fence (the only way WhatsApp preserves column alignment): one
-        header row (No/Item/Qty/Price/Tax/Amt) and one row per item. Long
-        item names wrap onto continuation lines confined to the Item
-        column so they never bleed into the numeric columns. Below the
-        grid, Subtotal/Tax/Total are broken out on their own rows —
-        subtotal_amount/tax_amount default to summing the per-line values
-        when the caller doesn't have the bill-level columns handy.
+        header row (No/Item/Qty/Amt) and one row per item, kept narrow
+        (~28 chars) so it doesn't wrap on a phone. Long item names wrap
+        onto continuation lines confined to the Item column so they never
+        bleed into the numeric columns. Per-item price/tax are not shown in
+        the grid (width budget); Subtotal/Tax/[Delivery]/Total are broken
+        out on their own rows below — subtotal_amount/tax_amount default to
+        summing the per-line values when the caller doesn't have the
+        bill-level columns handy; total_amount is assumed to already
+        include delivery_charge (added to the grand total server-side, not
+        per line item).
         """
         if tax_amount is None:
             tax_amount = sum(float(it.get('line_tax', 0) or 0) for it in items_snapshot)
         if subtotal_amount is None:
-            subtotal_amount = total_amount - tax_amount
+            subtotal_amount = total_amount - tax_amount - delivery_charge
+        GAP = BillingService._WA_GAP
         NO_W = BillingService._WA_NO_W
         ITEM_W = BillingService._WA_ITEM_W
         QTY_W = BillingService._WA_QTY_W
-        PRICE_W = BillingService._WA_PRICE_W
-        TAX_W = BillingService._WA_TAX_W
         AMT_W = BillingService._WA_AMT_W
         LINE_W = BillingService._WA_LINE_WIDTH
         sep = "-" * LINE_W
-        blank_row_tail = f"{'':<{ITEM_W}}{'':>{QTY_W}}{'':>{PRICE_W}}{'':>{TAX_W}}{'':>{AMT_W}}"
 
-        table_lines = [
-            f"{'No':<{NO_W}}{'Item':<{ITEM_W}}{'Qty':>{QTY_W}}{'Price':>{PRICE_W}}{'Tax':>{TAX_W}}{'Amt':>{AMT_W}}",
-            sep,
-        ]
+        def row(no_s, item_s, qty_s, amt_s):
+            return GAP.join([
+                f"{no_s:<{NO_W}}", f"{item_s:<{ITEM_W}}",
+                f"{qty_s:>{QTY_W}}", f"{amt_s:>{AMT_W}}",
+            ])
+
+        table_lines = [row("No", "Item", "Qty", "Amt"), sep]
         for i, item in enumerate(items_snapshot, start=1):
             name = str(item.get('name', 'Item')).strip()
             unit_label = BillingService._WA_UNIT_LABELS.get(item.get('unit'), item.get('unit') or '')
             qty_str = BillingService._wa_qty_str(item.get('qty', 1))
             qty_unit_str = f"{qty_str} {unit_label}".strip()
-            price_str = f"{currency}{float(item.get('price', 0)):.2f}"
-            tax_str = f"{currency}{float(item.get('line_tax', 0)):.2f}"
             amount_str = f"{currency}{float(item.get('line_total', 0)):.2f}"
 
             wrapped_name = textwrap.wrap(name, width=ITEM_W) or [""]
-            table_lines.append(
-                f"{i:<{NO_W}}{wrapped_name[0]:<{ITEM_W}}{qty_unit_str:>{QTY_W}}"
-                f"{price_str:>{PRICE_W}}{tax_str:>{TAX_W}}{amount_str:>{AMT_W}}"
-            )
+            table_lines.append(row(str(i), wrapped_name[0], qty_unit_str, amount_str))
             for cont in wrapped_name[1:]:
-                table_lines.append(f"{'':<{NO_W}}{cont:<{ITEM_W}}{blank_row_tail[ITEM_W:]}")
+                table_lines.append(row("", cont, "", ""))
         table_lines.append(sep)
-        label_w = NO_W + ITEM_W + QTY_W + PRICE_W + TAX_W
+        label_w = NO_W + ITEM_W + QTY_W + 2 * len(GAP)
         subtotal_str = f"{currency}{subtotal_amount:.2f}"
         tax_total_str = f"{currency}{tax_amount:.2f}"
         total_str = f"{currency}{total_amount:.2f}"
-        table_lines.append(f"{'SUBTOTAL':<{label_w}}{subtotal_str:>{AMT_W}}")
-        table_lines.append(f"{'TAX':<{label_w}}{tax_total_str:>{AMT_W}}")
-        table_lines.append(f"{'TOTAL':<{label_w}}{total_str:>{AMT_W}}")
+        table_lines.append(f"{'SUBTOTAL':<{label_w}}{GAP}{subtotal_str:>{AMT_W}}")
+        table_lines.append(f"{'TAX':<{label_w}}{GAP}{tax_total_str:>{AMT_W}}")
+        if delivery_charge > 0:
+            delivery_str = f"{currency}{delivery_charge:.2f}"
+            table_lines.append(f"{'DELIVERY':<{label_w}}{GAP}{delivery_str:>{AMT_W}}")
+        table_lines.append(f"{'TOTAL':<{label_w}}{GAP}{total_str:>{AMT_W}}")
         items_table = "```\n" + "\n".join(table_lines) + "\n```"
 
         date_line = f"Date: {bill_date}\n" if bill_date else ""

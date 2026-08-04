@@ -195,6 +195,40 @@ async def test_list_accounts_stats_are_shop_wide_not_filtered(db_session: AsyncS
     assert result["stats"]["overdue_amount"] == Decimal("300.00")
 
 
+async def test_list_accounts_paginates_with_page_limit_and_offset(db_session: AsyncSession):
+    for i in range(15):
+        await _make_credit_customer(
+            db_session, name=f"Cust {i:02d}", phone=f"90000001{i:02d}", balance=100, limit=1000,
+        )
+
+    service = CreditService(db_session)
+    page1 = await service.list_accounts(1, sort_by="name", order="asc", page_limit=10, page_offset=0)
+    assert len(page1["accounts"]) == 10
+    assert page1["accounts_total"] == 15
+
+    page2 = await service.list_accounts(1, sort_by="name", order="asc", page_limit=10, page_offset=10)
+    assert len(page2["accounts"]) == 5
+    assert page2["accounts_total"] == 15
+
+    # No overlap, and pages are correctly ordered by the same sort.
+    page1_names = {a["name"] for a in page1["accounts"]}
+    page2_names = {a["name"] for a in page2["accounts"]}
+    assert page1_names.isdisjoint(page2_names)
+
+
+async def test_list_accounts_stats_unaffected_by_pagination(db_session: AsyncSession):
+    for i in range(12):
+        await _make_credit_customer(
+            db_session, name=f"Stats Cust {i:02d}", phone=f"90000002{i:02d}", balance=100, limit=1000,
+        )
+
+    service = CreditService(db_session)
+    result = await service.list_accounts(1, page_limit=5, page_offset=0)
+    assert len(result["accounts"]) == 5  # only one page's worth
+    assert result["stats"]["active_accounts"] == 12  # but stats cover all accounts
+    assert result["stats"]["total_outstanding"] == Decimal("1200.00")
+
+
 async def test_list_accounts_earliest_due_date_prefers_statement_over_bill(db_session: AsyncSession):
     customer = await _make_credit_customer(db_session, name="Statement Priority Cust", phone="9000000021", balance=400, limit=1000)
     statement = CreditStatement(

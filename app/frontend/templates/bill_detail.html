@@ -74,6 +74,13 @@
                     <span class="font-medium text-gray-900 dark:text-white">{{ shop.currency_symbol }}{{
                         "%.2f"|format(bill.total_amount) }}</span>
                 </div>
+                {% if bill.delivery_charge and bill.delivery_charge > 0 %}
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-gray-600 dark:text-gray-400">Delivery Charge</span>
+                    <span class="font-medium text-gray-900 dark:text-white">{{ shop.currency_symbol }}{{
+                        "%.2f"|format(bill.delivery_charge) }}</span>
+                </div>
+                {% endif %}
                 <div class="flex justify-between items-center pt-3 border-t-2 border-gray-300 dark:border-white/20">
                     <span class="text-xl font-bold text-gray-900 dark:text-white">Total Amount</span>
                     <span class="text-2xl font-bold text-blue-600 dark:text-blue-400">

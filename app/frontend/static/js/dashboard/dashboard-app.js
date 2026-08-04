@@ -1,23 +1,14 @@
 /**
  * Shared offset/limit pagination fetch — used by every search-driven list in
  * this dashboard (Menu, Inventory, Customers, Credit Book bill history) so
- * the fetch/concat/total bookkeeping isn't copy-pasted per tab. Pass the
- * current offset and the list's existing items; on offset 0 it replaces the
- * list, otherwise it appends (a "Load More" click), matching how
- * superadmin's shop-billing list also accumulates from a capped, paginated
- * endpoint rather than embedding everything up front — just with an
- * infinite-scroll-style offset instead of that page's Prev/Next page
- * numbers, since these lists are typically browsed sequentially rather than
- * jumped into at an arbitrary page.
+ * the fetch/total bookkeeping isn't copy-pasted per tab. Each page replaces
+ * the list (numbered Prev/Next pages, not infinite-scroll "Load More").
  */
-async function fetchPaginated(url, params, offset, existingItems, resultKey) {
+async function fetchPaginated(url, params, offset, resultKey) {
     const p = new URLSearchParams(params);
     p.set('offset', String(offset));
     const data = await ApiClient.request(`${url}?${p.toString()}`);
-    return {
-        items: offset === 0 ? data[resultKey] : existingItems.concat(data[resultKey]),
-        total: data.total,
-    };
+    return { items: data[resultKey], total: data.total };
 }
 
 function dashboardApp(currencySymbol) {
@@ -45,7 +36,7 @@ function dashboardApp(currencySymbol) {
         _menuSearchTimer: null,
         menuLoading: false,
         menuOffset: 0,
-        menuLimit: 50,
+        menuLimit: 10,
         menuTotal: 0,
 
         // Customers tab — same treatment, reuses the existing
@@ -56,7 +47,7 @@ function dashboardApp(currencySymbol) {
         _customerSearchTimer: null,
         customersLoading: false,
         customerOffset: 0,
-        customerLimit: 50,
+        customerLimit: 10,
         customerTotal: 0,
         // Browser-local calendar date, string-comparable against the
         // ISO next_due_date the server sends — only used for the
@@ -78,7 +69,7 @@ function dashboardApp(currencySymbol) {
             try {
                 const result = await fetchPaginated(
                     '/admin/menu/search', { q: this.menuSearch, active_only: 'false', limit: this.menuLimit },
-                    this.menuOffset, this.menuItems, 'items',
+                    this.menuOffset, 'items',
                 );
                 this.menuItems = result.items;
                 this.menuTotal = result.total;
@@ -89,8 +80,19 @@ function dashboardApp(currencySymbol) {
             }
         },
 
-        loadMoreMenuItems() {
-            this.menuOffset += this.menuLimit;
+        get menuPage() {
+            return Math.floor(this.menuOffset / this.menuLimit) + 1;
+        },
+        get menuTotalPages() {
+            return Math.max(1, Math.ceil(this.menuTotal / this.menuLimit));
+        },
+        goToMenuPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.menuTotalPages));
+            this.menuOffset = (clamped - 1) * this.menuLimit;
+            this.searchMenuItems();
+        },
+        changeMenuLimit() {
+            this.menuOffset = 0;  // page size changed — restart from page 1
             this.searchMenuItems();
         },
 
@@ -104,7 +106,7 @@ function dashboardApp(currencySymbol) {
             try {
                 const result = await fetchPaginated(
                     '/admin/customers/search', { q: this.customerSearch, limit: this.customerLimit, include_due_date: true },
-                    this.customerOffset, this.customerRows, 'customers',
+                    this.customerOffset, 'customers',
                 );
                 this.customerRows = result.items;
                 this.customerTotal = result.total;
@@ -115,8 +117,19 @@ function dashboardApp(currencySymbol) {
             }
         },
 
-        loadMoreCustomersTab() {
-            this.customerOffset += this.customerLimit;
+        get customerPage() {
+            return Math.floor(this.customerOffset / this.customerLimit) + 1;
+        },
+        get customerTotalPages() {
+            return Math.max(1, Math.ceil(this.customerTotal / this.customerLimit));
+        },
+        goToCustomerPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.customerTotalPages));
+            this.customerOffset = (clamped - 1) * this.customerLimit;
+            this.searchCustomersTab();
+        },
+        changeCustomerLimit() {
+            this.customerOffset = 0;  // page size changed — restart from page 1
             this.searchCustomersTab();
         },
 
@@ -296,7 +309,7 @@ function inventoryApp() {
         _searchTimer: null,
         loading: false,
         offset: 0,
-        limit: 50,
+        limit: 10,
         total: 0,
 
         init() {
@@ -320,7 +333,7 @@ function inventoryApp() {
                 if (this.stockStatus) filterParams.stock_status = this.stockStatus;
                 const result = await fetchPaginated(
                     '/admin/menu/search', filterParams,
-                    this.offset, this.items, 'items',
+                    this.offset, 'items',
                 );
                 this.items = result.items;
                 this.total = result.total;
@@ -331,8 +344,19 @@ function inventoryApp() {
             }
         },
 
-        loadMoreItems() {
-            this.offset += this.limit;
+        get page() {
+            return Math.floor(this.offset / this.limit) + 1;
+        },
+        get totalPages() {
+            return Math.max(1, Math.ceil(this.total / this.limit));
+        },
+        goToPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.totalPages));
+            this.offset = (clamped - 1) * this.limit;
+            this.searchItems();
+        },
+        changeLimit() {
+            this.offset = 0;  // page size changed — restart from page 1
             this.searchItems();
         },
 
@@ -364,9 +388,18 @@ function expensesApp(currencySymbol, defaultCategory) {
         defaultCategory,
         expenses: [],
         search: '',
+        _searchTimer: null,
         loading: false,
         error: '',
         filters: { category: '', date_from: '', date_to: '' },
+
+        offset: 0,
+        limit: 10,
+        total: 0,
+        // Sum across every filtered row (server-computed, voided excluded) —
+        // NOT just the current page, so pagination doesn't make the "Total
+        // (filtered)" card silently wrong.
+        totalAmountFiltered: 0,
 
         showModal: false,
         editingSlug: null,
@@ -382,22 +415,38 @@ function expensesApp(currencySymbol, defaultCategory) {
             return `${this.currencySymbol}${Number(v || 0).toFixed(2)}`;
         },
 
-        filteredExpenses() {
-            const q = this.search.trim().toLowerCase();
-            if (!q) return this.expenses;
-            return this.expenses.filter(e =>
-                (e.description || '').toLowerCase().includes(q) || (e.vendor_name || '').toLowerCase().includes(q)
-            );
+        totalAmount() {
+            return this.totalAmountFiltered;
         },
 
-        totalAmount() {
-            return this.filteredExpenses().filter(e => !e.is_voided).reduce((sum, e) => sum + Number(e.amount || 0), 0);
+        get page() {
+            return Math.floor(this.offset / this.limit) + 1;
+        },
+        get totalPages() {
+            return Math.max(1, Math.ceil(this.total / this.limit));
+        },
+        goToPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.totalPages));
+            this.offset = (clamped - 1) * this.limit;
+            this.fetchExpenses();
+        },
+        changeLimit() {
+            this.offset = 0;  // page size changed — restart from page 1
+            this.fetchExpenses();
+        },
+
+        onSearchInput() {
+            clearTimeout(this._searchTimer);
+            this._searchTimer = setTimeout(() => { this.offset = 0; this.fetchExpenses(); }, 300);
         },
 
         async fetchExpenses() {
             this.loading = true;
             this.error = '';
             const params = new URLSearchParams();
+            params.set('q', this.search);
+            params.set('limit', String(this.limit));
+            params.set('offset', String(this.offset));
             params.set('include_voided', 'true');
             if (this.filters.category) params.set('category', this.filters.category);
             if (this.filters.date_from) params.set('date_from', this.filters.date_from);
@@ -405,6 +454,8 @@ function expensesApp(currencySymbol, defaultCategory) {
             try {
                 const data = await ApiClient.request(`/admin/expenses?${params.toString()}`);
                 this.expenses = data.expenses;
+                this.total = data.total;
+                this.totalAmountFiltered = data.total_amount;
             } catch (e) {
                 this.error = e.message || 'Failed to load expenses';
             } finally {
@@ -442,10 +493,12 @@ function expensesApp(currencySymbol, defaultCategory) {
                 return;
             }
             this.saving = true;
+            const isNew = !this.editingSlug;
             const url = this.editingSlug ? `/admin/expenses/update/${this.editingSlug}` : '/admin/expenses/add';
             try {
                 await ApiClient.request(url, { method: 'POST', body: JSON.stringify(this.form) });
                 this.showModal = false;
+                if (isNew) this.offset = 0;  // new expense sorts near the top — jump back to page 1 to show it
                 await this.fetchExpenses();
             } catch (e) {
                 this.formError = e.message || 'Failed to save expense';
@@ -472,6 +525,9 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
         shopUpiId,
         shopName,
         accounts: [],
+        accountsTotal: 0,
+        accountsOffset: 0,
+        accountsLimit: 10,
         stats: { total_outstanding: 0, overdue_amount: 0, overdue_count: 0, active_accounts: 0 },
         search: '',
         _searchTimer: null,
@@ -500,7 +556,7 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
         billsTotal: 0,
         billsLoading: false,
         billsOffset: 0,
-        billsLimit: 25,
+        billsLimit: 10,
         billsFilters: { date_from: '', date_to: '', min_amount: '', max_amount: '', status: '' },
 
         init() {
@@ -509,7 +565,23 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
 
         onSearchInput() {
             clearTimeout(this._searchTimer);
-            this._searchTimer = setTimeout(() => this.fetchAccounts(), 300);
+            this._searchTimer = setTimeout(() => { this.accountsOffset = 0; this.fetchAccounts(); }, 300);
+        },
+
+        get accountsPage() {
+            return Math.floor(this.accountsOffset / this.accountsLimit) + 1;
+        },
+        get accountsTotalPages() {
+            return Math.max(1, Math.ceil(this.accountsTotal / this.accountsLimit));
+        },
+        goToAccountsPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.accountsTotalPages));
+            this.accountsOffset = (clamped - 1) * this.accountsLimit;
+            this.fetchAccounts();
+        },
+        changeAccountsLimit() {
+            this.accountsOffset = 0;  // page size changed — restart from page 1
+            this.fetchAccounts();
         },
 
         async fetchAccounts() {
@@ -519,12 +591,14 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
                 const params = new URLSearchParams({
                     q: this.search, sort_by: this.sortBy, order: this.order,
                     overdue_only: this.overdueOnly ? 'true' : 'false',
+                    limit: String(this.accountsLimit), offset: String(this.accountsOffset),
                 });
                 if (this.paymentTermType) params.set('payment_term_type', this.paymentTermType);
                 if (this.dueFrom) params.set('due_from', this.dueFrom);
                 if (this.dueTo) params.set('due_to', this.dueTo);
                 const data = await ApiClient.request(`/admin/credit/accounts?${params.toString()}`);
                 this.accounts = data.accounts;
+                this.accountsTotal = data.accounts_total;
                 this.stats = data.stats;
             } catch (e) {
                 this.error = e.message || 'Failed to load credit accounts';
@@ -536,6 +610,7 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
         clearFilters() {
             this.search = '';
             this.overdueOnly = false;
+            this.accountsOffset = 0;
             this.paymentTermType = '';
             this.dueFrom = '';
             this.dueTo = '';
@@ -617,7 +692,7 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
                 if (f.status) filterParams.status = f.status;
                 const result = await fetchPaginated(
                     `/admin/credit/customers/${this.selectedCustomer.slug}/bills`, filterParams,
-                    this.billsOffset, this.bills, 'bills',
+                    this.billsOffset, 'bills',
                 );
                 this.bills = result.items;
                 this.billsTotal = result.total;
@@ -628,8 +703,19 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
             }
         },
 
-        loadMoreBills() {
-            this.billsOffset += this.billsLimit;
+        get billsPage() {
+            return Math.floor(this.billsOffset / this.billsLimit) + 1;
+        },
+        get billsTotalPages() {
+            return Math.max(1, Math.ceil(this.billsTotal / this.billsLimit));
+        },
+        goToBillsPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.billsTotalPages));
+            this.billsOffset = (clamped - 1) * this.billsLimit;
+            this.fetchBills();
+        },
+        changeBillsLimit() {
+            this.billsOffset = 0;  // page size changed — restart from page 1
             this.fetchBills();
         },
 

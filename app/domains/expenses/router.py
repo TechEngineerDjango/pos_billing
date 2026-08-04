@@ -20,19 +20,29 @@ def _require_owner_or_above(current_user):
 
 @router.get("", response_model=ExpenseListResponse)
 async def list_expenses(
+    q: str = "",
     category: Optional[str] = None,
     date_from: Optional[date] = None,
     date_to: Optional[date] = None,
     include_voided: bool = False,
+    limit: int = 25,
+    offset: int = 0,
     current_user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
     service = ExpenseService(db)
-    expenses = await service.list_expenses(
-        current_user.shop_id, category=category, date_from=date_from, date_to=date_to,
-        include_voided=include_voided,
+    expenses, total, total_amount = await service.list_expenses(
+        current_user.shop_id, q=q, category=category, date_from=date_from, date_to=date_to,
+        include_voided=include_voided, limit=limit, offset=offset,
     )
-    return {"status": "success", "expenses": [e.to_dict() for e in expenses]}
+    return {
+        "status": "success",
+        "expenses": [e.to_dict() for e in expenses],
+        "total": total,
+        "total_amount": float(total_amount),
+    }
 
 
 @router.post("/add")

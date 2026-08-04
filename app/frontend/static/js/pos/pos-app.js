@@ -107,6 +107,7 @@ function posApp() {
         selectedCategory: 'All',
         paymentMethod: 'Cash',
         cashReceived: 0,
+        deliveryCharge: 0,
         isMobile: window.innerWidth < 1024, // Evaluated synchronously before DOM parse
         shopName: shopData.name || '',
         shopUpiId: shopData.upi_id || '',
@@ -224,7 +225,7 @@ function posApp() {
         },
         get totalPrice() {
             const trigger = this.cart; // Explicit reactivity hook
-            return CartService.calculateTotal(trigger);
+            return CartService.calculateTotal(trigger) + Math.max(0, this.deliveryCharge || 0);
         },
         get changeAmount() {
             const total = this.totalPrice;
@@ -400,6 +401,7 @@ function posApp() {
             this.cart = [];
             this.mobileCartOpen = false;
             this.cashReceived = 0;
+            this.deliveryCharge = 0;
             this.paymentMethod = 'Cash';
             this.customerPhone = '';
             this.customerName = '';
@@ -540,7 +542,8 @@ function posApp() {
                 payment_method: this.paymentMethod,
                 customer_phone: this.customerPhone,
                 customer_name: this.customerName,
-                customer_country_code: this.customerCountryCode
+                customer_country_code: this.customerCountryCode,
+                delivery_charge: Math.max(0, this.deliveryCharge || 0)
             };
         },
 
@@ -599,6 +602,7 @@ function posApp() {
             // Store the original held items so the dynamic stock calculation doesn't double-deduct
             this.heldCartItems = bill.items.map(i => ({...i}));
             this.paymentMethod = bill.payment_method || 'Cash';
+            this.deliveryCharge = bill.delivery_charge || 0;
             if (bill.customer_phone) {
                 this.customerPhone = bill.customer_phone;
                 this.searchCustomer();

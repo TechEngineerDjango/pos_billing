@@ -1,6 +1,6 @@
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -82,12 +82,15 @@ class ExpenseService:
         self,
         shop_id: int,
         *,
+        q: str = "",
         category: Optional[str] = None,
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
         include_voided: bool = False,
-    ) -> List[Expense]:
+        limit: int = 25,
+        offset: int = 0,
+    ) -> Tuple[List[Expense], int, Decimal]:
         return await self.repository.list_filtered(
-            shop_id, category=category, date_from=date_from, date_to=date_to,
-            include_voided=include_voided,
+            shop_id, q=q, category=category, date_from=date_from, date_to=date_to,
+            include_voided=include_voided, limit=limit, offset=offset,
         )

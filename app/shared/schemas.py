@@ -57,6 +57,7 @@ class BillCreate(BaseModel):
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
     customer_country_code: Optional[str] = None
+    delivery_charge: float = Field(default=0, ge=0)
 
 import re
 
@@ -266,6 +267,8 @@ class ExpenseResponse(BaseModel):
 class ExpenseListResponse(BaseModel):
     status: str
     expenses: List[ExpenseResponse]
+    total: int = 0
+    total_amount: float = 0.0
 
 
 @as_form
@@ -342,6 +345,11 @@ class StockRestockRequest(BaseModel):
         description="Cost paid per unit for this restock. If provided (>0), "
                      "auto-creates an 'Inventory Purchase' expense entry for "
                      "qty * unit_cost — omit to restock without logging an expense."
+    )
+    tax_amount: Optional[Decimal] = Field(
+        default=None, ge=0,
+        description="Total tax paid on this restock (flat amount, not per-unit). "
+                     "Only used when unit_cost is also provided."
     )
     payment_method: str = Field(default="Cash", description="Only used if unit_cost is provided")
 

@@ -97,12 +97,16 @@ class ThermalPrinter:
             
             subtotal = bill_data.get('subtotal_amount')
             tax = bill_data.get('tax_amount')
+            delivery_charge = bill_data.get('delivery_charge') or 0.0
             total = bill_data.get('total_amount', 0.0)
 
             if tax is not None and tax > 0:
                 self.printer.text(f"SUBTOTAL: {subtotal:.2f}\n")
                 self.printer.text(f"TAX: {tax:.2f}\n")
-            
+
+            if delivery_charge > 0:
+                self.printer.text(f"DELIVERY: {delivery_charge:.2f}\n")
+
             self.printer.text(f"TOTAL: {total:.2f}\n")
             self.printer.text(sep_line)
             

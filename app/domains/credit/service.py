@@ -282,11 +282,17 @@ class CreditService:
         self, shop_id: int, *, q: str = "", sort_by: str = "urgency", order: str = "desc",
         overdue_only: bool = False, payment_term_type: Optional[str] = None,
         due_from: Optional[dt.date] = None, due_to: Optional[dt.date] = None,
+        page_limit: int = 10, page_offset: int = 0,
     ) -> dict:
         """Credit Book overview: every credit account for the shop, ranked
         by urgency by default, with search/sort/filter applied. Stats are
         computed over the full unfiltered set so the summary cards stay
-        stable while the list below is searched/filtered."""
+        stable while the list below is searched/filtered. Pagination is a
+        plain slice of the already-sorted list (not a DB LIMIT/OFFSET)
+        because "urgency" is a derived Python sort key (days_overdue +
+        utilization %, not a single column) that needs the full filtered
+        set in memory to rank — acceptable since credit-enabled customers
+        are a bounded subset of the shop's full customer list."""
         shop_res = await self.db.execute(select(Shop.timezone).where(Shop.id == shop_id))
         shop_tz = shop_res.scalar_one_or_none() or "UTC"
         today = shop_local(dt.datetime.now(timezone.utc), shop_tz).date()
@@ -330,10 +336,14 @@ class CreditService:
                 "days_overdue": row["days_overdue"],
             })
 
+        accounts_total = len(accounts)
+        accounts = accounts[page_offset:page_offset + page_limit]
+
         all_rows = await self.statement_repo.list_credit_accounts(shop_id, today)
         overdue_rows = [r for r in all_rows if r["days_overdue"] > 0]
         return {
             "accounts": accounts,
+            "accounts_total": accounts_total,
             "stats": {
                 "total_outstanding": sum((r["customer"].credit_balance or Decimal("0.00")) for r in all_rows),
                 "overdue_amount": sum((r["customer"].credit_balance or Decimal("0.00")) for r in overdue_rows),

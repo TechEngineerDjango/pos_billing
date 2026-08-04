@@ -923,6 +923,7 @@ async def whatsapp_redirect_page(
         payment_status=bill.payment_status or "",
         subtotal_amount=float(bill.subtotal_amount) if bill.subtotal_amount is not None else None,
         tax_amount=float(bill.tax_amount) if bill.tax_amount is not None else None,
+        delivery_charge=float(bill.delivery_charge or 0),
     )
     from app.core.config import settings
     customer_country_code = (bill.customer.country_code if bill.customer else None) or (shop.country_code if shop else None) or settings.DEFAULT_COUNTRY_CODE

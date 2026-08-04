@@ -272,3 +272,102 @@ async def test_list_expenses_tenant_isolation(db_session: AsyncSession, async_cl
     response = await async_client.get("/admin/expenses")
     descriptions = {e["description"] for e in response.json()["expenses"]}
     assert descriptions == {"Mine"}
+
+
+# ============================================================================
+# ExpenseService.list_expenses — pagination (limit/offset) and the
+# server-computed total_amount that must stay correct across the whole
+# filtered set, not just the current page.
+# ============================================================================
+
+async def test_list_expenses_paginates_with_limit_and_offset(db_session: AsyncSession, async_client: AsyncClient):
+    for i in range(15):
+        db_session.add(Expense(
+            shop_id=1, category="Rent", description=f"Item {i}", amount=Decimal("10.00"),
+            tax_amount=Decimal("0.00"), expense_date=date(2026, 7, 1), payment_method="Cash",
+        ))
+    await db_session.commit()
+
+    await _login(async_client, "owner", OWNER_PASSWORD)
+
+    page1 = await async_client.get("/admin/expenses?limit=10&offset=0")
+    data1 = page1.json()
+    assert len(data1["expenses"]) == 10
+    assert data1["total"] == 15
+
+    page2 = await async_client.get("/admin/expenses?limit=10&offset=10")
+    data2 = page2.json()
+    assert len(data2["expenses"]) == 5
+    assert data2["total"] == 15
+
+    # No overlap between pages.
+    page1_ids = {e["slug"] for e in data1["expenses"]}
+    page2_ids = {e["slug"] for e in data2["expenses"]}
+    assert page1_ids.isdisjoint(page2_ids)
+
+
+async def test_list_expenses_total_amount_covers_full_filtered_set_not_just_page(
+    db_session: AsyncSession, async_client: AsyncClient,
+):
+    for i in range(12):
+        db_session.add(Expense(
+            shop_id=1, category="Rent", description=f"Item {i}", amount=Decimal("100.00"),
+            tax_amount=Decimal("0.00"), expense_date=date(2026, 7, 1), payment_method="Cash",
+        ))
+    await db_session.commit()
+
+    await _login(async_client, "owner", OWNER_PASSWORD)
+
+    response = await async_client.get("/admin/expenses?limit=5&offset=0")
+    data = response.json()
+    assert len(data["expenses"]) == 5  # only one page's worth of rows
+    assert data["total_amount"] == 1200.0  # but the sum covers all 12
+
+
+async def test_list_expenses_total_amount_excludes_voided_even_when_included_in_page(
+    db_session: AsyncSession, async_client: AsyncClient,
+):
+    active = Expense(
+        shop_id=1, category="Rent", description="Active", amount=Decimal("100.00"),
+        tax_amount=Decimal("0.00"), expense_date=date(2026, 7, 1), payment_method="Cash",
+    )
+    voided = Expense(
+        shop_id=1, category="Rent", description="Voided", amount=Decimal("500.00"),
+        tax_amount=Decimal("0.00"), expense_date=date(2026, 7, 2), payment_method="Cash",
+        is_voided=True,
+    )
+    db_session.add_all([active, voided])
+    await db_session.commit()
+
+    await _login(async_client, "owner", OWNER_PASSWORD)
+
+    response = await async_client.get("/admin/expenses?include_voided=true")
+    data = response.json()
+    assert len(data["expenses"]) == 2  # voided row shown in the page...
+    assert data["total_amount"] == 100.0  # ...but excluded from the sum
+
+
+async def test_list_expenses_search_filters_by_description_and_vendor(
+    db_session: AsyncSession, async_client: AsyncClient,
+):
+    match_desc = Expense(
+        shop_id=1, category="Rent", description="Flour delivery", amount=Decimal("50.00"),
+        tax_amount=Decimal("0.00"), expense_date=date(2026, 7, 1), payment_method="Cash",
+    )
+    match_vendor = Expense(
+        shop_id=1, category="Rent", description="Monthly supplies", amount=Decimal("50.00"),
+        tax_amount=Decimal("0.00"), expense_date=date(2026, 7, 1), payment_method="Cash",
+        vendor_name="Flour Traders Ltd",
+    )
+    no_match = Expense(
+        shop_id=1, category="Rent", description="Electricity bill", amount=Decimal("50.00"),
+        tax_amount=Decimal("0.00"), expense_date=date(2026, 7, 1), payment_method="Cash",
+    )
+    db_session.add_all([match_desc, match_vendor, no_match])
+    await db_session.commit()
+
+    await _login(async_client, "owner", OWNER_PASSWORD)
+
+    response = await async_client.get("/admin/expenses?q=flour")
+    descriptions = {e["description"] for e in response.json()["expenses"]}
+    assert descriptions == {"Flour delivery", "Monthly supplies"}
