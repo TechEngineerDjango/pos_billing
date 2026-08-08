@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.encoders import jsonable_encoder
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func, cast, Date
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import List, Optional
@@ -20,8 +20,8 @@ from app.domains.features.service import FeatureService
 from app.core.redis import get_redis
 from app.infrastructure.integrations.printer import print_bill_bg
 from app.infrastructure.integrations.notifications import get_notification_service
-from app.domains.auth.router import get_current_user, get_optional_current_user
-from app.shared.schemas import CartItem, BillCreate, BillActionResponse, CustomerSearchResponse
+from app.domains.auth.router import get_current_user
+from app.shared.schemas import CartItem, BillCreate, BillActionResponse, CustomerSearchResponse, OrderStatusUpdate
 from app.core.dependencies.csrf import verify_csrf
 from app.core.dependencies.features import require_feature
 from app.core.config import settings
@@ -176,6 +176,7 @@ async def create_bill(
         "total": result["total"],
         "message": result["message"],
         "updated_items": result.get("updated_items", []),
+        "warning": result.get("warning"),
     }
 
 @router.get("/recent-bills", response_class=JSONResponse)
@@ -223,6 +224,109 @@ async def get_recent_bills(
         ]
     })
 
+
+@router.get("/orders", response_class=JSONResponse)
+async def list_orders(
+    date_from: Optional[dt.date] = None,
+    date_to: Optional[dt.date] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    payment_status: Optional[str] = None,
+    delivery_status: Optional[str] = None,
+    limit: int = 30,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Pay Later orders for this shop — used by both the POS Orders shortcut
+    (small default limit, no filters) and the Dashboard Orders tab (full
+    filters + pagination, same pattern as credit/router.py's
+    list_customer_bills)."""
+    if not current_user.shop_id:
+        return JSONResponse({"orders": [], "total": 0})
+
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
+    conditions = [
+        Bill.shop_id == current_user.shop_id,
+        Bill.payment_method == "Credit",
+        Bill.status != "Cancelled",
+    ]
+    if date_from:
+        conditions.append(cast(Bill.timestamp, Date) >= date_from)
+    if date_to:
+        conditions.append(cast(Bill.timestamp, Date) <= date_to)
+    if min_amount is not None:
+        conditions.append(Bill.total_amount >= min_amount)
+    if max_amount is not None:
+        conditions.append(Bill.total_amount <= max_amount)
+    if payment_status:
+        conditions.append(Bill.payment_status == payment_status)
+    if delivery_status:
+        conditions.append(Bill.delivery_status == delivery_status)
+
+    result = await db.execute(
+        select(Bill, func.count().over().label("total_count"))
+        .options(selectinload(Bill.customer))
+        .where(*conditions)
+        .order_by(Bill.timestamp.desc())
+        .limit(limit).offset(offset)
+    )
+    rows = result.all()
+    total = rows[0][1] if rows else 0
+
+    orders = []
+    for bill, _ in rows:
+        order = bill.to_dict()
+        order["customer_name"] = bill.customer.name if bill.customer else None
+        order["customer_phone"] = bill.customer.phone_number if bill.customer else None
+        order["is_credit_customer"] = bool(bill.customer.is_credit_customer) if bill.customer else False
+        orders.append(order)
+
+    return JSONResponse({"status": "success", "orders": orders, "total": total})
+
+
+@router.post("/orders/{bill_slug}/update", response_class=JSONResponse)
+async def update_order_status(
+    bill_slug: str,
+    data: OrderStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delivery-status and/or payment-status update for a Pay Later order,
+    including manual correction of an accidental status change.
+    payment_status/mark_paid are only accepted for non-credit customers — an
+    actual is_credit_customer bill must be paid via POST /admin/credit/payments
+    so the CreditPayment audit trail and credit_balance stay correct."""
+    result = await db.execute(
+        select(Bill).options(selectinload(Bill.customer))
+        .where(Bill.slug == bill_slug, Bill.shop_id == current_user.shop_id, Bill.payment_method == "Credit")
+    )
+    bill = result.scalars().first()
+    if not bill:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if data.delivery_status is not None:
+        bill.delivery_status = data.delivery_status
+
+    if data.payment_status is not None or data.mark_paid:
+        if bill.customer and bill.customer.is_credit_customer:
+            raise HTTPException(
+                status_code=400,
+                detail="This bill belongs to a credit account — record the payment from the Credit Book instead.",
+            )
+        new_status = data.payment_status or "Paid"
+        bill.payment_status = new_status
+        if new_status == "Paid":
+            bill.amount_paid = bill.total_amount
+        elif new_status == "Unpaid":
+            bill.amount_paid = Decimal("0.00")
+
+    await db.commit()
+    await db.refresh(bill)
+    return JSONResponse({"status": "success", "order": bill.to_dict()})
+
 @router.post("/update/{bill_slug}", response_model=BillActionResponse)
 async def update_bill(
     bill_slug: str,
@@ -256,6 +360,7 @@ async def update_bill(
         "total": result["total"],
         "message": result["message"],
         "updated_items": result.get("updated_items", []),
+        "warning": result.get("warning"),
     }
 
 
@@ -371,17 +476,17 @@ async def view_bill(
     request: Request,
     bill_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_optional_current_user)
+    current_user: User = Depends(get_current_user)
 ):
-    """Display bill details in a printable HTML format."""
-    
+    """Display bill details in a printable HTML format. Staff-only — requires login."""
+
     # Fetch bill with customer relationship
     query = select(Bill).where(Bill.id == bill_id).options(selectinload(Bill.customer))
-    
-    # If user is logged in and not superadmin, restrict to their shop
-    if current_user and current_user.role != "superadmin" and current_user.shop_id:
+
+    # Non-superadmins are restricted to their own shop's bills
+    if current_user.role != "superadmin" and current_user.shop_id:
         query = query.where(Bill.shop_id == current_user.shop_id)
-    
+
     result = await db.execute(query)
     bill = result.scalars().first()
     

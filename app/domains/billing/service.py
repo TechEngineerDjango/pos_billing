@@ -92,10 +92,10 @@ class BillingService:
         return None
 
     @staticmethod
-    async def _finalize_payment_method(db, bill, customer_id, total_amount, status, payment_method, shop_tz="UTC"):
+    async def _finalize_payment_method(db, bill, customer_id, total_amount, status, payment_method, shop_tz="UTC", block_over_limit=False):
         try:
-            await get_payment_method_handler(payment_method).on_finalize(
-                db, bill, customer_id, total_amount, status, shop_tz
+            return await get_payment_method_handler(payment_method).on_finalize(
+                db, bill, customer_id, total_amount, status, shop_tz, block_over_limit
             )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
@@ -286,9 +286,10 @@ class BillingService:
                 customer_id=customer_id,
                 status=bill_in.status,
             )
-            
-            await self._finalize_payment_method(
-                self.db, new_bill, customer_id, total_amount, bill_in.status, bill_in.payment_method, shop_tz
+
+            warning = await self._finalize_payment_method(
+                self.db, new_bill, customer_id, total_amount, bill_in.status, bill_in.payment_method, shop_tz,
+                bool(shop.block_over_credit_limit),
             )
             
             self.db.add(new_bill)
@@ -366,6 +367,7 @@ class BillingService:
             "shop_data": shop_data,
             "printer_ip": str(printer_ip) if printer_ip else None,
             "updated_items": updated_stock_data,
+            "warning": warning,
         }
 
     async def update_bill(self, bill_slug: str, bill_in: BillCreate, current_user: User) -> dict:
@@ -504,9 +506,9 @@ class BillingService:
             bill.timestamp = dt.datetime.now(timezone.utc)  # type: ignore
             bill.customer_id = customer_id  # type: ignore
 
-            await self._finalize_payment_method(
+            warning = await self._finalize_payment_method(
                 self.db, bill, customer_id, total_amount, bill_in.status, bill_in.payment_method,
-                shop_for_pricing.timezone or "UTC",
+                shop_for_pricing.timezone or "UTC", bool(shop_for_pricing.block_over_credit_limit),
             )
 
             alerts_to_check = []
@@ -574,6 +576,7 @@ class BillingService:
             "status": "success", "bill_number": bill.bill_number, "bill_id": str(bill.slug), "total": float(total_amount),
             "message": "Bill updated successfully", "bill_data": bill_data, "shop_data": shop_data, "printer_ip": str(shop.printer_ip) if shop else None,
             "updated_items": updated_stock_data,
+            "warning": warning,
         }
 
     async def cancel_bill(self, bill_slug: str, current_user: User) -> dict:

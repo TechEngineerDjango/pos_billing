@@ -662,6 +662,7 @@ async def update_settings(
     shop.header_text_color = data.header_text_color
     shop.cart_bg_color = data.cart_bg_color
     shop.upi_id = data.upi_id
+    shop.block_over_credit_limit = data.block_over_credit_limit
     shop.receipt_footer = data.receipt_footer
     shop.printer_paper_width = data.printer_paper_width
     shop.printer_alignment = data.printer_alignment
@@ -882,7 +883,6 @@ async def get_bill_detail(
 async def whatsapp_redirect_page(
     bill_slug: str,
     phone: str,
-    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):

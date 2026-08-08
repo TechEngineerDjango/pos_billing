@@ -53,14 +53,22 @@ class CreditService:
 
     async def reserve_credit(
         self, customer_id: int, amount: Decimal, bill: Optional[Bill] = None, shop_tz: str = "UTC",
-    ) -> None:
+        block_over_limit: bool = False,
+    ) -> Optional[str]:
         """The ONE place Customer.credit_balance is incremented. Locks the
         Customer row BEFORE reading credit_balance (same ordering that fixed
         the prior stock-locking bug). Only ever called for a bill that is
-        actually Completed — a Held credit bill must not reach here."""
+        actually Completed — a Held credit bill must not reach here.
+
+        Crossing the customer's credit_limit is a warning by default (the
+        bill still goes through, balance still moves) — pass
+        block_over_limit=True (shop.block_over_credit_limit) to reject it
+        instead, the old hard-block behavior. Returns the warning message,
+        or None if under the limit / no limit set."""
         customer = await self.check_eligible(customer_id, locked=True)
         current = customer.credit_balance or Decimal("0.00")
-        if customer.credit_limit is not None and (current + amount) > customer.credit_limit:
+        would_exceed = customer.credit_limit is not None and (current + amount) > customer.credit_limit
+        if would_exceed and block_over_limit:
             raise CreditLimitExceededError(
                 f"Credit limit exceeded. Current balance: {current}, Limit: {customer.credit_limit}"
             )
@@ -77,6 +85,13 @@ class CreditService:
                 from_date = shop_local(anchor, shop_tz).date()
                 due = strategy.compute_due_date(from_date)
                 bill.due_date = dt.datetime.combine(due, dt.time.min, tzinfo=timezone.utc)
+
+        if would_exceed:
+            return (
+                f"{customer.name} is now over their credit limit "
+                f"(balance {customer.credit_balance}, limit {customer.credit_limit})."
+            )
+        return None
 
     async def release_credit(self, customer_id: int, amount: Decimal, _customer: Optional[Customer] = None) -> None:
         """Symmetric decrement to reserve_credit, called on payment collection."""

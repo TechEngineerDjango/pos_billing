@@ -138,13 +138,21 @@ async def test_held_to_completed_transition_increments_balance_once(
     assert customer.credit_balance == 30.0  # Exactly once
 
 
-async def test_credit_bill_over_limit_rejected_400(
+async def test_credit_bill_over_limit_rejected_400_when_shop_blocks(
     db_session: AsyncSession,
     async_client: AsyncClient,
 ):
     """
-    Over-limit rejected 400.
+    Over-limit rejected 400 — but only when the shop has opted into
+    block_over_credit_limit (the old hard-block behavior, no longer the
+    default). See test_credit_bill_over_limit_warns_by_default below for the
+    new default.
     """
+    shop_res = await db_session.execute(select(Shop).where(Shop.id == 1))
+    shop = shop_res.scalars().first()
+    shop.block_over_credit_limit = True
+    await db_session.commit()
+
     item = MenuItem(name="Limit Burger", price=100.0, category="Food", shop_id=1, stock_quantity=100)
     customer = Customer(name="Limit Doe", phone_number="2223334445", shop_id=1, is_credit_customer=True, credit_limit=50.0, credit_balance=0.0)
     db_session.add_all([item, customer])
@@ -166,6 +174,40 @@ async def test_credit_bill_over_limit_rejected_400(
 
     await db_session.refresh(customer)
     assert customer.credit_balance == 0.0
+
+
+async def test_credit_bill_over_limit_warns_by_default(
+    db_session: AsyncSession,
+    async_client: AsyncClient,
+):
+    """
+    Over-limit succeeds with a warning by default (shop.block_over_credit_limit
+    is False unless the shop owner opts in) — the bill still completes and
+    credit_balance still moves, so the customer's real outstanding balance
+    stays accurate even though it's over their nominal limit.
+    """
+    item = MenuItem(name="Warn Limit Burger", price=100.0, category="Food", shop_id=1, stock_quantity=100)
+    customer = Customer(name="Warn Limit Doe", phone_number="2223334446", shop_id=1, is_credit_customer=True, credit_limit=50.0, credit_balance=0.0)
+    db_session.add_all([item, customer])
+    await db_session.commit()
+    await db_session.refresh(item)
+    await db_session.refresh(customer)
+
+    await _login_owner(async_client)
+
+    payload = {
+        "items": [{"id": item.id, "qty": 1}],
+        "payment_method": "Credit",
+        "status": "Completed",
+        "customer_id": customer.id
+    }
+    response = await async_client.post("/billing/create", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["warning"] and "credit limit" in data["warning"]
+
+    await db_session.refresh(customer)
+    assert customer.credit_balance == 100.0
 
 
 async def test_anonymous_customer_credit_rejected_400(
@@ -190,15 +232,17 @@ async def test_anonymous_customer_credit_rejected_400(
     }
     response = await async_client.post("/billing/create", json=payload)
     assert response.status_code == 400
-    assert "Credit billing requires a registered customer" in response.json()["detail"]
+    assert "Pay Later requires a registered customer" in response.json()["detail"]
 
 
-async def test_non_credit_customer_credit_rejected_400(
+async def test_non_credit_customer_can_pay_later(
     db_session: AsyncSession,
     async_client: AsyncClient,
 ):
     """
-    Non-credit customer + Credit rejected 400.
+    Pay Later (payment_method "Credit") is available to any registered
+    customer, not just is_credit_customer accounts — it's just an unpaid
+    bill to collect on later via the Orders view, no limit/balance tracking.
     """
     item = MenuItem(name="NonCredit Burger", price=10.0, category="Food", shop_id=1, stock_quantity=100)
     customer = Customer(name="NonCredit Doe", phone_number="5556667778", shop_id=1, is_credit_customer=False)
@@ -216,8 +260,18 @@ async def test_non_credit_customer_credit_rejected_400(
         "customer_id": customer.id
     }
     response = await async_client.post("/billing/create", json=payload)
-    assert response.status_code == 400
-    assert "Customer is not eligible for credit" in response.json()["detail"]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["warning"] is None
+
+    await db_session.refresh(customer)
+    assert customer.credit_balance == 0.0  # No credit account — no balance movement
+
+    bill_res = await db_session.execute(select(Bill).where(Bill.slug == data["bill_id"]))
+    bill = bill_res.scalars().first()
+    assert bill.payment_status == "Unpaid"
+    assert bill.delivery_status == "Pending"
+    assert bill.due_date is None  # No payment terms configured for a non-credit customer
 
 
 async def test_create_bill_rejects_customer_id_from_another_shop(
@@ -306,8 +360,15 @@ async def test_update_bill_credit_limit_exceeded_returns_400_not_500(
     Regression test for the update_bill exception-handling bug: previously
     update_bill's generic `except Exception` caught the HTTPException(400)
     raised by the Credit payment handler and replaced it with a 500, hiding
-    the real "Credit limit exceeded" message from the cashier.
+    the real "Credit limit exceeded" message from the cashier. Only
+    reproducible when the shop has opted into block_over_credit_limit — it's
+    no longer the default (see test_update_bill_credit_limit_warns_by_default).
     """
+    shop_res = await db_session.execute(select(Shop).where(Shop.id == 1))
+    shop = shop_res.scalars().first()
+    shop.block_over_credit_limit = True
+    await db_session.commit()
+
     item = MenuItem(name="Update Limit Burger", price=10.0, category="Food", shop_id=1, stock_quantity=100)
     customer = Customer(
         name="Update Limit Doe", phone_number="6667778880", shop_id=1,
@@ -343,6 +404,53 @@ async def test_update_bill_credit_limit_exceeded_returns_400_not_500(
 
     await db_session.refresh(customer)
     assert customer.credit_balance == 0.0
+
+
+async def test_update_bill_credit_limit_warns_by_default(
+    db_session: AsyncSession,
+    async_client: AsyncClient,
+):
+    """
+    Same over-limit scenario as test_update_bill_credit_limit_exceeded_returns_400_not_500,
+    but with the shop left at the default block_over_credit_limit=False —
+    the update succeeds and returns a warning instead of a 400.
+    """
+    item = MenuItem(name="Update Warn Limit Burger", price=10.0, category="Food", shop_id=1, stock_quantity=100)
+    customer = Customer(
+        name="Update Warn Limit Doe", phone_number="6667778881", shop_id=1,
+        is_credit_customer=True, credit_limit=50.0, credit_balance=0.0,
+    )
+    db_session.add_all([item, customer])
+    await db_session.commit()
+    await db_session.refresh(item)
+    await db_session.refresh(customer)
+
+    await _login_owner(async_client)
+
+    hold_payload = {
+        "items": [{"id": item.id, "qty": 1}],
+        "payment_method": "Credit",
+        "status": "Held",
+        "customer_id": customer.id,
+    }
+    hold_res = await async_client.post("/billing/create", json=hold_payload)
+    assert hold_res.status_code == 200
+    bill_slug = hold_res.json()["bill_id"]
+
+    complete_payload = {
+        "items": [{"id": item.id, "qty": 10}],  # 10 * 10.0 = 100.0 > limit 50.0
+        "payment_method": "Credit",
+        "status": "Completed",
+        "customer_id": customer.id,
+    }
+    complete_res = await async_client.post(f"/billing/update/{bill_slug}", json=complete_payload)
+
+    assert complete_res.status_code == 200
+    data = complete_res.json()
+    assert data["warning"] and "credit limit" in data["warning"]
+
+    await db_session.refresh(customer)
+    assert customer.credit_balance == 100.0
 
 
 # ============================================================================
