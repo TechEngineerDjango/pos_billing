@@ -706,6 +706,11 @@ function posApp() {
             }
 
             this.recentBillsModal.open = false;
+            // On mobile the cart/checkout panel is collapsed by default behind
+            // the floating cart button — without this, editing a held bill
+            // silently loads it into the cart but leaves the item grid on
+            // screen, looking like nothing happened.
+            if (this.isMobile) this.mobileCartOpen = true;
         },
 
         async cancelHeldBill(bill) {
