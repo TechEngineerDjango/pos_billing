@@ -24,6 +24,7 @@ function dashboardApp(currencySymbol) {
     return {
         currencySymbol,
         activeTab: params.get('tab') || 'overview',
+        mobileMenuOpen: false,
         showAddModal: false,
         showStaffModal: false,
         showCustomerModal: false,
@@ -135,6 +136,7 @@ function dashboardApp(currencySymbol) {
 
         switchTab(t) {
             this.activeTab = t;
+            this.mobileMenuOpen = false;
             const url = new URL(window.location);
             url.searchParams.set('tab', t);
             window.history.replaceState({}, '', url);
@@ -298,10 +300,22 @@ function initCharts() {
 
 function inventoryApp() {
     return {
+        // Whole numbers print as-is; fractional stock (weight/volume-sold items,
+        // e.g. 0.75 kg) keeps up to 3 decimal places instead of being truncated
+        // to 0 — Math.trunc() used to make an in-stock item read as "0".
+        formatQty(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) return '';
+            const n = Number(value);
+            if (Number.isInteger(n)) return String(n);
+            const s = n.toFixed(3).replace(/\.?0+$/, '');
+            return s === '-0' ? '0' : s; // toFixed(3) on a tiny negative (e.g. -0.0001) rounds to "-0.000"
+        },
         showRestockModal: false,
         restockItemId: null,
         restockItemName: '',
         restockCurrentStock: 0,
+        restockSaving: false,
+        restockError: '',
 
         items: [],
         search: '',
@@ -364,7 +378,31 @@ function inventoryApp() {
             this.restockItemId = itemId;
             this.restockItemName = itemName;
             this.restockCurrentStock = currentStock;
+            this.restockError = '';
             this.showRestockModal = true;
+        },
+
+        // Submitted via fetch (not a native form POST) so a restock doesn't
+        // navigate the page — a full-page reload would reset the search/
+        // stock-status filters and pagination back to defaults.
+        async submitRestock(event) {
+            this.restockSaving = true;
+            this.restockError = '';
+            try {
+                const response = await fetch(event.target.action, {
+                    method: 'POST',
+                    body: new FormData(event.target),
+                    headers: { 'x-csrf-token': ApiClient.getCsrfToken() },
+                });
+                if (!response.ok) throw new Error('Failed to restock item');
+                this.showRestockModal = false;
+                event.target.reset();
+                await this.searchItems();
+            } catch (e) {
+                this.restockError = e.message || 'Failed to restock item';
+            } finally {
+                this.restockSaving = false;
+            }
         },
 
         handleScanResult(sku) {
@@ -392,6 +430,7 @@ function expensesApp(currencySymbol, defaultCategory) {
         loading: false,
         error: '',
         filters: { category: '', date_from: '', date_to: '' },
+        filtersOpen: false,
 
         offset: 0,
         limit: 10,
@@ -519,6 +558,231 @@ function expensesApp(currencySymbol, defaultCategory) {
     };
 }
 
+function ordersTabApp(currencySymbol, shopUpiId, shopName) {
+    return {
+        currencySymbol,
+        shopUpiId,
+        shopName,
+        orders: [],
+        total: 0,
+        offset: 0,
+        limit: 10,
+        filters: { date_from: '', date_to: '', min_amount: '', max_amount: '', payment_status: '', delivery_status: '' },
+        loading: false,
+        error: '',
+        viewModal: { open: false, order: null },
+        filtersOpen: false,
+        showCompleted: false,
+
+        init() {
+            this.fetchOrders();
+        },
+
+        formatCurrency(v) {
+            return `${this.currencySymbol}${Number(v || 0).toFixed(2)}`;
+        },
+
+        // Actionable orders first — in progress, then just-needs-payment, then not-yet-started —
+        // so the delivery worker sees "what to do next" without scanning a flat list.
+        get activeOrders() {
+            const priority = (o) => {
+                if (o.delivery_status === 'Out for Delivery') return 0;
+                if (o.delivery_status === 'Delivered' && o.payment_status !== 'Paid') return 1;
+                return 2;
+            };
+            return this.orders
+                .filter(o => !(o.delivery_status === 'Delivered' && o.payment_status === 'Paid'))
+                .sort((a, b) => priority(a) - priority(b));
+        },
+        get completedOrders() {
+            return this.orders.filter(o => o.delivery_status === 'Delivered' && o.payment_status === 'Paid');
+        },
+
+        // One next-action button per order — no menu of options to read under pressure.
+        primaryButton(order) {
+            const due = () => this.formatCurrency(order.total_amount - order.amount_paid);
+            if (order.delivery_status === 'Delivered') {
+                if (order.payment_status === 'Paid') return null;
+                return { label: 'Collect ' + due(), cls: 'bg-emerald-500 hover:bg-emerald-600', action: () => this.markPaid(order) };
+            }
+            if (order.delivery_status === 'Out for Delivery') {
+                if (order.payment_status !== 'Paid' && !order.is_credit_customer) {
+                    return { label: 'Delivered — Collect ' + due(), cls: 'bg-emerald-500 hover:bg-emerald-600', action: () => this.completeDelivery(order) };
+                }
+                return { label: 'Mark Delivered', cls: 'bg-blue-500 hover:bg-blue-600', action: () => this.advanceDeliveryStatus(order) };
+            }
+            return { label: 'Start Delivery', cls: 'bg-blue-500 hover:bg-blue-600', action: () => this.advanceDeliveryStatus(order) };
+        },
+
+        openView(order) {
+            this.viewModal.order = order;
+            this.viewModal.open = true;
+        },
+
+        upiQrUrl(order) {
+            const amount = (Number(order.total_amount) - Number(order.amount_paid || 0)).toFixed(2);
+            return upiQrDataUrl(this.shopUpiId, this.shopName, amount);
+        },
+
+        onFilterChange() {
+            this.offset = 0;
+            this.fetchOrders();
+        },
+
+        clearFilters() {
+            this.filters = { date_from: '', date_to: '', min_amount: '', max_amount: '', payment_status: '', delivery_status: '' };
+            this.onFilterChange();
+        },
+
+        async fetchOrders() {
+            this.loading = true;
+            try {
+                const f = this.filters;
+                const filterParams = { limit: this.limit };
+                if (f.date_from) filterParams.date_from = f.date_from;
+                if (f.date_to) filterParams.date_to = f.date_to;
+                if (f.min_amount) filterParams.min_amount = f.min_amount;
+                if (f.max_amount) filterParams.max_amount = f.max_amount;
+                if (f.payment_status) filterParams.payment_status = f.payment_status;
+                if (f.delivery_status) filterParams.delivery_status = f.delivery_status;
+                const result = await fetchPaginated('/billing/orders', filterParams, this.offset, 'orders');
+                this.orders = result.items;
+                this.total = result.total;
+            } catch (e) {
+                this.error = e.message || 'Failed to load orders';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        get page() {
+            return Math.floor(this.offset / this.limit) + 1;
+        },
+        get totalPages() {
+            return Math.max(1, Math.ceil(this.total / this.limit));
+        },
+        goToPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.totalPages));
+            this.offset = (clamped - 1) * this.limit;
+            this.fetchOrders();
+        },
+        changeLimit() {
+            this.offset = 0;
+            this.fetchOrders();
+        },
+
+        _idempotencyKey() {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return window.crypto.randomUUID();
+            }
+            return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        },
+
+        nextDeliveryStatus(current) {
+            const stages = ['Pending', 'Out for Delivery', 'Delivered'];
+            const idx = stages.indexOf(current);
+            return stages[Math.min(idx + 1, stages.length - 1)];
+        },
+
+        async advanceDeliveryStatus(order) {
+            const next = this.nextDeliveryStatus(order.delivery_status);
+            if (next === order.delivery_status) return;
+            try {
+                const res = await ApiClient.request(`/billing/orders/${order.slug}/update`, {
+                    method: 'POST', body: JSON.stringify({ delivery_status: next }),
+                });
+                order.delivery_status = res.order.delivery_status;
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
+        async completeDelivery(order) {
+            try {
+                const res = await ApiClient.request(`/billing/orders/${order.slug}/update`, {
+                    method: 'POST', body: JSON.stringify({ delivery_status: 'Delivered', mark_paid: true }),
+                });
+                order.delivery_status = res.order.delivery_status;
+                order.payment_status = res.order.payment_status;
+                order.amount_paid = res.order.amount_paid;
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
+        async markPaid(order) {
+            try {
+                if (order.is_credit_customer) {
+                    // Real credit account — goes through the same payment-recording
+                    // endpoint the Credit Book's own "Record Payment" panel uses, so
+                    // the CreditPayment audit trail and credit_balance stay correct.
+                    const outstanding = Number(order.total_amount) - Number(order.amount_paid);
+                    await ApiClient.request('/admin/credit/payments', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            bill_slug: order.slug,
+                            amount: outstanding.toFixed(2),
+                            payment_method: 'Cash',
+                            idempotency_key: this._idempotencyKey(),
+                        }),
+                    });
+                    order.payment_status = 'Paid';
+                    order.amount_paid = order.total_amount;
+                } else {
+                    const res = await ApiClient.request(`/billing/orders/${order.slug}/update`, {
+                        method: 'POST', body: JSON.stringify({ mark_paid: true }),
+                    });
+                    order.payment_status = res.order.payment_status;
+                    order.amount_paid = res.order.amount_paid;
+                }
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
+        // Manual correction — set delivery/payment status to any value directly,
+        // for undoing an accidental tap rather than only stepping forward.
+        async setDeliveryStatus(order, status) {
+            if (status === order.delivery_status) return;
+            try {
+                const res = await ApiClient.request(`/billing/orders/${order.slug}/update`, {
+                    method: 'POST', body: JSON.stringify({ delivery_status: status }),
+                });
+                order.delivery_status = res.order.delivery_status;
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
+        async setPaymentStatus(order, status) {
+            if (status === order.payment_status) return;
+            if (order.is_credit_customer) {
+                alert('This order belongs to a credit account — record/adjust payments from the Dashboard Credit Book instead.');
+                return;
+            }
+            try {
+                const res = await ApiClient.request(`/billing/orders/${order.slug}/update`, {
+                    method: 'POST', body: JSON.stringify({ payment_status: status }),
+                });
+                order.payment_status = res.order.payment_status;
+                order.amount_paid = res.order.amount_paid;
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
+        resendWhatsapp(order) {
+            let phone = order.customer_phone;
+            if (!phone) {
+                phone = prompt("Enter customer WhatsApp number:", "");
+            }
+            if (phone && phone.trim().length >= 10) {
+                window.open(`/admin/bill/${encodeURIComponent(order.slug)}/whatsapp-redirect?phone=${encodeURIComponent(phone.trim())}`, '_blank');
+            }
+        },
+    };
+}
+
 function creditBookApp(currencySymbol, shopUpiId, shopName) {
     return {
         currencySymbol,
@@ -541,11 +805,14 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
         error: '',
         notice: '',
         generating: false,
+        filtersOpen: false,        // accounts-list toolbar filters
+        historyFiltersOpen: false, // Bill History sub-panel filters (independent — see openDetail/closeDetail)
 
         view: 'list',   // 'list' | 'detail' — Collect navigates to a detail view, not a modal
         selectedCustomer: null,
         ledger: null,
         ledgerLoading: false,
+        ledgerTab: 'unpaid',   // 'unpaid' | 'statements' | 'history' — detail view shows one at a time
 
         paymentTarget: null,   // { type: 'bill' | 'statement', obj } — set while the inline payment panel is open
         paymentForm: { amount: '', payment_method: 'Cash', note: '' },
@@ -643,6 +910,7 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
         async openDetail(a) {
             this.selectedCustomer = a;
             this.view = 'detail';
+            this.ledgerTab = 'unpaid';
             this.paymentTarget = null;
             this.ledger = null;
             this.ledgerLoading = true;
@@ -650,6 +918,7 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
             this.billsFilters = { date_from: '', date_to: '', min_amount: '', max_amount: '', status: '' };
             this.billsOffset = 0;
             this.bills = [];
+            this.historyFiltersOpen = false;
             try {
                 this.ledger = await ApiClient.request(`/admin/credit/customers/${a.slug}/ledger`);
             } catch (e) {
@@ -666,6 +935,7 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
             this.ledger = null;
             this.paymentTarget = null;
             this.bills = [];
+            this.historyFiltersOpen = false;
         },
 
         onBillsFilterChange() {
@@ -757,10 +1027,8 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
 
         // wa.me-style UPI deep link rendered as a scannable QR — same pattern as the POS checkout screen.
         upiQrUrl() {
-            if (!this.shopUpiId) return null;
             const amount = Number(this.paymentForm.amount || 0).toFixed(2);
-            const upiLink = `upi://pay?pa=${this.shopUpiId}&pn=${encodeURIComponent(this.shopName || '')}&am=${amount}&cu=INR`;
-            return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}`;
+            return upiQrDataUrl(this.shopUpiId, this.shopName, amount);
         },
 
         _idempotencyKey() {

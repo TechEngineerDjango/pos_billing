@@ -37,6 +37,17 @@ const BillingApi = {
 
     async fetchRecentBills() {
         return ApiClient.request('/billing/recent-bills');
+    },
+
+    async fetchOrders() {
+        return ApiClient.request('/billing/orders?limit=30');
+    },
+
+    async updateOrder(slug, payload) {
+        return ApiClient.request(`/billing/orders/${slug}/update`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
     }
 };
 
@@ -109,6 +120,9 @@ function posApp() {
         cashReceived: 0,
         deliveryCharge: 0,
         isMobile: window.innerWidth < 1024, // Evaluated synchronously before DOM parse
+        toastMessage: '',
+        toastVisible: false,
+        _toastTimer: null,
         shopName: shopData.name || '',
         shopUpiId: shopData.upi_id || '',
         shopCountryCode: shopData.country_code,
@@ -134,6 +148,8 @@ function posApp() {
         _resizeHandler: null,
 
         recentBillsModal: { open: false, loading: false, bills: [] },
+        ordersModal: { open: false, loading: false, orders: [] },
+        billViewModal: { open: false, order: null },
 
         // --- Lifecycle ---
         init() {
@@ -449,6 +465,36 @@ function posApp() {
             }, 300);
         },
 
+        // Forces the debounced customer lookup to settle immediately instead of
+        // waiting out its 300ms timer — called before Pay Later submissions so
+        // foundCustomer (and the "Available credit" hint) reflects the phone
+        // number actually being submitted, not whatever was found last.
+        async ensureCustomerLookupSettled() {
+            if (this._searchTimeout) {
+                clearTimeout(this._searchTimeout);
+                this._searchTimeout = null;
+            }
+            if (this.customerPhone.length < 3) return;
+            if (this._searchAbortController) {
+                this._searchAbortController.abort();
+                this._searchAbortController = null;
+            }
+            try {
+                const controller = new AbortController();
+                this._searchAbortController = controller;
+                const token = ++this._searchToken;
+                const data = await BillingApi.searchCustomer(this.customerPhone, controller.signal);
+                if (token === this._searchToken && data) {
+                    this._searchAbortController = null;
+                    this.handleCustomerFound(data);
+                }
+            } catch (e) {
+                if (e.name !== 'AbortError') {
+                    console.error('Customer search failed', e);
+                }
+            }
+        },
+
         handleCustomerFound(data) {
             if (data.found) {
                 this.foundCustomer = data; // Satisfies template expressions
@@ -463,13 +509,9 @@ function posApp() {
                 this.customerName = '';
                 this.isNewCustomer = true;
             }
-            // Credit is only ever an *option* the cashier opts into for an eligible
-            // customer — never auto-selected. But if a Credit payment was already
-            // selected and the customer just changed/cleared/turned out ineligible,
-            // it can no longer be submitted against them, so fall back to Cash.
-            if (this.paymentMethod === 'Credit' && !this.foundCustomer?.is_credit_customer) {
-                this.paymentMethod = 'Cash';
-            }
+            // Pay Later (payment method 'Credit' internally) is available for any
+            // customer, not just registered credit accounts — only the credit-limit
+            // check in validateSubmission cares about is_credit_customer.
         },
 
         selectCustomer() {
@@ -495,8 +537,44 @@ function posApp() {
         async submitBill(status = "Completed") {
             if (!this.validateSubmission()) return;
 
+            // Open the WhatsApp tab synchronously, tied to this click, before ANY
+            // await below (including the credit-lookup refresh) can burn through
+            // the browser's brief window for allowing window.open() without it
+            // being treated as a blocked popup. We redirect this tab once the
+            // bill exists.
+            //
+            // Opening a new tab backgrounds this one, and browsers throttle
+            // pending work (including in-flight requests settling) in
+            // backgrounded tabs — most noticeably on mobile. That can add a
+            // real, sometimes multi-second delay before the redirect below
+            // fires. A pure about:blank tab during that wait looks broken, so
+            // we write a visible "preparing" message into it immediately.
+            let waWindow = null;
+            const wantsWhatsApp = status !== 'Held' && this.customerPhone
+                && this.customerPhone.trim().length >= 10 && this.features['whatsapp_billing'];
+            if (wantsWhatsApp) {
+                waWindow = window.open('', '_blank');
+                if (waWindow) {
+                    waWindow.document.title = 'Opening WhatsApp…';
+                    Object.assign(waWindow.document.body.style, {
+                        fontFamily: 'sans-serif', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', height: '100vh', margin: '0',
+                        color: '#333', textAlign: 'center', padding: '0 2rem'
+                    });
+                    const msg = waWindow.document.createElement('p');
+                    msg.innerHTML = 'Preparing your WhatsApp message…<br>This tab will redirect automatically.';
+                    waWindow.document.body.appendChild(msg);
+                }
+            }
+
+            // Locks the submit/hold buttons immediately, synchronously — before
+            // any await — so a fast double-tap can't re-enter this function and
+            // create two bills.
             this.loading = true;
             try {
+                if (this.paymentMethod === 'Credit') {
+                    await this.ensureCustomerLookupSettled();
+                }
                 const payload = this.preparePayload();
                 payload.status = status;
 
@@ -507,8 +585,9 @@ function posApp() {
                     data = await BillingApi.createBill(payload);
                 }
 
-                this.handleSuccess(data, status);
+                this.handleSuccess(data, status, waWindow);
             } catch (e) {
+                if (waWindow) waWindow.close();
                 alert(`Error: ${e.message}`);
             } finally {
                 this.loading = false;
@@ -529,8 +608,8 @@ function posApp() {
                 alert('Please enter customer name for new customer');
                 return false;
             }
-            if (this.paymentMethod === 'Credit' && !this.foundCustomer?.is_credit_customer) {
-                alert('Credit billing requires a registered, credit-eligible customer');
+            if (this.paymentMethod === 'Credit' && !this.customerPhone) {
+                alert('Pay Later requires a customer phone number');
                 return false;
             }
             return true;
@@ -547,7 +626,7 @@ function posApp() {
             };
         },
 
-        handleSuccess(data, status) {
+        handleSuccess(data, status, waWindow = null) {
             const phone = this.customerPhone;
             const billNum = data.bill_number;
             const billSlug = data.bill_id;
@@ -567,18 +646,36 @@ function posApp() {
             }
 
             if (status === 'Held') {
-                alert(`⏸️ Bill #${billNum} placed on Hold!`);
+                if (waWindow) waWindow.close();
+                this.showToast(`⏸️ Bill #${billNum} placed on Hold!`);
                 return;
             }
 
-            // Open WhatsApp before the blocking alert() below — alert() consumes
-            // the click's user-activation token, so window.open() called after it
-            // gets silently blocked as a popup by the browser.
             if (phone && phone.trim().length >= 10 && this.features['whatsapp_billing']) {
-                this.sendWhatsAppMessage(phone.trim(), billSlug);
+                this.sendWhatsAppMessage(phone.trim(), billSlug, waWindow);
+            } else if (waWindow) {
+                waWindow.close();
             }
 
-            alert(`✅ Bill #${billNum} created successfully!`);
+            // A credit-limit warning (bill still succeeded) needs more than the
+            // usual 2.5s toast to actually be read — longer duration, no blocking
+            // alert() (one right here would risk the same popup-blocking issue
+            // window.open()/WhatsApp already works around elsewhere in this flow).
+            if (data.warning) {
+                this.showToast(`Bill #${billNum} created. ${data.warning}`, 6000);
+            } else {
+                this.showToast(`Bill #${billNum} created successfully!`);
+            }
+        },
+
+        // Non-blocking success notification — a native alert() forces the
+        // cashier to click OK on every single sale, which doesn't scale at
+        // real transaction volume. This auto-dismisses instead.
+        showToast(message, duration = 2500) {
+            clearTimeout(this._toastTimer);
+            this.toastMessage = message;
+            this.toastVisible = true;
+            this._toastTimer = setTimeout(() => { this.toastVisible = false; }, duration);
         },
 
         async openRecentBills() {
@@ -638,6 +735,118 @@ function posApp() {
             }
         },
 
+        async openOrders() {
+            this.ordersModal.open = true;
+            this.ordersModal.loading = true;
+            try {
+                const res = await BillingApi.fetchOrders();
+                this.ordersModal.orders = res.orders || [];
+            } catch(e) {
+                console.error(e);
+            } finally {
+                this.ordersModal.loading = false;
+            }
+        },
+
+        // POS shortcut is a "what needs attention right now" quick view — once
+        // an order is delivered AND paid it's done and drops out of the list
+        // (the full history stays in the Dashboard Orders tab). Reactive so an
+        // order disappears the moment its last status is set from this modal.
+        get visibleOrders() {
+            return this.ordersModal.orders.filter(
+                o => !(o.delivery_status === 'Delivered' && o.payment_status === 'Paid')
+            );
+        },
+
+        nextDeliveryStatus(current) {
+            const stages = ['Pending', 'Out for Delivery', 'Delivered'];
+            const idx = stages.indexOf(current);
+            return stages[Math.min(idx + 1, stages.length - 1)];
+        },
+
+        openOrderView(order) {
+            this.billViewModal.order = order;
+            this.billViewModal.open = true;
+        },
+
+        upiQrUrl(order) {
+            const amount = (Number(order.total_amount) - Number(order.amount_paid || 0)).toFixed(2);
+            return upiQrDataUrl(this.shopUpiId, this.shopName, amount);
+        },
+
+        async advanceDeliveryStatus(order) {
+            const next = this.nextDeliveryStatus(order.delivery_status);
+            if (next === order.delivery_status) return;
+            try {
+                const res = await BillingApi.updateOrder(order.slug, { delivery_status: next });
+                order.delivery_status = res.order.delivery_status;
+            } catch(e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
+        _idempotencyKey() {
+            if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                return window.crypto.randomUUID();
+            }
+            return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        },
+
+        async markOrderPaid(order) {
+            try {
+                if (order.is_credit_customer) {
+                    // Real credit account — goes through the same payment-recording
+                    // endpoint the Credit Book's own "Record Payment" panel uses, so
+                    // the CreditPayment audit trail and credit_balance stay correct.
+                    const outstanding = Number(order.total_amount) - Number(order.amount_paid);
+                    await ApiClient.request('/admin/credit/payments', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            bill_slug: order.slug,
+                            amount: outstanding.toFixed(2),
+                            payment_method: 'Cash',
+                            idempotency_key: this._idempotencyKey(),
+                        }),
+                    });
+                    order.payment_status = 'Paid';
+                    order.amount_paid = order.total_amount;
+                } else {
+                    const res = await BillingApi.updateOrder(order.slug, { mark_paid: true });
+                    order.payment_status = res.order.payment_status;
+                    order.amount_paid = res.order.amount_paid;
+                }
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
+        // Manual correction — set delivery/payment status to any value directly,
+        // for undoing an accidental tap rather than only stepping forward.
+        async setOrderDeliveryStatus(order, status) {
+            if (status === order.delivery_status) return;
+            try {
+                const res = await BillingApi.updateOrder(order.slug, { delivery_status: status });
+                order.delivery_status = res.order.delivery_status;
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
+        async setOrderPaymentStatus(order, status) {
+            if (status === order.payment_status) return;
+            if (order.is_credit_customer) {
+                alert('This order belongs to a credit account — record/adjust payments from the Dashboard Credit Book instead.');
+                return;
+            }
+            try {
+                const res = await BillingApi.updateOrder(order.slug, { payment_status: status });
+                order.payment_status = res.order.payment_status;
+                order.amount_paid = res.order.amount_paid;
+            } catch (e) {
+                alert(`Error: ${e.message}`);
+            }
+        },
+
         resendWhatsapp(bill) {
             let phone = bill.customer_phone;
             if (!phone) {
@@ -648,16 +857,48 @@ function posApp() {
             }
         },
 
-        sendWhatsAppMessage(phone, billSlug) {
+        resendOrderWhatsapp(order) {
+            let phone = order.customer_phone;
+            if (!phone) {
+                phone = prompt("Enter customer WhatsApp number:", "");
+            }
+            if (phone && phone.trim().length >= 10) {
+                this.sendWhatsAppMessage(phone.trim(), order.slug);
+            }
+        },
+
+        sendWhatsAppMessage(phone, billSlug, waWindow = null) {
             const cleanPhone = phone.replace(/\D/g, '');
-            if (!cleanPhone) return;
-            // Use backend route to generate consistent, DRY WhatsApp message format
-            const url = `/admin/bill/${encodeURIComponent(billSlug)}/whatsapp-redirect?phone=${encodeURIComponent(cleanPhone)}`;
-            window.open(url, '_blank');
+            if (!cleanPhone) {
+                if (waWindow) waWindow.close();
+                return;
+            }
+            // Use backend route to generate consistent, DRY WhatsApp message format.
+            // Fully-qualified (not relative) because this can be assigned to a
+            // pre-opened window's .location.href, and relative-URL resolution
+            // against a foreign about:blank window's inherited origin isn't
+            // consistent across browser engines.
+            const url = `${window.location.origin}/admin/bill/${encodeURIComponent(billSlug)}/whatsapp-redirect?phone=${encodeURIComponent(cleanPhone)}`;
+            if (waWindow) {
+                waWindow.location.href = url;
+            } else {
+                window.open(url, '_blank');
+            }
         },
 
         formatMoney(value) {
             return currencySymbol + parseFloat(value).toFixed(2);
+        },
+
+        // Whole numbers print as-is; fractional stock (weight/volume-sold items)
+        // keeps up to 3 decimal places instead of showing raw JS float noise
+        // (e.g. 3.7 - 0.8 === 2.9000000000000004) on the stock badge.
+        formatQty(value) {
+            if (value === null || value === undefined || Number.isNaN(Number(value))) return '';
+            const n = Number(value);
+            if (Number.isInteger(n)) return String(n);
+            const s = n.toFixed(3).replace(/\.?0+$/, '');
+            return s === '-0' ? '0' : s; // toFixed(3) on a tiny negative (e.g. -0.0001) rounds to "-0.000"
         }
     };
 }

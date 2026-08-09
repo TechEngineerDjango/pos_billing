@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<div class="h-[calc(100vh-4rem)] flex overflow-hidden bg-[#0a0f1c]" x-data="superAdminApp()">
+<div class="h-[calc(100dvh-4rem)] flex overflow-hidden bg-[#0a0f1c]" x-data="superAdminApp()">
 
     <!-- Sidebar Navigation -->
     <aside
@@ -10,56 +10,56 @@
             <button id="nav-fleet-tab" @click="switchTab('fleet')"
                 :class="{'bg-blue-600 text-white shadow-lg shadow-blue-600/30': activeTab === 'fleet', 'text-gray-400 hover:bg-white/5': activeTab !== 'fleet'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
-                <div class="w-6 h-6 flex items-center justify-center text-lg">🏪</div>
+                <div class="w-6 h-6 flex items-center justify-center text-lg"><i class="bi bi-shop"></i></div>
                 <span class="font-medium hidden lg:block">Shop Fleet</span>
             </button>
 
             <button id="nav-billing-tab" @click="switchTab('billing')"
                 :class="{'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30': activeTab === 'billing', 'text-gray-400 hover:bg-white/5': activeTab !== 'billing'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
-                <div class="w-6 h-6 flex items-center justify-center text-lg">🧾</div>
+                <div class="w-6 h-6 flex items-center justify-center text-lg"><i class="bi bi-receipt"></i></div>
                 <span class="font-medium hidden lg:block">Fleet Billing</span>
             </button>
 
             <button @click="switchTab('design')"
                 :class="{'bg-purple-600 text-white shadow-lg shadow-purple-600/30': activeTab === 'design', 'text-gray-400 hover:bg-white/5': activeTab !== 'design'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
-                <div class="w-6 h-6 flex items-center justify-center text-lg">🎨</div>
+                <div class="w-6 h-6 flex items-center justify-center text-lg"><i class="bi bi-palette-fill"></i></div>
                 <span class="font-medium hidden lg:block">Branding Studio</span>
             </button>
 
             <button @click="switchTab('plans')"
                 :class="{'bg-teal-600 text-white shadow-lg shadow-teal-600/30': activeTab === 'plans', 'text-gray-400 hover:bg-white/5': activeTab !== 'plans'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
-                <div class="w-6 h-6 flex items-center justify-center text-lg">💳</div>
+                <div class="w-6 h-6 flex items-center justify-center text-lg"><i class="bi bi-credit-card-fill"></i></div>
                 <span class="font-medium hidden lg:block">Subscription Plans</span>
             </button>
 
             <button @click="switchTab('features')"
                 :class="{'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30': activeTab === 'features', 'text-gray-400 hover:bg-white/5': activeTab !== 'features'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
-                <div class="w-6 h-6 flex items-center justify-center text-lg">⚙️</div>
+                <div class="w-6 h-6 flex items-center justify-center text-lg"><i class="bi bi-gear-fill"></i></div>
                 <span class="font-medium hidden lg:block">Feature Catalog</span>
             </button>
 
             <button @click="switchTab('planfeatures')"
                 :class="{'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30': activeTab === 'planfeatures', 'text-gray-400 hover:bg-white/5': activeTab !== 'planfeatures'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
-                <div class="w-6 h-6 flex items-center justify-center text-lg">🔗</div>
+                <div class="w-6 h-6 flex items-center justify-center text-lg"><i class="bi bi-link-45deg"></i></div>
                 <span class="font-medium hidden lg:block">Plan Features</span>
             </button>
 
             <button id="nav-users-tab" @click="switchTab('users')"
                 :class="{'bg-orange-600 text-white shadow-lg shadow-orange-600/30': activeTab === 'users', 'text-gray-400 hover:bg-white/5': activeTab !== 'users'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
-                <div class="w-6 h-6 flex items-center justify-center text-lg">👥</div>
+                <div class="w-6 h-6 flex items-center justify-center text-lg"><i class="bi bi-people-fill"></i></div>
                 <span class="font-medium hidden lg:block">Personnel</span>
             </button>
 
             <button id="nav-security-tab" @click="switchTab('security')"
                 :class="{'bg-red-600 text-white shadow-lg shadow-red-600/30': activeTab === 'security', 'text-gray-400 hover:bg-white/5': activeTab !== 'security'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
-                <div class="w-6 h-6 flex items-center justify-center text-lg">🛡️</div>
+                <div class="w-6 h-6 flex items-center justify-center text-lg"><i class="bi bi-shield-lock-fill"></i></div>
                 <span class="font-medium hidden lg:block">Security Monitor</span>
             </button>
         </div>
@@ -84,42 +84,42 @@
         <button @click="switchTab('fleet')"
             :class="{'text-blue-500 bg-white/10': activeTab === 'fleet', 'text-gray-400': activeTab !== 'fleet'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
-            <span class="text-2xl">🏪</span>
+            <span class="text-2xl leading-none"><i class="bi bi-shop"></i></span>
         </button>
         <button @click="switchTab('billing')"
             :class="{'text-emerald-500 bg-white/10': activeTab === 'billing', 'text-gray-400': activeTab !== 'billing'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
-            <span class="text-2xl">🧾</span>
+            <span class="text-2xl leading-none"><i class="bi bi-receipt"></i></span>
         </button>
         <button @click="switchTab('design')"
             :class="{'text-purple-500 bg-white/10': activeTab === 'design', 'text-gray-400': activeTab !== 'design'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
-            <span class="text-2xl">🎨</span>
+            <span class="text-2xl leading-none"><i class="bi bi-palette-fill"></i></span>
         </button>
         <button @click="switchTab('plans')"
             :class="{'text-teal-500 bg-white/10': activeTab === 'plans', 'text-gray-400': activeTab !== 'plans'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
-            <span class="text-2xl">💳</span>
+            <span class="text-2xl leading-none"><i class="bi bi-credit-card-fill"></i></span>
         </button>
         <button @click="switchTab('features')"
             :class="{'text-emerald-500 bg-white/10': activeTab === 'features', 'text-gray-400': activeTab !== 'features'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
-            <span class="text-2xl">⚙️</span>
+            <span class="text-2xl leading-none"><i class="bi bi-gear-fill"></i></span>
         </button>
         <button @click="switchTab('planfeatures')"
             :class="{'text-indigo-500 bg-white/10': activeTab === 'planfeatures', 'text-gray-400': activeTab !== 'planfeatures'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
-            <span class="text-2xl">🔗</span>
+            <span class="text-2xl leading-none"><i class="bi bi-link-45deg"></i></span>
         </button>
         <button @click="switchTab('users')"
             :class="{'text-orange-500 bg-white/10': activeTab === 'users', 'text-gray-400': activeTab !== 'users'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
-            <span class="text-2xl">👥</span>
+            <span class="text-2xl leading-none"><i class="bi bi-people-fill"></i></span>
         </button>
         <button @click="switchTab('security')"
             :class="{'text-red-500 bg-white/10': activeTab === 'security', 'text-gray-400': activeTab !== 'security'}"
             class="p-3 rounded-xl transition-all flex flex-col items-center">
-            <span class="text-2xl animate-pulse">🛡️</span>
+            <span class="text-2xl animate-pulse leading-none"><i class="bi bi-shield-lock-fill"></i></span>
         </button>
     </div>
 

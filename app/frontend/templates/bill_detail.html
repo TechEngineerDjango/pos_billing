@@ -95,6 +95,18 @@
                 </div>
             </div>
 
+            <!-- Pay Now — UPI QR for the outstanding balance -->
+            {% if bill.payment_status in ('Unpaid', 'PartiallyPaid') and shop.upi_id %}
+            {% set due_amount = bill.total_amount - (bill.amount_paid or 0) %}
+            <div class="px-8 py-6 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-white/10 text-center no-print">
+                <img id="upi-qr-img" alt="UPI QR Code" class="w-40 h-40 mx-auto rounded-xl bg-white p-2 shadow-lg border border-gray-200">
+                <p class="mt-3 text-sm font-bold text-gray-900 dark:text-white">
+                    Scan to pay {{ shop.currency_symbol }}{{ "%.2f"|format(due_amount) }}
+                </p>
+                <p class="text-xs text-gray-500 mt-1">Any UPI app — Google Pay, PhonePe, Paytm</p>
+            </div>
+            {% endif %}
+
             <!-- Action Buttons -->
             <div class="px-8 py-6 bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-white/10 flex gap-3 no-print">
                 <button onclick="window.print()"
@@ -138,3 +150,14 @@
     }
 </style>
 {% endblock %}
+
+{% if bill.payment_status in ('Unpaid', 'PartiallyPaid') and shop.upi_id %}
+{% block scripts %}
+{% set due_amount = bill.total_amount - (bill.amount_paid or 0) %}
+<script>
+    document.getElementById('upi-qr-img').src = upiQrDataUrl(
+        {{ shop.upi_id | tojson | safe }}, {{ shop.name | tojson | safe }}, "{{ '%.2f'|format(due_amount) }}"
+    );
+</script>
+{% endblock %}
+{% endif %}

@@ -13,6 +13,8 @@
         rel="stylesheet">
     <!-- Tailwind CSS (compiled build — see package.json's "build" script) -->
     <link rel="stylesheet" href="/static/css/styles.css">
+    <!-- Bootstrap Icons (vendored locally, same reasoning as Alpine.js above) -->
+    <link rel="stylesheet" href="/static/vendor/bootstrap-icons/bootstrap-icons.min.css">
     <!-- Alpine.js (vendored locally — a POS terminal shouldn't depend on a CDN being reachable) -->
     <script defer src="/static/js/vendor/alpine.min.js"></script>
     <style>
@@ -73,10 +75,21 @@
             height: var(--logo-size, 40px);
             width: auto;
         }
+
+        /* Native <select> dropdowns render their popup list at the select's own
+           font-size — most selects in this app use text-xs/text-sm (12-14px),
+           which reads as cramped/tiny in the native mobile picker. Force a
+           readable minimum on mobile; this also stops iOS Safari's
+           auto-zoom-on-focus, which only triggers below 16px. */
+        @media (max-width: 639px) {
+            select {
+                font-size: 16px !important;
+            }
+        }
     </style>
 </head>
 
-<body class="bg-gray-900 text-gray-100 min-h-screen w-full flex flex-col selection:bg-orange-500 selection:text-white overflow-x-hidden" style="--font-color: {{ shop.font_color if shop and shop.font_color else '#e2e8f0' }}; 
+<body x-data="{ mobileMenuOpen: false }" class="bg-gray-900 text-gray-100 min-h-screen w-full flex flex-col selection:bg-orange-500 selection:text-white overflow-x-hidden" style="--font-color: {{ shop.font_color if shop and shop.font_color else '#e2e8f0' }};
            --bg-color: {{ shop.background_color if shop and shop.background_color else '#0f172a' }}; 
            --header-color: {{ shop.header_color if shop and shop.header_color else '#1e293b' }}; 
            --logo-size: {{ shop.logo_size if shop and shop.logo_size else 40 }}px; 
@@ -102,8 +115,7 @@
            --cash-upi-font: {{ shop.cash_upi_font_color if shop and shop.cash_upi_font_color else '#ffffff' }};">
 
     <!-- Glassmorphism Navbar -->
-    <nav class="sticky top-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-white/10 shadow-lg"
-        x-data="{ mobileMenuOpen: false }">
+    <nav class="sticky top-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-white/10 shadow-lg">
         <div class="px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-14 sm:h-16">
                 <div class="flex">
@@ -113,7 +125,7 @@
                             class="custom-logo rounded-lg object-cover">
                         {% else %}
                         <span id="shop-logo-span"
-                            class="text-2xl sm:text-3xl custom-logo flex items-center justify-center">🏪</span>
+                            class="text-2xl sm:text-3xl custom-logo flex items-center justify-center"><i class="bi bi-shop"></i></span>
                         {% endif %}
                         <span id="shop-name-text"
                             class="logo-font font-bold text-lg sm:text-2xl bg-gradient-to-r from-orange-400 to-red-500 text-transparent bg-clip-text truncate max-w-[150px] sm:max-w-none">{{
@@ -151,11 +163,7 @@
                 <div class="sm:hidden flex items-center">
                     <button id="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen"
                         class="p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all">
-                        <svg x-show="!mobileMenuOpen" class="w-6 h-6" fill="none" stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 6h16M4 12h16M4 18h16"></path>
-                        </svg>
+                        <i x-show="!mobileMenuOpen" class="bi bi-three-dots-vertical text-xl leading-none"></i>
                         <svg x-show="mobileMenuOpen" x-cloak class="w-6 h-6" fill="none" stroke="currentColor"
                             viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -166,37 +174,47 @@
                 {% endif %}
             </div>
         </div>
-
-        <!-- Mobile Menu Dropdown -->
-        {% if user %}
-        <div x-show="mobileMenuOpen" x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
-            x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0"
-            x-transition:leave-end="opacity-0 -translate-y-2"
-            class="sm:hidden border-t border-white/10 bg-slate-900/95 backdrop-blur-md" x-cloak>
-            <div class="px-4 py-3 space-y-2">
-                <a href="/billing/"
-                    class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">{%
-                    if user and user.role == 'cashier' %}📋 Billing{% else %}🏪 POS{% endif %}</a>
-                <a href="{% if user and user.role == 'superadmin' %}/superadmin/{% else %}/admin/{% endif %}"
-                    class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">{%
-                    if user and user.role == 'superadmin' %}🛡️ Control Center{% else %}📊 Dashboard{% endif %}</a>
-                <a href="/auth/change-password"
-                    class="block text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">🔑
-                    Change Password</a>
-                <button @click="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()"
-                    class="w-full text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-center">⛶
-                    Toggle Fullscreen</button>
-                <form action="/auth/logout" method="post">
-                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                    <button id="mobile-logout-btn" type="submit"
-                        class="w-full text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-3 rounded-xl font-medium transition-all text-center">🚪
-                        Logout</button>
-                </form>
-            </div>
-        </div>
-        {% endif %}
     </nav>
+
+    <!-- Mobile Menu Backdrop — click to dismiss. Kept OUTSIDE <nav> deliberately: nav has
+         backdrop-blur-md, and a `filter`/`backdrop-filter` ancestor creates a new containing
+         block for `position: fixed` descendants, which collapsed this to nav's own 57px-tall
+         box instead of the viewport (so clicks below the header never reached it). -->
+    {% if user %}
+    <div x-show="mobileMenuOpen" @click="mobileMenuOpen = false" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="sm:hidden fixed inset-0 top-14 bg-black/50 z-40" x-cloak></div>
+
+    <!-- Mobile Menu Dropdown — floats over the page, anchored under the header, not inline in the flow -->
+    <div x-show="mobileMenuOpen" x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 -translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 -translate-y-2"
+        class="sm:hidden fixed top-14 left-0 right-0 z-50 border-t border-white/10 bg-slate-900/95 backdrop-blur-md shadow-2xl max-h-[calc(100dvh-3.5rem)] overflow-y-auto" x-cloak>
+        <div class="px-2 py-3 space-y-1">
+            <a href="/billing/"
+                class="flex items-center gap-3 text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-left">
+                {% if user and user.role == 'cashier' %}<i class="bi bi-receipt text-lg"></i> Billing{% else %}<i class="bi bi-shop text-lg"></i> POS{% endif %}</a>
+            <a href="{% if user and user.role == 'superadmin' %}/superadmin/{% else %}/admin/{% endif %}"
+                class="flex items-center gap-3 text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-left">
+                {% if user and user.role == 'superadmin' %}<i class="bi bi-shield-lock text-lg"></i> Control Center{% else %}<i class="bi bi-speedometer2 text-lg"></i> Dashboard{% endif %}</a>
+            <a href="/auth/change-password"
+                class="flex items-center gap-3 text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-left">
+                <i class="bi bi-key text-lg"></i> Change Password</a>
+            <button @click="document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()"
+                class="w-full flex items-center gap-3 text-gray-300 hover:text-white hover:bg-white/10 px-4 py-3 rounded-xl font-medium transition-all text-left">
+                <i class="bi bi-arrows-fullscreen text-lg"></i> Toggle Fullscreen</button>
+            <form action="/auth/logout" method="post">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <button id="mobile-logout-btn" type="submit"
+                    class="w-full flex items-center gap-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 px-4 py-3 rounded-xl font-medium transition-all text-left">
+                    <i class="bi bi-box-arrow-right text-lg"></i> Logout</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
 
     <main class="flex-1 relative flex flex-col overflow-x-hidden">
         <!-- Background Ambient Glow -->
@@ -209,6 +227,8 @@
     </main>
 
     <script src="/static/js/core/api.js"></script>
+    <script src="/static/vendor/qrcode/qrcode.js"></script>
+    <script src="/static/js/core/qr.js"></script>
 
     {% block scripts %}{% endblock %}
 

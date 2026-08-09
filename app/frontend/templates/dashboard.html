@@ -2,7 +2,7 @@
 {% from "partials/country_picker.html" import country_picker %}
 
 {% block content %}
-<div class="h-[calc(100vh-4rem)] flex overflow-hidden bg-[#F5F5F7] dark:bg-[#0f172a]" x-data="dashboardApp('{{ shop.currency_symbol or '₹' }}')">
+<div class="h-[calc(100dvh-4rem)] flex overflow-hidden bg-[#F5F5F7] dark:bg-[#0f172a]" x-data="dashboardApp('{{ shop.currency_symbol or '₹' }}')">
 
     <!-- Sidebar Navigation (Desktop) -->
     <aside
@@ -125,6 +125,22 @@
             </button>
             {% endif %}
 
+            <!-- Not gated behind features.credit_billing — a shop that later loses the
+                 feature must still be able to see and fulfill Pay Later orders it
+                 already committed to (matches billing/router.py's list_orders docstring). -->
+            <button @click="switchTab('orders')" data-tab="orders"
+                :class="{'bg-sky-500 text-white shadow-lg shadow-sky-500/30': activeTab === 'orders', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'orders'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 16.5V19a1 1 0 001 1h10a1 1 0 001-1V9.5M8 16.5H5a1 1 0 01-1-1V9.5m4 7l-4-7m0 0l4-6h9l4 6m-17 0h17M14 21v-6a1 1 0 00-1-1h-2a1 1 0 00-1 1v6">
+                        </path>
+                    </svg>
+                </div>
+                <span class="font-medium hidden lg:block">Orders</span>
+            </button>
+
             <button @click="switchTab('expenses')" data-tab="expenses"
                 :class="{'bg-teal-500 text-white shadow-lg shadow-teal-500/30': activeTab === 'expenses', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'expenses'}"
                 class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
@@ -143,7 +159,7 @@
                     class="w-full flex items-center gap-3 p-3 rounded-xl bg-orange-500/10 text-orange-600 hover:bg-orange-500 hover:text-white transition-all duration-200 font-bold group">
                     <div
                         class="w-6 h-6 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">
-                        🍔</div>
+                        <i class="bi bi-basket2-fill"></i></div>
                     <span class="hidden lg:block">Open POS</span>
                 </a>
             </div>
@@ -164,109 +180,144 @@
         </div>
     </aside>
 
-    <!-- Mobile Bottom Navigation -->
-    <div
-        class="lg:hidden fixed bottom-6 left-4 right-4 z-50 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 flex justify-between items-center overflow-x-auto">
-        <button @click="switchTab('overview')"
-            :class="{'text-blue-400 bg-white/10': activeTab === 'overview', 'text-gray-400': activeTab !== 'overview'}"
-            class="p-3 rounded-xl transition-all">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
-                </path>
-            </svg>
-        </button>
-        <button @click="switchTab('menu')"
-            :class="{'text-orange-500 bg-white/10': activeTab === 'menu', 'text-gray-400': activeTab !== 'menu'}"
-            class="p-3 rounded-xl transition-all">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
-                </path>
-            </svg>
-        </button>
-        <!-- Floating Action Button for POS -->
-        <a href="/billing/" class="-mt-8 bg-orange-500 p-4 rounded-full shadow-lg border-4 border-slate-900 text-white">
-            <span class="text-xl">🍔</span>
-        </a>
-        <button @click="switchTab('customers')"
-            :class="{'text-green-500 bg-white/10': activeTab === 'customers', 'text-gray-400': activeTab !== 'customers'}"
-            class="p-3 rounded-xl transition-all">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
-                </path>
-            </svg>
-        </button>
-        <button @click="switchTab('reports')"
-            :class="{'text-purple-500 bg-white/10': activeTab === 'reports', 'text-gray-400': activeTab !== 'reports'}"
-            class="p-3 rounded-xl transition-all">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
-                </path>
-            </svg>
-        </button>
-        <button @click="switchTab('staff')"
-            :class="{'text-rose-500 bg-white/10': activeTab === 'staff', 'text-gray-400': activeTab !== 'staff'}"
-            class="p-3 rounded-xl transition-all">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z">
-                </path>
-            </svg>
-        </button>
-        {% if features.inventory_management %}
-        <button @click="switchTab('inventory')"
-            :class="{'text-emerald-400 bg-white/10': activeTab === 'inventory', 'text-gray-400': activeTab !== 'inventory'}"
-            class="p-3 rounded-xl transition-all relative">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4">
-                </path>
-            </svg>
-            {% if low_stock_count > 0 %}
-            <span class="absolute top-1 right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+    <!-- Reveal Menu — everything not pinned to the bottom bar, opened via the FAB -->
+    <div x-show="mobileMenuOpen" x-cloak
+        x-transition:enter="transition ease-out duration-200"
+        x-transition:enter-start="opacity-0 translate-y-4"
+        x-transition:enter-end="opacity-100 translate-y-0"
+        x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="opacity-100 translate-y-0"
+        x-transition:leave-end="opacity-0 translate-y-4"
+        @click.outside="mobileMenuOpen = false"
+        class="lg:hidden fixed bottom-24 left-4 right-4 z-50 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4">
+        <div class="grid grid-cols-3 gap-3">
+            <button @click="switchTab('menu')"
+                :class="activeTab === 'menu' ? 'bg-white/10 text-orange-400' : 'text-gray-300'"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+                <span class="text-[10px] font-bold uppercase tracking-wide">Menu</span>
+            </button>
+            <button @click="switchTab('customers')"
+                :class="activeTab === 'customers' ? 'bg-white/10 text-green-500' : 'text-gray-300'"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+                <span class="text-[10px] font-bold uppercase tracking-wide">Customers</span>
+            </button>
+            <button @click="switchTab('reports')"
+                :class="activeTab === 'reports' ? 'bg-white/10 text-purple-500' : 'text-gray-300'"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <span class="text-[10px] font-bold uppercase tracking-wide">Reports</span>
+            </button>
+            <button @click="switchTab('staff')"
+                :class="activeTab === 'staff' ? 'bg-white/10 text-rose-500' : 'text-gray-300'"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+                <span class="text-[10px] font-bold uppercase tracking-wide">Staff</span>
+            </button>
+            {% if features.customer_management %}
+            <button @click="switchTab('rate_cards')"
+                :class="activeTab === 'rate_cards' ? 'bg-white/10 text-amber-400' : 'text-gray-300'"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 7h.01M7 3h5.586a1 1 0 01.707.293l6.414 6.414a1 1 0 010 1.414l-8.586 8.586a1 1 0 01-1.414 0l-6.414-6.414A1 1 0 013 12.586V7a4 4 0 014-4z"></path>
+                </svg>
+                <span class="text-[10px] font-bold uppercase tracking-wide">Rate Cards</span>
+            </button>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation — fixed, always showing all six shortcuts (Overview/POS/Inventory
+         left, Expenses/Credit Book/Orders right) flanking the FAB, which separately reveals the
+         menu panel above for the remaining tabs. -->
+    <div
+        class="lg:hidden fixed bottom-6 left-4 right-4 z-50 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 flex justify-between items-center">
+        <div class="flex items-center shrink-0">
+            <button @click="switchTab('overview')"
+                :class="{'text-blue-400 bg-white/10': activeTab === 'overview', 'text-gray-400': activeTab !== 'overview'}"
+                class="p-3 rounded-xl transition-all shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6">
+                    </path>
+                </svg>
+            </button>
+            <a href="/billing/"
+                class="p-3 rounded-xl transition-all shrink-0 text-orange-400 hover:bg-white/10">
+                <i class="bi bi-basket2-fill text-xl leading-none"></i>
+            </a>
+            {% if features.inventory_management %}
+            <button @click="switchTab('inventory')"
+                :class="{'text-emerald-400 bg-white/10': activeTab === 'inventory', 'text-gray-400': activeTab !== 'inventory'}"
+                class="p-3 rounded-xl transition-all shrink-0 relative">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4">
+                    </path>
+                </svg>
+                {% if low_stock_count > 0 %}
+                <span class="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+                {% endif %}
+            </button>
+            {% endif %}
+        </div>
+        <!-- Floating Action Button — reveals the full menu -->
+        <button @click="mobileMenuOpen = !mobileMenuOpen"
+            class="-mt-8 bg-orange-500 w-14 h-14 shrink-0 flex items-center justify-center rounded-full shadow-lg border-4 border-slate-900 text-white transition-transform"
+            :class="mobileMenuOpen ? 'rotate-180' : ''">
+            <i class="bi bi-chevron-up text-2xl leading-none"></i>
         </button>
-        {% endif %}
-        {% if features.customer_management %}
-        <button @click="switchTab('rate_cards')"
-            :class="{'text-amber-400 bg-white/10': activeTab === 'rate_cards', 'text-gray-400': activeTab !== 'rate_cards'}"
-            class="p-3 rounded-xl transition-all">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M7 7h.01M7 3h5.586a1 1 0 01.707.293l6.414 6.414a1 1 0 010 1.414l-8.586 8.586a1 1 0 01-1.414 0l-6.414-6.414A1 1 0 013 12.586V7a4 4 0 014-4z">
-                </path>
-            </svg>
-        </button>
-        {% endif %}
-        {% if features.customer_management %}
-        <button @click="switchTab('credit_book')"
-            :class="{'text-indigo-400 bg-white/10': activeTab === 'credit_book', 'text-gray-400': activeTab !== 'credit_book'}"
-            class="p-3 rounded-xl transition-all">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 7v14m0-14C10.5 5.5 8 4.5 5 4.5c-1 0-1.5.2-1.5.2v13.6s.5-.2 1.5-.2c3 0 5.5 1 7 2.5m0-14c1.5-1.5 4-2.5 7-2.5 1 0 1.5.2 1.5.2v13.6s-.5-.2-1.5-.2c-3 0-5.5 1-7 2.5">
-                </path>
-            </svg>
-        </button>
-        {% endif %}
-        <button @click="switchTab('expenses')"
-            :class="{'text-teal-400 bg-white/10': activeTab === 'expenses', 'text-gray-400': activeTab !== 'expenses'}"
-            class="p-3 rounded-xl transition-all">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V8a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2z">
-                </path>
-            </svg>
-        </button>
+        <div class="flex items-center shrink-0">
+            <button @click="switchTab('expenses')"
+                :class="{'text-teal-400 bg-white/10': activeTab === 'expenses', 'text-gray-400': activeTab !== 'expenses'}"
+                class="p-3 rounded-xl transition-all shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21H5a2 2 0 01-2-2V8a2 2 0 012-2h14a2 2 0 012 2v11a2 2 0 01-2 2z">
+                    </path>
+                </svg>
+            </button>
+            {% if features.customer_management %}
+            <button @click="switchTab('credit_book')"
+                :class="{'text-indigo-400 bg-white/10': activeTab === 'credit_book', 'text-gray-400': activeTab !== 'credit_book'}"
+                class="p-3 rounded-xl transition-all shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 7v14m0-14C10.5 5.5 8 4.5 5 4.5c-1 0-1.5.2-1.5.2v13.6s.5-.2 1.5-.2c3 0 5.5 1 7 2.5m0-14c1.5-1.5 4-2.5 7-2.5 1 0 1.5.2 1.5.2v13.6s-.5-.2-1.5-.2c-3 0-5.5 1-7 2.5">
+                    </path>
+                </svg>
+            </button>
+            {% endif %}
+            <button @click="switchTab('orders')"
+                :class="{'text-sky-400 bg-white/10': activeTab === 'orders', 'text-gray-400': activeTab !== 'orders'}"
+                class="p-3 rounded-xl transition-all shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 16.5V19a1 1 0 001 1h10a1 1 0 001-1V9.5M8 16.5H5a1 1 0 01-1-1V9.5m4 7l-4-7m0 0l4-6h9l4 6m-17 0h17M14 21v-6a1 1 0 00-1-1h-2a1 1 0 00-1 1v6">
+                    </path>
+                </svg>
+            </button>
+        </div>
     </div>
 
     <!-- Main Content Area -->
     <main class="flex-1 relative overflow-hidden flex flex-col">
 
         <!-- OVERVIEW TAB -->
-        <div x-show="activeTab === 'overview'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+        <div x-show="activeTab === 'overview'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-orange-500 uppercase tracking-widest mb-1">Business Intelligence
@@ -311,32 +362,48 @@
 
             <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white tracking-tight">Recent Activity</h2>
             <div
-                class="bg-white dark:bg-slate-800 rounded-3xl border border-gray-200 dark:border-white/5 overflow-x-auto shadow-sm">
-                <table class="w-full text-left">
-                    <thead class="bg-gray-50 dark:bg-slate-900/50">
-                        <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
-                            <th class="p-6">Bill ID</th>
-                            <th class="p-6">Method</th>
-                            <th class="p-6 text-right">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-white/5">
-                        {% for bill in bills[:5] %}
-                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transform transition-colors">
-                            <td class="p-6 font-mono text-blue-500 text-sm">#{{ bill.bill_number }}</td>
-                            <td class="p-6 text-sm text-gray-500 uppercase font-bold">{{ bill.payment_method }}</td>
-                            <td class="p-6 text-right font-black text-gray-900 dark:text-white">{{ shop.currency_symbol
-                                }}{{ "%.2f"|format(bill.total_amount) }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
+                <!-- Mobile: stacked cards -->
+                <div class="sm:hidden divide-y divide-gray-100 dark:divide-white/5">
+                    {% for bill in bills[:5] %}
+                    <div class="p-3 flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="font-mono text-blue-500 text-sm">#{{ bill.bill_number }}</p>
+                            <p class="text-xs text-gray-500 uppercase font-bold mt-0.5">{{ bill.payment_method }}</p>
+                        </div>
+                        <p class="font-black text-gray-900 dark:text-white shrink-0">{{ shop.currency_symbol }}{{ "%.2f"|format(bill.total_amount) }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Desktop: table -->
+                <div class="hidden sm:block overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 dark:bg-slate-900/50">
+                            <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
+                                <th class="p-6">Bill ID</th>
+                                <th class="p-6">Method</th>
+                                <th class="p-6 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                            {% for bill in bills[:5] %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transform transition-colors">
+                                <td class="p-6 font-mono text-blue-500 text-sm">#{{ bill.bill_number }}</td>
+                                <td class="p-6 text-sm text-gray-500 uppercase font-bold">{{ bill.payment_method }}</td>
+                                <td class="p-6 text-right font-black text-gray-900 dark:text-white">{{ shop.currency_symbol
+                                    }}{{ "%.2f"|format(bill.total_amount) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Receipt & Printer Settings -->
             <div class="mt-10">
                 <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-                    <span class="text-purple-400">🖨️</span> Receipt & Printer Settings
+                    <span class="text-purple-400"><i class="bi bi-printer-fill"></i></span> Receipt & Printer Settings
                 </h2>
                 <form action="/admin/settings" method="POST" enctype="multipart/form-data"
                     class="bg-white dark:bg-slate-800 rounded-3xl border border-gray-200 dark:border-white/5 p-6 shadow-sm">
@@ -405,6 +472,26 @@
                             </select>
                             <p class="text-[10px] text-gray-400 mt-1">Controls the local time shown on bills and receipts, regardless of the viewing device.</p>
                         </div>
+
+                        <!-- Pay Later credit limit enforcement -->
+                        <div class="md:col-span-2 flex items-center justify-between gap-3 bg-gray-50 dark:bg-slate-900 rounded-xl px-4 py-3 border border-gray-200 dark:border-white/10">
+                            <label for="block_over_credit_limit" class="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                                <span class="font-medium text-gray-900 dark:text-white block">Block Pay Later bills that exceed a customer's credit limit</span>
+                                <span class="text-[10px] text-gray-400">Off (default): the bill still goes through, with a warning. On: the bill is rejected until the limit is raised or the balance is paid down.</span>
+                            </label>
+                            <label class="relative inline-flex items-center gap-2 cursor-pointer shrink-0">
+                                <input type="checkbox" id="block_over_credit_limit" name="block_over_credit_limit"
+                                    {% if shop.block_over_credit_limit %}checked{% endif %} class="sr-only peer">
+                                <span class="relative w-12 h-6 rounded-full bg-gray-300 dark:bg-slate-700 peer-checked:bg-green-500
+                                             peer-focus-visible:ring-2 peer-focus-visible:ring-green-400/50 transition-colors duration-200
+                                             after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5
+                                             after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-200
+                                             peer-checked:after:translate-x-6"></span>
+                                <span class="w-8 text-center text-xs font-black uppercase tracking-widest text-gray-400 peer-checked:hidden">Off</span>
+                                <span class="hidden w-8 text-center text-xs font-black uppercase tracking-widest text-green-400 peer-checked:inline
+                                             [text-shadow:0_0_6px_rgba(74,222,128,.9),0_0_14px_rgba(74,222,128,.6)]">On</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="pt-4 mt-4 border-t border-gray-100 dark:border-white/5 flex justify-end">
@@ -418,7 +505,7 @@
         </div>
 
         <!-- MENU TAB -->
-        <div x-show="activeTab === 'menu'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+        <div x-show="activeTab === 'menu'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-orange-500 uppercase tracking-widest mb-1">Catalog Control</p>
@@ -448,7 +535,7 @@
                                 <img :src="item.image_url" :alt="item.name" class="w-full h-full object-cover">
                             </template>
                             <template x-if="!item.image_url">
-                                <span class="text-4xl">🍔</span>
+                                <span class="text-4xl"><i class="bi bi-egg-fried"></i></span>
                             </template>
                         </div>
                         <h3 class="font-bold text-lg mb-1 dark:text-white" x-text="item.name"></h3>
@@ -508,7 +595,7 @@
         </div>
 
         <!-- CUSTOMERS TAB -->
-        <div x-show="activeTab === 'customers'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+        <div x-show="activeTab === 'customers'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-green-500 uppercase tracking-widest mb-1">CRM Ledger</p>
@@ -596,7 +683,7 @@
         </div>
 
         <!-- REPORTS TAB (Enhanced Analytics) -->
-        <div x-show="activeTab === 'reports'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+        <div x-show="activeTab === 'reports'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-8">
                 <div>
                     <p class="text-sm font-bold text-purple-500 uppercase tracking-widest mb-1">Business Intelligence
@@ -690,7 +777,7 @@
 
                 <!-- Top Selling Items -->
                 <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">🔥 Top Sellers</h3>
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4"><i class="bi bi-fire"></i> Top Sellers</h3>
                     <div class="space-y-3">
                         {% for item in analytics.top_items or [] %}
                         <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-white/5 rounded-xl">
@@ -719,7 +806,7 @@
                 <!-- Peak Hours -->
                 <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest">⏰ Peak Hours</h3>
+                        <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest"><i class="bi bi-clock-fill"></i> Peak Hours</h3>
                         <span class="px-3 py-1 bg-green-500/20 text-green-500 rounded-lg text-xs font-bold">
                             Peak: {{ analytics.peak_hour or 12 }}:00
                         </span>
@@ -731,13 +818,13 @@
 
                 <!-- Payment Methods -->
                 <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">💳 Payment Methods</h3>
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4"><i class="bi bi-credit-card-fill"></i> Payment Methods</h3>
                     <div class="grid grid-cols-2 gap-4">
                         {% for pm in analytics.payment_methods or [] %}
                         <div class="p-4 bg-gray-50 dark:bg-white/5 rounded-xl text-center">
                             <div class="text-2xl mb-2">
-                                {% if pm.method == 'Cash' %}💵{% elif pm.method == 'Card' %}💳{% elif pm.method == 'UPI'
-                                %}📱{% else %}💰{% endif %}
+                                {% if pm.method == 'Cash' %}<i class="bi bi-cash-stack"></i>{% elif pm.method == 'Card' %}<i class="bi bi-credit-card-fill"></i>{% elif pm.method == 'UPI'
+                                %}<i class="bi bi-phone-fill"></i>{% else %}<i class="bi bi-cash-coin"></i>{% endif %}
                             </div>
                             <p class="text-xs font-bold text-gray-500 uppercase">{{ pm.method }}</p>
                             <p class="text-xl font-black text-gray-900 dark:text-white">{{ shop.currency_symbol }}{{
@@ -753,46 +840,68 @@
 
             <!-- Transaction Log -->
             <div
-                class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 overflow-x-auto">
-                <div class="p-6 border-b border-gray-100 dark:border-white/5">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest">📋 Recent Transactions</h3>
+                class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5">
+                <div class="p-4 sm:p-6 border-b border-gray-100 dark:border-white/5">
+                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest"><i class="bi bi-clipboard-data-fill"></i> Recent Transactions</h3>
                 </div>
-                <table class="w-full text-left">
-                    <thead class="bg-gray-50 dark:bg-slate-900/50">
-                        <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
-                            <th class="p-6">Transaction ID</th>
-                            <th class="p-6">Timestamp</th>
-                            <th class="p-6">Payment</th>
-                            <th class="p-6 text-right">Total Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-100 dark:divide-white/5">
-                        {% for bill in bills[:20] %}
-                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                            <td class="p-6 font-mono text-blue-500 text-sm italic">#{{ bill.bill_number }}</td>
-                            <td class="p-6 text-xs font-bold text-gray-500 uppercase tracking-tighter">
-                                <span>{{ (bill.timestamp | shop_local(shop.timezone if shop else "UTC")).strftime('%d %b %Y | %H:%M') }}</span>
-                            </td>
-                            <td class="p-6">
-                                <span
-                                    class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 border border-white/10 rounded-lg">{{
-                                    bill.payment_method }}</span>
-                            </td>
-                            <td class="p-6 text-right">
-                                <span class="font-black text-gray-900 dark:text-white tracking-tighter mr-4">{{
-                                    shop.currency_symbol }}{{ "%.2f"|format(bill.total_amount) }}</span>
-                                <a href="/billing/bill/{{ bill.id }}" target="_blank"
-                                    class="text-xs font-bold text-purple-500 hover:underline tracking-widest">DOC</a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+
+                <!-- Mobile: stacked cards, everything visible without scrolling -->
+                <div class="sm:hidden divide-y divide-gray-100 dark:divide-white/5">
+                    {% for bill in bills[:20] %}
+                    <div class="p-3 flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="font-mono text-blue-500 text-sm italic">#{{ bill.bill_number }}</p>
+                            <p class="text-[11px] font-bold text-gray-500 uppercase tracking-tighter mt-0.5">{{ (bill.timestamp | shop_local(shop.timezone if shop else "UTC")).strftime('%d %b %Y | %H:%M') }}</p>
+                            <span class="inline-block mt-1 text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 border border-white/10 rounded-lg">{{ bill.payment_method }}</span>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <p class="font-black text-gray-900 dark:text-white tracking-tighter">{{ shop.currency_symbol }}{{ "%.2f"|format(bill.total_amount) }}</p>
+                            <a href="/billing/bill/{{ bill.id }}" target="_blank"
+                                class="text-xs font-bold text-purple-500 hover:underline tracking-widest">DOC</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Desktop: table -->
+                <div class="hidden sm:block overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 dark:bg-slate-900/50">
+                            <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
+                                <th class="p-6">Transaction ID</th>
+                                <th class="p-6">Timestamp</th>
+                                <th class="p-6">Payment</th>
+                                <th class="p-6 text-right">Total Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                            {% for bill in bills[:20] %}
+                            <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <td class="p-6 font-mono text-blue-500 text-sm italic">#{{ bill.bill_number }}</td>
+                                <td class="p-6 text-xs font-bold text-gray-500 uppercase tracking-tighter">
+                                    <span>{{ (bill.timestamp | shop_local(shop.timezone if shop else "UTC")).strftime('%d %b %Y | %H:%M') }}</span>
+                                </td>
+                                <td class="p-6">
+                                    <span
+                                        class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 border border-white/10 rounded-lg">{{
+                                        bill.payment_method }}</span>
+                                </td>
+                                <td class="p-6 text-right">
+                                    <span class="font-black text-gray-900 dark:text-white tracking-tighter mr-4">{{
+                                        shop.currency_symbol }}{{ "%.2f"|format(bill.total_amount) }}</span>
+                                    <a href="/billing/bill/{{ bill.id }}" target="_blank"
+                                        class="text-xs font-bold text-purple-500 hover:underline tracking-widest">DOC</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <!-- STAFF TAB -->
-        <div x-show="activeTab === 'staff'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+        <div x-show="activeTab === 'staff'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-rose-500 uppercase tracking-widest mb-1">Personnel Grid</p>
@@ -840,7 +949,7 @@
 
         {% if features.inventory_management %}
         <!-- INVENTORY TAB -->
-        <div x-show="activeTab === 'inventory'" x-data="inventoryApp()" @scan-success.window="handleScanResult($event.detail.result)" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+        <div x-show="activeTab === 'inventory'" x-data="inventoryApp()" @scan-success.window="handleScanResult($event.detail.result)" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-emerald-500 uppercase tracking-widest mb-1">Stock Control</p>
@@ -860,7 +969,7 @@
             <!-- Low Stock Alert Banner -->
             {% if low_stock_count > 0 %}
             <div class="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-3">
-                <span class="text-2xl">⚠️</span>
+                <span class="text-2xl"><i class="bi bi-exclamation-triangle-fill"></i></span>
                 <div>
                     <p class="font-black text-amber-600 dark:text-amber-400 text-sm uppercase tracking-widest">Low Stock Alert</p>
                     <p class="text-amber-700 dark:text-amber-300 text-sm">{{ low_stock_count }} item{{ 's' if low_stock_count != 1 }} are running low. Restock soon to avoid stockouts.</p>
@@ -906,7 +1015,7 @@
                                             <img :src="item.image_url" class="w-10 h-10 rounded-xl object-cover" alt="">
                                         </template>
                                         <template x-if="!item.image_url">
-                                            <div class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-lg">📦</div>
+                                            <div class="w-10 h-10 rounded-xl bg-gray-100 dark:bg-slate-700 flex items-center justify-center text-lg"><i class="bi bi-box-seam-fill"></i></div>
                                         </template>
                                         <div>
                                             <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="item.name"></p>
@@ -929,15 +1038,15 @@
                                 <td class="p-5 text-center">
                                     <span x-show="item.stock_quantity != null" class="font-black text-lg"
                                         :class="item.stock_quantity <= 0 ? 'text-red-500' : (item.stock_quantity <= (item.low_stock_threshold || 5) ? 'text-amber-500' : 'text-gray-900 dark:text-white')"
-                                        x-text="Math.trunc(item.stock_quantity)"></span>
+                                        x-text="formatQty(item.stock_quantity)"></span>
                                     <span x-show="item.stock_quantity == null" class="text-gray-400 text-sm">—</span>
                                 </td>
-                                <td class="p-5 text-center text-sm text-gray-500" x-text="Math.trunc(item.low_stock_threshold || 5)"></td>
+                                <td class="p-5 text-center text-sm text-gray-500" x-text="formatQty(item.low_stock_threshold || 5)"></td>
                                 <td class="p-5 text-center">
                                     <span x-show="item.stock_quantity == null" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 rounded-lg">Untracked</span>
-                                    <span x-show="item.stock_quantity != null && item.stock_quantity <= 0" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-red-500/10 text-red-500 rounded-lg">🚫 Out</span>
-                                    <span x-show="item.stock_quantity != null && item.stock_quantity > 0 && item.stock_quantity <= (item.low_stock_threshold || 5)" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg">⚠ Low</span>
-                                    <span x-show="item.stock_quantity != null && item.stock_quantity > (item.low_stock_threshold || 5)" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg">✓ OK</span>
+                                    <span x-show="item.stock_quantity != null && item.stock_quantity <= 0" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-red-500/10 text-red-500 rounded-lg"><i class="bi bi-slash-circle-fill"></i> Out</span>
+                                    <span x-show="item.stock_quantity != null && item.stock_quantity > 0 && item.stock_quantity <= (item.low_stock_threshold || 5)" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-amber-500/10 text-amber-500 rounded-lg"><i class="bi bi-exclamation-triangle-fill"></i> Low</span>
+                                    <span x-show="item.stock_quantity != null && item.stock_quantity > (item.low_stock_threshold || 5)" class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-emerald-500/10 text-emerald-500 rounded-lg"><i class="bi bi-check-circle-fill"></i> OK</span>
                                 </td>
                                 <td class="p-5 text-right">
                                     <button @click="openRestockModal(item.id, item.name, item.stock_quantity || 0)"
@@ -979,7 +1088,8 @@
                     <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-2 dark:text-white">Restock Item</h2>
                     <p class="text-sm text-gray-500 mb-6">Adding stock to: <strong x-text="restockItemName" class="text-emerald-500"></strong></p>
                     <p class="text-sm text-gray-500 mb-6">Current stock: <strong x-text="restockCurrentStock" class="dark:text-white"></strong></p>
-                    <form :action="'/admin/inventory/' + restockItemId + '/restock'" method="POST" class="space-y-4">
+                    <form :action="'/admin/inventory/' + restockItemId + '/restock'" method="POST" class="space-y-4"
+                        @submit.prevent="submitRestock($event)">
                         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                         <input type="hidden" name="source" value="manual">
                         <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
@@ -1017,11 +1127,14 @@
                             <input type="text" name="note" placeholder="e.g. Received delivery"
                                 class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
                         </div>
+                        <p x-show="restockError" x-text="restockError" class="text-xs text-red-500 font-bold"></p>
                         <div class="flex gap-3 pt-4">
                             <button type="button" @click="showRestockModal = false"
                                 class="flex-1 bg-gray-100 dark:bg-white/5 text-gray-500 font-black uppercase tracking-widest py-4 rounded-2xl text-xs">Cancel</button>
-                            <button type="submit"
-                                class="flex-1 bg-emerald-500 text-white font-black uppercase tracking-widest py-4 rounded-2xl text-xs shadow-lg shadow-emerald-500/20">Add Stock</button>
+                            <button type="submit" :disabled="restockSaving"
+                                class="flex-1 bg-emerald-500 text-white font-black uppercase tracking-widest py-4 rounded-2xl text-xs shadow-lg shadow-emerald-500/20 disabled:opacity-50">
+                                <span x-text="restockSaving ? 'Saving...' : 'Add Stock'"></span>
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -1038,30 +1151,37 @@
              server-rendered tabs) so the shell always shows; the fetch-driven
              Alpine component is scoped to the inner div so a failure there
              can't blank the whole panel. -->
-        <div x-show="activeTab === 'expenses'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10">
+        <div x-show="activeTab === 'expenses'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10">
         <div x-data="expensesApp('{{ shop.currency_symbol or '₹' }}', '{{ expense_categories[0] if expense_categories else '' }}')" x-init="init()">
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-teal-500 uppercase tracking-widest mb-1">Outgoings</p>
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Expenses</h1>
                 </div>
-                <button @click="openAddModal()"
-                    class="bg-teal-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-teal-600 transition-all shadow-lg shadow-teal-500/20">
-                    Add Expense
-                </button>
+                <div class="flex items-center gap-2">
+                    <button @click="filtersOpen = !filtersOpen" title="Filters"
+                        class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl border transition-colors"
+                        :class="filtersOpen ? 'bg-sky-500/10 border-sky-400/60 text-sky-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-300'">
+                        <i class="bi bi-funnel-fill"></i>
+                    </button>
+                    <button @click="openAddModal()"
+                        class="bg-teal-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-teal-600 transition-all shadow-lg shadow-teal-500/20">
+                        Add Expense
+                    </button>
+                </div>
             </div>
 
             <!-- Total Card -->
             <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 p-6 mb-6 flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-teal-500/10 flex items-center justify-center text-2xl">💸</div>
+                <div class="w-12 h-12 rounded-2xl bg-teal-500/10 flex items-center justify-center text-2xl"><i class="bi bi-wallet2"></i></div>
                 <div>
                     <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Total (filtered)</p>
                     <p class="text-2xl font-black text-gray-900 dark:text-white" x-text="formatCurrency(totalAmount())"></p>
                 </div>
             </div>
 
-            <!-- Filters -->
-            <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 p-6 mb-6 flex flex-wrap gap-4 items-end">
+            <!-- Filters (collapsed by default) -->
+            <div x-show="filtersOpen" x-cloak class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 p-6 mb-6 flex flex-wrap gap-4 items-end">
                 <div>
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Search</label>
                     <input type="text" x-model="search" @input="onSearchInput()" placeholder="Description or vendor..."
@@ -1226,21 +1346,28 @@
 
         <!-- CREDIT BOOK TAB -->
         {% if features.customer_management %}
-        <div x-show="activeTab === 'credit_book'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10">
+        <div x-show="activeTab === 'credit_book'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10">
         <div x-data="creditBookApp('{{ shop.currency_symbol or '₹' }}', '{{ shop.upi_id if shop else '' }}', '{{ shop.name if shop else '' }}')" x-init="init()">
 
             <!-- ============ LIST VIEW ============ -->
             <template x-if="view === 'list'">
             <div>
-                <div class="flex justify-between items-center gap-4 mb-4">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 mb-4">
                     <div class="flex items-baseline gap-3 min-w-0">
                         <h1 class="text-2xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase shrink-0">Credit Book</h1>
                         <p class="text-xs text-gray-400 truncate hidden md:block">The khata, digitized — sorted by who needs collecting from first.</p>
                     </div>
-                    <button @click="generateStatements()" :disabled="generating"
-                        class="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 shrink-0">
-                        <span x-text="generating ? 'Generating...' : 'Generate Statements Now'"></span>
-                    </button>
+                    <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                        <button @click="filtersOpen = !filtersOpen" title="Filters"
+                            class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl border transition-colors"
+                            :class="filtersOpen ? 'bg-sky-500/10 border-sky-400/60 text-sky-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-300'">
+                            <i class="bi bi-funnel-fill"></i>
+                        </button>
+                        <button @click="generateStatements()" :disabled="generating"
+                            class="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+                            <span x-text="generating ? 'Generating...' : 'Generate Statements Now'"></span>
+                        </button>
+                    </div>
                 </div>
                 <p x-show="notice" x-text="notice" class="text-indigo-500 text-sm font-bold mb-3"></p>
                 <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-3"></p>
@@ -1261,8 +1388,8 @@
                     </div>
                 </div>
 
-                <!-- Toolbar: search, sort, filters -->
-                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-3 mb-3 flex flex-wrap items-center gap-2">
+                <!-- Toolbar: search, sort, filters (collapsed by default) -->
+                <div x-show="filtersOpen" x-cloak class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-3 mb-3 flex flex-wrap items-center gap-2">
                     <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search account..."
                         class="flex-1 min-w-[12rem] bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
 
@@ -1291,12 +1418,17 @@
                         Overdue only
                     </label>
 
-                    <div class="flex items-center gap-2">
-                        <input type="date" x-model="dueFrom" @change="accountsOffset = 0; fetchAccounts()" title="Due from"
-                            class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
-                        <span class="text-gray-400 text-sm">to</span>
-                        <input type="date" x-model="dueTo" @change="accountsOffset = 0; fetchAccounts()" title="Due to"
-                            class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
+                    <div class="grid grid-cols-2 sm:flex sm:items-end gap-2 w-full sm:w-auto">
+                        <div>
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Due From</label>
+                            <input type="date" x-model="dueFrom" @change="accountsOffset = 0; fetchAccounts()"
+                                class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Due To</label>
+                            <input type="date" x-model="dueTo" @change="accountsOffset = 0; fetchAccounts()"
+                                class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                        </div>
                     </div>
 
                     <button @click="clearFilters()" class="text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white ml-auto">Clear</button>
@@ -1312,7 +1444,7 @@
                             x-text="(search || overdueOnly || paymentTermType || dueFrom || dueTo) ? 'No accounts match these filters.' : 'No credit-enabled customers yet. Enable credit for a customer from the Customers tab.'"></p>
                     </template>
                     <template x-if="!loading && accounts.length > 0">
-                        <div class="px-5 py-2 flex items-center gap-4 border-b border-gray-100 dark:border-white/5 text-[10px] text-gray-400 uppercase font-black tracking-widest">
+                        <div class="hidden sm:flex px-5 py-2 items-center gap-4 border-b border-gray-100 dark:border-white/5 text-[10px] text-gray-400 uppercase font-black tracking-widest">
                             <span class="w-12 text-center shrink-0">Usage</span>
                             <span class="flex-1">Customer</span>
                             <span class="text-right">Outstanding</span>
@@ -1321,31 +1453,35 @@
                     </template>
                     <div class="divide-y divide-gray-100 dark:divide-white/5">
                         <template x-for="a in accounts" :key="a.slug">
-                            <div class="p-5 flex items-center gap-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                                <div class="w-12 h-12 rounded-full flex items-center justify-center shrink-0" :style="ringStyle(a)">
-                                    <div class="w-9 h-9 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-[10px] font-black" :style="`color: ${ringColor(a)}`">
-                                        <span x-text="a.utilization_pct != null ? Math.round(a.utilization_pct) + '%' : '—'"></span>
+                            <div class="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                <div class="flex items-center gap-3 sm:gap-4 min-w-0 sm:flex-1">
+                                    <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shrink-0" :style="ringStyle(a)">
+                                        <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center text-[9px] sm:text-[10px] font-black" :style="`color: ${ringColor(a)}`">
+                                            <span x-text="a.utilization_pct != null ? Math.round(a.utilization_pct) + '%' : '—'"></span>
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <p class="font-bold text-gray-900 dark:text-white text-sm break-words" x-text="a.name"></p>
+                                            <span x-show="a.days_overdue > 0" class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-red-500/10 text-red-500 shrink-0" x-text="a.days_overdue + 'd overdue'"></span>
+                                            <span x-show="a.payment_term_type" class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-400 shrink-0" x-text="a.payment_term_type"></span>
+                                        </div>
+                                        <p class="text-xs text-gray-400 font-mono mt-0.5 truncate" x-text="a.phone_number"></p>
                                     </div>
                                 </div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="a.name"></p>
-                                        <span x-show="a.days_overdue > 0" class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-red-500/10 text-red-500" x-text="a.days_overdue + 'd overdue'"></span>
-                                        <span x-show="a.payment_term_type" class="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-400" x-text="a.payment_term_type"></span>
+                                <div class="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                                    <div class="text-left sm:text-right shrink-0">
+                                        <p class="font-black text-gray-900 dark:text-white text-sm sm:text-base whitespace-nowrap" x-text="formatCurrency(a.credit_balance)"></p>
+                                        <p class="text-[10px] text-gray-400 whitespace-nowrap" x-text="a.credit_limit ? ('of ' + formatCurrency(a.credit_limit) + ' limit') : 'no limit'"></p>
                                     </div>
-                                    <p class="text-xs text-gray-400 font-mono mt-0.5" x-text="a.phone_number"></p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="font-black text-gray-900 dark:text-white" x-text="formatCurrency(a.credit_balance)"></p>
-                                    <p class="text-[10px] text-gray-400" x-text="a.credit_limit ? ('of ' + formatCurrency(a.credit_limit) + ' limit') : 'no limit'"></p>
-                                </div>
-                                <div class="flex items-center gap-2 shrink-0 w-[6.5rem] justify-end">
-                                    <button @click="openWhatsApp(a)" title="Send WhatsApp reminder"
-                                        class="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center shrink-0">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.195 1.603 6.012L.031 24l6.104-1.6c1.765.952 3.75 1.455 5.896 1.455 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.854c-1.84 0-3.64-.495-5.218-1.433l-.373-.223-3.87 1.014 1.034-3.77-.245-.39A9.85 9.85 0 012.181 12.03C2.181 6.59 6.6 2.17 12.031 2.17c5.431 0 9.85 4.42 9.85 9.86 0 5.44-4.419 9.855-9.85 9.855h-.001zm5.398-7.37c-.296-.148-1.75-.864-2.02-.962-.27-.099-.467-.148-.664.148-.197.296-.763.962-.934 1.16-.172.197-.344.221-.64.074-1.393-.69-2.527-1.464-3.486-3.037-.123-.2-.014-.308.134-.455.133-.133.296-.345.444-.518.148-.172.197-.296.296-.492.099-.197.049-.37-.025-.518-.074-.148-.664-1.603-.91-2.195-.24-.577-.482-.498-.664-.508-.172-.01-.37-.01-.567-.01-.197 0-.518.074-.789.37-.27.296-1.035 1.012-1.035 2.466 0 1.455 1.06 2.86 1.208 3.057.148.197 2.083 3.183 5.044 4.464 2.085.897 2.802.775 3.32.735.617-.048 1.75-.714 1.996-1.405.247-.69.247-1.282.173-1.405-.074-.123-.27-.197-.567-.345z"/></svg>
-                                    </button>
-                                    <button @click="openDetail(a)"
-                                        class="bg-gray-900 dark:bg-white text-white dark:text-gray-900 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:opacity-80">View</button>
+                                    <div class="flex items-center gap-2 shrink-0 sm:w-[6.5rem] sm:justify-end">
+                                        <button @click="openWhatsApp(a)" title="Send WhatsApp reminder"
+                                            class="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.195 1.603 6.012L.031 24l6.104-1.6c1.765.952 3.75 1.455 5.896 1.455 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.854c-1.84 0-3.64-.495-5.218-1.433l-.373-.223-3.87 1.014 1.034-3.77-.245-.39A9.85 9.85 0 012.181 12.03C2.181 6.59 6.6 2.17 12.031 2.17c5.431 0 9.85 4.42 9.85 9.86 0 5.44-4.419 9.855-9.85 9.855h-.001zm5.398-7.37c-.296-.148-1.75-.864-2.02-.962-.27-.099-.467-.148-.664.148-.197.296-.763.962-.934 1.16-.172.197-.344.221-.64.074-1.393-.69-2.527-1.464-3.486-3.037-.123-.2-.014-.308.134-.455.133-.133.296-.345.444-.518.148-.172.197-.296.296-.492.099-.197.049-.37-.025-.518-.074-.148-.664-1.603-.91-2.195-.24-.577-.482-.498-.664-.508-.172-.01-.37-.01-.567-.01-.197 0-.518.074-.789.37-.27.296-1.035 1.012-1.035 2.466 0 1.455 1.06 2.86 1.208 3.057.148.197 2.083 3.183 5.044 4.464 2.085.897 2.802.775 3.32.735.617-.048 1.75-.714 1.996-1.405.247-.69.247-1.282.173-1.405-.074-.123-.27-.197-.567-.345z"/></svg>
+                                        </button>
+                                        <button @click="openDetail(a)"
+                                            class="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-600 transition-all">View</button>
+                                    </div>
                                 </div>
                             </div>
                         </template>
@@ -1390,30 +1526,30 @@
                 <template x-if="!ledgerLoading && ledger">
                     <div class="space-y-3">
                         <!-- Identity + balance summary, all in one compact row -->
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-4 flex flex-wrap items-center justify-between gap-3">
-                            <div class="flex items-center gap-3 min-w-0">
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div class="flex items-start gap-3 min-w-0">
                                 <button @click="openWhatsApp(selectedCustomer)" title="Send WhatsApp reminder"
-                                    class="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center shrink-0">
+                                    class="w-9 h-9 rounded-full bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M12.031 0C5.385 0 0 5.385 0 12.031c0 2.12.553 4.195 1.603 6.012L.031 24l6.104-1.6c1.765.952 3.75 1.455 5.896 1.455 6.646 0 12.031-5.385 12.031-12.031S18.677 0 12.031 0zm0 21.854c-1.84 0-3.64-.495-5.218-1.433l-.373-.223-3.87 1.014 1.034-3.77-.245-.39A9.85 9.85 0 012.181 12.03C2.181 6.59 6.6 2.17 12.031 2.17c5.431 0 9.85 4.42 9.85 9.86 0 5.44-4.419 9.855-9.85 9.855h-.001zm5.398-7.37c-.296-.148-1.75-.864-2.02-.962-.27-.099-.467-.148-.664.148-.197.296-.763.962-.934 1.16-.172.197-.344.221-.64.074-1.393-.69-2.527-1.464-3.486-3.037-.123-.2-.014-.308.134-.455.133-.133.296-.345.444-.518.148-.172.197-.296.296-.492.099-.197.049-.37-.025-.518-.074-.148-.664-1.603-.91-2.195-.24-.577-.482-.498-.664-.508-.172-.01-.37-.01-.567-.01-.197 0-.518.074-.789.37-.27.296-1.035 1.012-1.035 2.466 0 1.455 1.06 2.86 1.208 3.057.148.197 2.083 3.183 5.044 4.464 2.085.897 2.802.775 3.32.735.617-.048 1.75-.714 1.996-1.405.247-.69.247-1.282.173-1.405-.074-.123-.27-.197-.567-.345z"/></svg>
                                 </button>
                                 <div class="min-w-0">
-                                    <h1 class="text-lg font-black text-gray-900 dark:text-white italic tracking-tighter uppercase truncate" x-text="selectedCustomer ? selectedCustomer.name : ''"></h1>
+                                    <h1 class="text-lg font-black text-gray-900 dark:text-white italic tracking-tighter uppercase break-words leading-tight" x-text="selectedCustomer ? selectedCustomer.name : ''"></h1>
                                     <p class="text-xs text-gray-400" x-text="selectedCustomer ? selectedCustomer.phone_number : ''"></p>
                                 </div>
                             </div>
-                            <div class="flex items-center gap-4">
-                                <div class="text-right">
+                            <div class="flex items-center justify-between sm:justify-end gap-4">
+                                <div class="text-left sm:text-right shrink-0">
                                     <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Outstanding</p>
                                     <p class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap" x-text="formatCurrency(ledger.credit_balance)"></p>
                                 </div>
-                                <div class="text-right">
+                                <div class="text-left sm:text-right shrink-0">
                                     <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Limit</p>
                                     <p class="text-lg font-black text-gray-900 dark:text-white whitespace-nowrap"
                                         x-text="ledger.credit_limit != null ? formatCurrency(ledger.credit_limit) : 'None'"></p>
                                 </div>
-                                <button @click="startFullSettlement()" :disabled="!(Number(ledger.credit_balance) > 0)"
+                                <button @click="startFullSettlement()" :disabled="!(Number(ledger.credit_balance) > 0)" title="Settle full outstanding balance"
                                     class="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-40 shrink-0">
-                                    Settle Full Balance
+                                    Settle
                                 </button>
                             </div>
                         </div>
@@ -1432,13 +1568,21 @@
                                             :class="paymentTarget.type === 'full' ? 'opacity-70' : ''"
                                             class="w-full bg-transparent border-0 dark:text-white font-bold text-xl p-0 focus:ring-0">
                                     </div>
-                                    <div class="bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                                    <div class="relative bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5" x-data="{ pmOpen: false }">
                                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Payment Method</label>
-                                        <select x-model="paymentForm.payment_method" class="w-full bg-transparent border-0 dark:text-white font-bold text-sm p-0 focus:ring-0">
-                                            <option value="Cash">Cash</option>
-                                            <option value="UPI">UPI</option>
-                                            <option value="Card">Card</option>
-                                        </select>
+                                        <button type="button" @click="pmOpen = !pmOpen" @click.outside="pmOpen = false"
+                                            class="w-full flex items-center justify-between bg-transparent border-0 dark:text-white font-bold text-sm p-0 focus:outline-none">
+                                            <span x-text="paymentForm.payment_method"></span>
+                                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                                        </button>
+                                        <div x-show="pmOpen" x-cloak @click.outside="pmOpen = false"
+                                            class="absolute left-0 right-0 top-full mt-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                            <template x-for="opt in ['Cash', 'UPI', 'Card']" :key="opt">
+                                                <button type="button" @click="paymentForm.payment_method = opt; pmOpen = false"
+                                                    class="w-full text-left px-3 py-2 text-sm font-bold hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white"
+                                                    x-text="opt"></button>
+                                            </template>
+                                        </div>
                                     </div>
                                     <div class="bg-white dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5 sm:col-span-2">
                                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Note (optional)</label>
@@ -1468,6 +1612,26 @@
                             </div>
                         </template>
 
+                        <!-- Tab switcher — Unpaid / Statements / History are mutually exclusive, not stacked -->
+                        <div class="grid grid-cols-3 gap-1 bg-gray-100 dark:bg-white/5 p-1 rounded-2xl">
+                            <button @click="ledgerTab = 'unpaid'"
+                                :class="ledgerTab === 'unpaid' ? 'bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-400'"
+                                class="py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-widest transition-all truncate px-1">
+                                Unpaid <span x-show="ledger.unpaid_bills.length" x-text="'(' + ledger.unpaid_bills.length + ')'"></span>
+                            </button>
+                            <button @click="ledgerTab = 'statements'"
+                                :class="ledgerTab === 'statements' ? 'bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-400'"
+                                class="py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-widest transition-all truncate px-1">
+                                Statements <span x-show="ledger.statements.length" x-text="'(' + ledger.statements.length + ')'"></span>
+                            </button>
+                            <button @click="ledgerTab = 'history'"
+                                :class="ledgerTab === 'history' ? 'bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-sm' : 'text-gray-400'"
+                                class="py-2 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-widest transition-all truncate px-1">
+                                History
+                            </button>
+                        </div>
+
+                        <template x-if="ledgerTab === 'unpaid'">
                         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
                             <div class="px-4 py-2 border-b border-gray-100 dark:border-white/5">
                                 <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Unpaid Bills</p>
@@ -1477,25 +1641,27 @@
                             </template>
                             <div class="divide-y divide-gray-100 dark:divide-white/5">
                                 <template x-for="bill in ledger.unpaid_bills" :key="bill.slug">
-                                    <div class="p-3 flex justify-between items-center">
-                                        <div>
-                                            <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="bill.bill_number"></p>
+                                    <div class="p-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                                        <div class="min-w-0">
+                                            <p class="font-bold text-gray-900 dark:text-white text-sm truncate" x-text="bill.bill_number"></p>
                                             <p class="text-xs text-gray-400" x-text="bill.due_date ? ('Due ' + bill.due_date.slice(0,10)) : ''"></p>
                                         </div>
-                                        <div class="text-right">
-                                            <p class="font-black text-gray-900 dark:text-white text-sm" x-text="formatCurrency(bill.total_amount - bill.amount_paid)"></p>
+                                        <div class="flex items-center justify-between sm:block sm:text-right shrink-0">
+                                            <p class="font-black text-gray-900 dark:text-white text-sm whitespace-nowrap" x-text="formatCurrency(bill.total_amount - bill.amount_paid)"></p>
                                             <template x-if="!bill.credit_statement_id">
-                                                <button @click="startPayment('bill', bill)" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors">Pay Now</button>
+                                                <button @click="startPayment('bill', bill)" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors shrink-0">Pay Now</button>
                                             </template>
                                             <template x-if="bill.credit_statement_id">
-                                                <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">In Statement</span>
+                                                <span class="text-[10px] font-black uppercase tracking-widest text-gray-400 shrink-0">In Statement</span>
                                             </template>
                                         </div>
                                     </div>
                                 </template>
                             </div>
                         </div>
+                        </template>
 
+                        <template x-if="ledgerTab === 'statements'">
                         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
                             <div class="px-4 py-2 border-b border-gray-100 dark:border-white/5">
                                 <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Statements</p>
@@ -1506,65 +1672,77 @@
                             </template>
                             <div class="divide-y divide-gray-100 dark:divide-white/5">
                                 <template x-for="statement in ledger.statements" :key="statement.slug">
-                                    <div class="p-3 flex justify-between items-center">
-                                        <div>
-                                            <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="statement.statement_number"></p>
-                                            <p class="text-xs text-gray-400" x-text="statement.period_start + ' → ' + statement.period_end"></p>
+                                    <div class="p-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                                        <div class="min-w-0">
+                                            <p class="font-bold text-gray-900 dark:text-white text-sm truncate" x-text="statement.statement_number"></p>
+                                            <p class="text-xs text-gray-400 truncate" x-text="statement.period_start + ' → ' + statement.period_end"></p>
                                         </div>
-                                        <div class="text-right flex items-center gap-3">
-                                            <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg"
+                                        <div class="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
+                                            <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg shrink-0"
                                                 :class="{'bg-emerald-500/10 text-emerald-500': statement.status === 'Paid', 'bg-amber-500/10 text-amber-500': statement.status === 'PartiallyPaid', 'bg-red-500/10 text-red-500': statement.status === 'Overdue', 'bg-gray-100 dark:bg-white/10 text-gray-400': statement.status === 'Open' || statement.status === 'Sent'}"
                                                 x-text="statement.status"></span>
-                                            <p class="font-black text-gray-900 dark:text-white text-sm" x-text="formatCurrency(statement.total_amount - statement.amount_paid)"></p>
+                                            <p class="font-black text-gray-900 dark:text-white text-sm whitespace-nowrap" x-text="formatCurrency(statement.total_amount - statement.amount_paid)"></p>
                                             <template x-if="statement.status !== 'Paid'">
-                                                <button @click="startPayment('statement', statement)" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors">Pay</button>
+                                                <button @click="startPayment('statement', statement)" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors shrink-0">Pay</button>
                                             </template>
                                         </div>
                                     </div>
                                 </template>
                             </div>
                         </div>
+                        </template>
 
                         <!-- Bill History — every Credit bill (paid and unpaid), filterable by date/amount/status -->
+                        <template x-if="ledgerTab === 'history'">
                         <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
-                            <div class="px-4 py-2 border-b border-gray-100 dark:border-white/5">
+                            <div class="px-4 py-2 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
                                 <p class="text-[10px] text-gray-400 uppercase font-black tracking-widest">Bill History</p>
+                                <button @click="historyFiltersOpen = !historyFiltersOpen" title="Filters"
+                                    class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl border transition-colors"
+                                    :class="historyFiltersOpen ? 'bg-sky-500/10 border-sky-400/60 text-sky-500' : 'bg-gray-50 dark:bg-white/5 border-transparent text-gray-500 dark:text-gray-300'">
+                                    <i class="bi bi-funnel-fill text-xs"></i>
+                                </button>
                             </div>
-                            <div class="p-3 border-b border-gray-100 dark:border-white/5 flex flex-wrap items-center gap-2">
-                                <input type="date" x-model="billsFilters.date_from" @change="onBillsFilterChange()" title="Date from"
-                                    class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
-                                <span class="text-gray-400 text-xs">to</span>
-                                <input type="date" x-model="billsFilters.date_to" @change="onBillsFilterChange()" title="Date to"
-                                    class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                            <div x-show="historyFiltersOpen" x-cloak class="p-3 border-b border-gray-100 dark:border-white/5 grid grid-cols-2 sm:flex sm:flex-wrap sm:items-end gap-2">
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">From</label>
+                                    <input type="date" x-model="billsFilters.date_from" @change="onBillsFilterChange()"
+                                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">To</label>
+                                    <input type="date" x-model="billsFilters.date_to" @change="onBillsFilterChange()"
+                                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
+                                </div>
                                 <input type="number" step="0.01" x-model="billsFilters.min_amount" @change="onBillsFilterChange()" placeholder="Min amount"
-                                    class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                                    class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
                                 <input type="number" step="0.01" x-model="billsFilters.max_amount" @change="onBillsFilterChange()" placeholder="Max amount"
-                                    class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                                    class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
                                 <select x-model="billsFilters.status" @change="onBillsFilterChange()"
-                                    class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-xs dark:text-white">
+                                    class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
                                     <option value="">All Statuses</option>
                                     <option value="Paid">Paid</option>
                                     <option value="Unpaid">Unpaid</option>
                                     <option value="PartiallyPaid">Partially Paid</option>
                                 </select>
-                                <button @click="clearBillsFilters()" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white ml-auto">Clear</button>
+                                <button @click="clearBillsFilters()" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white sm:ml-auto">Clear</button>
                             </div>
                             <template x-if="!billsLoading && bills.length === 0">
                                 <p class="p-4 text-sm text-gray-400">No bills match these filters.</p>
                             </template>
                             <div class="divide-y divide-gray-100 dark:divide-white/5">
                                 <template x-for="bill in bills" :key="bill.slug">
-                                    <div class="p-3 flex justify-between items-center">
-                                        <div>
-                                            <p class="font-bold text-gray-900 dark:text-white text-sm" x-text="bill.bill_number"></p>
+                                    <div class="p-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                                        <div class="min-w-0">
+                                            <p class="font-bold text-gray-900 dark:text-white text-sm truncate" x-text="bill.bill_number"></p>
                                             <p class="text-xs text-gray-400" x-text="bill.timestamp ? bill.timestamp.slice(0,10) : ''"></p>
                                         </div>
-                                        <div class="text-right flex items-center gap-3">
-                                            <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg"
+                                        <div class="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
+                                            <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg shrink-0"
                                                 :class="{'bg-emerald-500/10 text-emerald-500': bill.payment_status === 'Paid', 'bg-amber-500/10 text-amber-500': bill.payment_status === 'PartiallyPaid', 'bg-gray-100 dark:bg-white/10 text-gray-400': bill.payment_status === 'Unpaid'}"
                                                 x-text="bill.payment_status"></span>
-                                            <p class="font-black text-gray-900 dark:text-white text-sm" x-text="formatCurrency(bill.total_amount)"></p>
-                                            <a :href="'/bill/' + bill.id" target="_blank" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors">View</a>
+                                            <p class="font-black text-gray-900 dark:text-white text-sm whitespace-nowrap" x-text="formatCurrency(bill.total_amount)"></p>
+                                            <a :href="'/billing/bill/' + bill.id" target="_blank" class="text-[10px] font-black uppercase tracking-widest text-indigo-500 hover:text-indigo-600 transition-colors shrink-0">View</a>
                                         </div>
                                     </div>
                                 </template>
@@ -1590,6 +1768,7 @@
                                 </div>
                             </div>
                         </div>
+                        </template>
                     </div>
                 </template>
             </div>
@@ -1599,9 +1778,341 @@
         </div>
         {% endif %}
 
+        <!-- ORDERS TAB (Pay Later bills — delivery + payment tracking). Not gated
+             behind features.credit_billing — see list_orders' docstring in
+             billing/router.py for why: a shop must still be able to fulfill
+             orders it already committed to after losing the feature. -->
+        <div x-show="activeTab === 'orders'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
+        <div x-data="ordersTabApp('{{ shop.currency_symbol or '₹' }}', '{{ shop.upi_id if shop else '' }}', '{{ shop.name if shop else '' }}')" x-init="init()">
+            <div class="flex justify-between items-end mb-2">
+                <div>
+                    <p class="text-sm font-bold text-sky-500 uppercase tracking-widest mb-1">Pay Later</p>
+                    <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Orders</h1>
+                </div>
+                <button @click="filtersOpen = !filtersOpen" title="Filters"
+                    class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl border transition-colors"
+                    :class="filtersOpen ? 'bg-sky-500/10 border-sky-400/60 text-sky-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-300'">
+                    <i class="bi bi-funnel-fill"></i>
+                </button>
+            </div>
+            <p x-show="orders.length > 0" class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6"
+                x-text="completedOrders.length + ' of ' + orders.length + ' completed'"></p>
+
+            <!-- Filters (collapsed by default — this is the owner's review tool, not the field worker's daily view) -->
+            <div x-show="filtersOpen" x-cloak class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-4 mb-6 grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 sm:items-end">
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">From</label>
+                    <input type="date" x-model="filters.date_from" @change="onFilterChange()"
+                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">To</label>
+                    <input type="date" x-model="filters.date_to" @change="onFilterChange()"
+                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Min Amount</label>
+                    <input type="number" step="0.01" x-model="filters.min_amount" @change="onFilterChange()" placeholder="0"
+                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Max Amount</label>
+                    <input type="number" step="0.01" x-model="filters.max_amount" @change="onFilterChange()" placeholder="Any"
+                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                </div>
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Payment Status</label>
+                    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                        <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                            <span x-text="{'': 'Any payment status', 'Unpaid': 'Unpaid', 'Paid': 'Paid'}[filters.payment_status]"></span>
+                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        <div x-show="open" x-cloak @click.outside="open = false"
+                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                            <template x-for="opt in [{v:'', l:'Any payment status'}, {v:'Unpaid', l:'Unpaid'}, {v:'Paid', l:'Paid'}]" :key="opt.v">
+                                <button type="button" @click="filters.payment_status = opt.v; open = false; onFilterChange()"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                    x-text="opt.l"></button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-span-2 sm:col-span-1">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Delivery Status</label>
+                    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                        <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                            <span x-text="{'': 'Any delivery status', 'Pending': 'Pending', 'Out for Delivery': 'Out for Delivery', 'Delivered': 'Delivered'}[filters.delivery_status]"></span>
+                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        <div x-show="open" x-cloak @click.outside="open = false"
+                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                            <template x-for="opt in [{v:'', l:'Any delivery status'}, {v:'Pending', l:'Pending'}, {v:'Out for Delivery', l:'Out for Delivery'}, {v:'Delivered', l:'Delivered'}]" :key="opt.v">
+                                <button type="button" @click="filters.delivery_status = opt.v; open = false; onFilterChange()"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                    x-text="opt.l"></button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <button @click="clearFilters()"
+                    class="col-span-2 sm:col-span-1 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white sm:pb-2.5">
+                    Clear
+                </button>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5">
+                <div x-show="loading" class="p-8 text-center text-gray-400">Loading…</div>
+                <div x-show="!loading && orders.length === 0" class="p-8 text-center text-gray-400">No orders match these filters.</div>
+
+                <!-- Mobile: stacked cards -->
+                <div class="sm:hidden divide-y divide-gray-100 dark:divide-white/5">
+                    <template x-for="order in activeOrders" :key="order.slug">
+                        <div class="p-3">
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="font-bold text-gray-900 dark:text-white text-sm truncate min-w-0" x-text="order.bill_number"></p>
+                                <p class="font-black text-gray-900 dark:text-white text-sm shrink-0" x-text="formatCurrency(order.total_amount)"></p>
+                            </div>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <p class="text-xs text-gray-400 truncate" x-text="order.customer_name || 'Guest'"></p>
+                                <a :href="'tel:' + order.customer_phone" x-show="order.customer_phone" title="Call customer"
+                                    class="text-emerald-500 hover:text-emerald-600 shrink-0"><i class="bi bi-telephone-fill text-xs"></i></a>
+                            </div>
+                            <div class="flex gap-1 mt-1.5">
+                                <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md"
+                                    :class="order.payment_status === 'Paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'"
+                                    x-text="order.payment_status"></span>
+                                <span class="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-500" x-text="order.delivery_status"></span>
+                            </div>
+                            <div class="flex items-center gap-3 mt-2.5">
+                                <button @click="openView(order)" title="View bill / QR"
+                                    class="w-9 h-9 flex items-center justify-center shrink-0 rounded-xl bg-gray-100 dark:bg-white/5 text-sky-500"><i class="bi bi-eye-fill"></i></button>
+                                {% if features.whatsapp_billing %}
+                                <button @click="resendWhatsapp(order)" title="Send WhatsApp bill"
+                                    class="w-9 h-9 flex items-center justify-center shrink-0 rounded-xl bg-gray-100 dark:bg-white/5 text-emerald-500"><i class="bi bi-whatsapp"></i></button>
+                                {% endif %}
+                                <template x-if="primaryButton(order)">
+                                    <button @click="primaryButton(order).action()" :class="primaryButton(order).cls"
+                                        class="flex-1 text-white font-black text-xs uppercase tracking-widest py-2.5 rounded-xl shadow transition-colors">
+                                        <span x-text="primaryButton(order).label"></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+
+                    <button x-show="completedOrders.length > 0" @click="showCompleted = !showCompleted"
+                        class="w-full flex items-center justify-center gap-2 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                        <span x-text="(showCompleted ? 'Hide' : 'Show') + ' completed (' + completedOrders.length + ')'"></span>
+                        <i class="bi" :class="showCompleted ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                    </button>
+                    <template x-if="showCompleted">
+                        <template x-for="order in completedOrders" :key="order.slug">
+                            <div class="p-3 opacity-60 flex items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="font-bold text-gray-900 dark:text-white text-sm truncate" x-text="order.bill_number"></p>
+                                    <p class="text-xs text-gray-400 truncate" x-text="order.customer_name || 'Guest'"></p>
+                                </div>
+                                <div class="flex items-center gap-3 shrink-0">
+                                    <span class="text-[10px] font-black uppercase text-emerald-500 flex items-center gap-1"><i class="bi bi-check-circle-fill"></i> Done</span>
+                                    <p class="font-black text-gray-900 dark:text-white text-sm" x-text="formatCurrency(order.total_amount)"></p>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+                </div>
+
+                <!-- Desktop: table -->
+                <div class="hidden sm:block overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 dark:bg-slate-900/50">
+                            <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
+                                <th class="p-6">Bill</th>
+                                <th class="p-6">Customer</th>
+                                <th class="p-6">Payment</th>
+                                <th class="p-6">Delivery</th>
+                                <th class="p-6 text-right">Amount</th>
+                                <th class="p-6 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                            <template x-for="order in activeOrders" :key="order.slug">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                    <td class="p-6 font-mono text-blue-500 text-sm" x-text="order.bill_number"></td>
+                                    <td class="p-6 text-sm text-gray-700 dark:text-gray-300">
+                                        <div class="flex items-center gap-2">
+                                            <span x-text="order.customer_name || 'Guest'"></span>
+                                            <a :href="'tel:' + order.customer_phone" x-show="order.customer_phone" title="Call customer"
+                                                class="text-emerald-500 hover:text-emerald-600"><i class="bi bi-telephone-fill text-xs"></i></a>
+                                        </div>
+                                    </td>
+                                    <td class="p-6">
+                                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg"
+                                            :class="order.payment_status === 'Paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'"
+                                            x-text="order.payment_status"></span>
+                                    </td>
+                                    <td class="p-6">
+                                        <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg bg-sky-500/10 text-sky-500" x-text="order.delivery_status"></span>
+                                    </td>
+                                    <td class="p-6 text-right font-black text-gray-900 dark:text-white" x-text="formatCurrency(order.total_amount)"></td>
+                                    <td class="p-6 text-right">
+                                        <div class="flex justify-end items-center gap-3">
+                                            <button @click="openView(order)" title="View bill / QR"
+                                                class="text-sky-500 hover:text-sky-600"><i class="bi bi-eye-fill text-base leading-none"></i></button>
+                                            {% if features.whatsapp_billing %}
+                                            <button @click="resendWhatsapp(order)" title="Send WhatsApp bill"
+                                                class="text-emerald-500 hover:text-emerald-600"><i class="bi bi-whatsapp text-base leading-none"></i></button>
+                                            {% endif %}
+                                            <template x-if="primaryButton(order)">
+                                                <button @click="primaryButton(order).action()" :class="primaryButton(order).cls"
+                                                    class="text-white font-black text-[10px] uppercase tracking-widest px-4 py-2 rounded-lg shadow transition-colors whitespace-nowrap">
+                                                    <span x-text="primaryButton(order).label"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr x-show="completedOrders.length > 0">
+                                <td colspan="6" class="p-0">
+                                    <button @click="showCompleted = !showCompleted"
+                                        class="w-full flex items-center justify-center gap-2 py-3 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white">
+                                        <span x-text="(showCompleted ? 'Hide' : 'Show') + ' completed (' + completedOrders.length + ')'"></span>
+                                        <i class="bi" :class="showCompleted ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <template x-if="showCompleted">
+                                <template x-for="order in completedOrders" :key="order.slug">
+                                    <tr class="opacity-60">
+                                        <td class="p-6 font-mono text-blue-500 text-sm" x-text="order.bill_number"></td>
+                                        <td class="p-6 text-sm text-gray-700 dark:text-gray-300" x-text="order.customer_name || 'Guest'"></td>
+                                        <td class="p-6"><span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500">Paid</span></td>
+                                        <td class="p-6"><span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-500">Delivered</span></td>
+                                        <td class="p-6 text-right font-black text-gray-900 dark:text-white" x-text="formatCurrency(order.total_amount)"></td>
+                                        <td class="p-6 text-right">
+                                            <button @click="openView(order)" title="View bill"
+                                                class="text-sky-500 hover:text-sky-600"><i class="bi bi-eye-fill text-base leading-none"></i></button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-3 flex items-center justify-between gap-3" x-show="total > 0">
+                    <select x-model.number="limit" @change="changeLimit()"
+                        class="bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 text-xs dark:text-white">
+                        <option value="10">10 / page</option>
+                        <option value="25">25 / page</option>
+                        <option value="50">50 / page</option>
+                    </select>
+                    <div class="flex items-center gap-2">
+                        <button @click="goToPage(page - 1)" :disabled="page <= 1 || loading"
+                            class="px-3 py-1 rounded-lg text-xs font-bold bg-gray-100 dark:bg-white/5 disabled:opacity-40">Prev</button>
+                        <p class="text-xs text-gray-400" x-text="'Page ' + page + ' of ' + totalPages"></p>
+                        <button @click="goToPage(page + 1)" :disabled="page >= totalPages || loading"
+                            class="px-3 py-1 rounded-lg text-xs font-bold bg-gray-100 dark:bg-white/5 disabled:opacity-40">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bill View Modal (full bill + full-size UPI QR) -->
+            <div x-show="viewModal.open" x-cloak
+                class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+                @keydown.escape.window="viewModal.open = false">
+                <template x-if="viewModal.order">
+                    <div class="bg-white dark:bg-slate-900 border border-gray-200 dark:border-white/10 w-full max-w-md max-h-[85vh] flex flex-col rounded-3xl p-6 shadow-2xl"
+                        @click.away="viewModal.open = false">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-black text-gray-900 dark:text-white tracking-tight" x-text="'#' + viewModal.order.bill_number"></h2>
+                            <button @click="viewModal.open = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+
+                        <div class="flex-1 overflow-y-auto space-y-4">
+                            <div class="flex flex-wrap gap-2">
+                                <template x-if="!viewModal.order.is_credit_customer">
+                                    <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                                        <button type="button" @click="open = !open"
+                                            class="flex items-center gap-1 text-[10px] font-black uppercase px-2 py-1 rounded-lg"
+                                            :class="viewModal.order.payment_status === 'Paid' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'">
+                                            <span x-text="viewModal.order.payment_status"></span>
+                                            <i class="bi bi-chevron-down text-[8px]"></i>
+                                        </button>
+                                        <div x-show="open" x-cloak @click.outside="open = false"
+                                            class="absolute left-0 top-full mt-1 min-w-[10rem] bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                            <template x-for="s in ['Unpaid', 'Paid']" :key="s">
+                                                <button type="button" @click="setPaymentStatus(viewModal.order, s); open = false"
+                                                    class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                                    x-text="s"></button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template x-if="viewModal.order.is_credit_customer">
+                                    <span class="text-[10px] font-black uppercase px-2 py-1 rounded-lg bg-amber-500/10 text-amber-500" x-text="viewModal.order.payment_status"></span>
+                                </template>
+
+                                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                                    <button type="button" @click="open = !open"
+                                        class="flex items-center gap-1 text-[10px] font-black uppercase px-2 py-1 rounded-lg bg-sky-500/10 text-sky-500">
+                                        <span x-text="viewModal.order.delivery_status"></span>
+                                        <i class="bi bi-chevron-down text-[8px]"></i>
+                                    </button>
+                                    <div x-show="open" x-cloak @click.outside="open = false"
+                                        class="absolute left-0 top-full mt-1 min-w-[10rem] bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                        <template x-for="s in ['Pending', 'Out for Delivery', 'Delivered']" :key="s">
+                                            <button type="button" @click="setDeliveryStatus(viewModal.order, s); open = false"
+                                                class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                                x-text="s"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-gray-400" x-show="!viewModal.order.is_credit_customer">Tap a status to correct it if it was set by mistake.</p>
+                            <p class="text-sm text-gray-500" x-text="viewModal.order.customer_name || 'Guest'"></p>
+
+                            <div class="divide-y divide-gray-100 dark:divide-white/5 border-y border-gray-100 dark:border-white/5">
+                                <template x-for="item in (viewModal.order.items_snapshot || [])" :key="item.name">
+                                    <div class="flex justify-between items-center py-2 text-sm">
+                                        <div>
+                                            <p class="font-medium text-gray-900 dark:text-white" x-text="item.name"></p>
+                                            <p class="text-xs text-gray-400" x-text="item.qty + ' x ' + formatCurrency(item.price)"></p>
+                                        </div>
+                                        <p class="font-bold text-gray-900 dark:text-white" x-text="formatCurrency(item.line_total)"></p>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div class="flex justify-between items-center pt-1">
+                                <span class="font-bold text-gray-900 dark:text-white">Total</span>
+                                <span class="text-lg font-black text-gray-900 dark:text-white" x-text="formatCurrency(viewModal.order.total_amount)"></span>
+                            </div>
+
+                            <template x-if="viewModal.order.payment_status !== 'Paid'">
+                                <div class="text-center pt-2">
+                                    <template x-if="upiQrUrl(viewModal.order)">
+                                        <img :src="upiQrUrl(viewModal.order)" alt="UPI QR Code" class="w-56 h-56 mx-auto rounded-xl bg-white p-2 shadow-lg border border-gray-200">
+                                    </template>
+                                    <p class="text-xs text-gray-400 mt-2" x-show="!shopUpiId">Set a UPI ID in shop settings to show a scannable QR code here.</p>
+                                    <p class="text-sm font-bold text-gray-900 dark:text-white mt-2" x-show="shopUpiId"
+                                        x-text="'Scan to pay ' + formatCurrency(viewModal.order.total_amount - viewModal.order.amount_paid)"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+        </div>
+
         <!-- RATE CARDS TAB -->
         {% if features.customer_management %}
-        <div x-show="activeTab === 'rate_cards'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10">
+        <div x-show="activeTab === 'rate_cards'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10">
         <div x-data="rateCardsApp('{{ shop.currency_symbol or '₹' }}')" x-init="init()">
             <div class="flex justify-between items-end mb-8">
                 <div>
