@@ -24,6 +24,16 @@
         /* Dark background for Windows dropdowns */
         color: white;
     }
+
+    /* Reserve scrollbar space up front on every Dashboard/POS tab panel —
+       without this, switching from a short tab (no scrollbar) to a tall one
+       (needs one) narrows the content by the scrollbar's width, visibly
+       shifting the header sideways ("shaking") on every switch. Descendant
+       (not direct-child) selector: these panels sit several levels below
+       #page-main, inside nested layout wrappers. */
+    #page-main .overflow-y-auto.h-full {
+        scrollbar-gutter: stable;
+    }
 }
 
 @layer components {

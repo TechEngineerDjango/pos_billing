@@ -412,7 +412,7 @@ class TestAdminDashboard:
         time.sleep(1)
         
         # Look for add button
-        add_btn = browser_page.locator("button:has-text('Add New Item')")
+        add_btn = browser_page.locator("button[title='Add New Item']")
         expect(add_btn).to_be_visible(timeout=5000)
         add_btn.click()
         time.sleep(0.5)
@@ -434,7 +434,7 @@ class TestAdminDashboard:
             print("✅ Staff tab loaded with content")
         
         # Check for 'Onboard Staff' button
-        onboard_btn = browser_page.locator("button:has-text('Onboard Staff')")
+        onboard_btn = browser_page.locator("button[title='Onboard Staff']")
         if onboard_btn.count() > 0:
             expect(onboard_btn).to_be_visible(timeout=5000)
             print("✅ Onboard Staff button visible")
@@ -785,7 +785,7 @@ class TestExhaustiveFunctionalitySuite:
         # [Tab: Menu] Create Item
         browser_page.goto(f"{BASE_URL}/admin/?tab=menu")
         time.sleep(1)
-        browser_page.locator("button:has-text('Add New Item')").click()
+        browser_page.locator("button[title='Add New Item']").click()
         time.sleep(0.5)
         browser_page.fill("input[name='name']:not([type='hidden'])", "Mega Exhaustive Burger")
         browser_page.fill("input[name='price']", "250.00")
@@ -797,7 +797,7 @@ class TestExhaustiveFunctionalitySuite:
         # [Tab: Staff] Create Cashier
         browser_page.goto(f"{BASE_URL}/admin/?tab=staff")
         time.sleep(1)
-        browser_page.locator("button:has-text('Onboard Staff')").click()
+        browser_page.locator("button[title='Onboard Staff']").click()
         time.sleep(0.5)
         browser_page.fill("input[name='username']", cashier_name)
         browser_page.fill("input[name='password']", CASHIER_STRONG_PASSWORD)
@@ -1126,7 +1126,7 @@ def _run_full_lifecycle(page: Page, viewport: dict):
     # Create Menu Item
     page.goto(f"{BASE_URL}/admin/?tab=menu")
     time.sleep(1)
-    page.locator("button:has-text('Add New Item')").click()
+    page.locator("button[title='Add New Item']").click()
     time.sleep(0.5)
     item_name = f"VP Burger {viewport['width']}"
     page.fill("input[name='name']:not([type='hidden'])", item_name)
@@ -1140,7 +1140,7 @@ def _run_full_lifecycle(page: Page, viewport: dict):
     # Create Cashier
     page.goto(f"{BASE_URL}/admin/?tab=staff")
     time.sleep(1)
-    page.locator("button:has-text('Onboard Staff')").click()
+    page.locator("button[title='Onboard Staff']").click()
     time.sleep(0.5)
     page.fill("input[name='username']", cashier_name)
     page.fill("input[name='password']", CASHIER_STRONG_PASSWORD)

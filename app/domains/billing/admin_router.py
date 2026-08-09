@@ -673,7 +673,7 @@ async def update_settings(
         shop.logo_url = logo_url
             
     await db.commit()
-    return RedirectResponse(url=f"/admin/?shop_slug={shop.slug}&tab=overview", status_code=303)
+    return RedirectResponse(url=f"/admin/?shop_slug={shop.slug}&tab=printer_settings", status_code=303)
 
 
 # ============================================================================

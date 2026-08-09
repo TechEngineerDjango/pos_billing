@@ -104,34 +104,42 @@ def _login_superadmin(page: Page):
 
 class TestReceiptSettingsE2E:
     def test_owner_receipt_settings(self, browser_page: Page):
-        """Test receipt settings from the Owner Dashboard (Overview Tab)"""
+        """Test receipt settings from the Owner Dashboard (Printer Settings Tab)"""
         _login_owner(browser_page)
-        
-        # Navigate to Admin Overview
-        browser_page.goto(f"{BASE_URL}/admin/?tab=overview")
+
+        # Navigate to Admin Printer Settings
+        browser_page.goto(f"{BASE_URL}/admin/?tab=printer_settings")
         browser_page.wait_for_load_state("domcontentloaded")
         time.sleep(1)
-        
-        # Ensure the Overview tab is visible
-        expect(browser_page.locator("text=Receipt & Printer Settings")).to_be_visible(timeout=5000)
-        
+
+        # Ensure the Printer Settings tab is visible
+        expect(browser_page.get_by_role("heading", name="Printer Settings")).to_be_visible(timeout=5000)
+
         # Fill in the form
         test_footer = "Test Footer 123"
         browser_page.fill("input[name='receipt_footer']", test_footer)
-        browser_page.select_option("select[name='printer_paper_width']", "80mm")
-        browser_page.select_option("select[name='printer_alignment']", "center")
-        
+
+        # Paper Width and Alignment are themed dropdowns (button + panel, backed
+        # by a hidden input) rather than native <select> elements.
+        paper_width_field = browser_page.locator("input[name='printer_paper_width']").locator("xpath=..")
+        paper_width_field.locator("> button").click()
+        paper_width_field.locator("div.absolute button", has_text="80mm (Wide)").click()
+
+        alignment_field = browser_page.locator("input[name='printer_alignment']").locator("xpath=..")
+        alignment_field.locator("> button").click()
+        alignment_field.locator("div.absolute button", has_text="Center Aligned").click()
+
         # Submit form
         with browser_page.expect_navigation():
             browser_page.click("button:has-text('Save Receipt Settings')")
-            
+
         # Verify redirect
-        expect(browser_page).to_have_url(re.compile(r".*tab=overview"))
-        
+        expect(browser_page).to_have_url(re.compile(r".*tab=printer_settings"))
+
         # Verify values persisted
         expect(browser_page.locator("input[name='receipt_footer']")).to_have_value(test_footer)
-        expect(browser_page.locator("select[name='printer_paper_width']")).to_have_value("80mm")
-        expect(browser_page.locator("select[name='printer_alignment']")).to_have_value("center")
+        expect(browser_page.locator("input[name='printer_paper_width']")).to_have_value("80mm", timeout=5000)
+        expect(browser_page.locator("input[name='printer_alignment']")).to_have_value("center", timeout=5000)
         print("✅ Owner receipt settings update validated")
 
     def test_superadmin_receipt_settings(self, browser_page: Page):

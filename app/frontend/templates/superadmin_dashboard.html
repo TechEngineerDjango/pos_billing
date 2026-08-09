@@ -310,12 +310,12 @@
                 {% for shop in shops %}
                 <div data-shop-card="{{ shop.name }}" class="bg-slate-900/50 border border-white/10 rounded-[2rem] p-6 hover:border-blue-500/50 transition-all group relative overflow-hidden"
                     x-data="{ showPlanChange: false }">
-                    <div class="flex justify-between items-start mb-6">
-                        <div>
-                            <h3 class="text-2xl font-bold text-white mb-1">{{ shop.name }}</h3>
-                            <p class="text-gray-500 font-mono text-xs italic">SHOP_ID: #{{ shop.slug }}</p>
+                    <div class="flex flex-col gap-3 mb-6">
+                        <div class="min-w-0">
+                            <h3 class="text-2xl font-bold text-white mb-1 truncate">{{ shop.name }}</h3>
+                            <p class="text-gray-500 font-mono text-xs italic truncate">SHOP_ID: #{{ shop.slug }}</p>
                         </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 flex-wrap">
                             <button @click="selectForDesign(shopsData.find(s => s.id === {{ shop.id }}))"
                                 class="bg-purple-500/10 text-purple-400 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all">
                                 Branding

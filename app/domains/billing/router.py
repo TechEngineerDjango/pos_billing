@@ -295,6 +295,53 @@ async def list_orders(
     return JSONResponse({"status": "success", "orders": orders, "total": total})
 
 
+@router.get("/transactions", response_class=JSONResponse, dependencies=[Depends(require_active_shop)])
+async def list_transactions(
+    date_from: Optional[dt.date] = None,
+    date_to: Optional[dt.date] = None,
+    customer_id: Optional[int] = None,
+    limit: int = 30,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """All bills for this shop (any payment method, any status except
+    Cancelled) — backs the Dashboard's Transactions tab, the shop's full
+    billed ledger (vs. list_orders' Credit-only Pay Later view)."""
+    if not current_user.shop_id:
+        return JSONResponse({"transactions": [], "total": 0})
+
+    limit = max(1, min(limit, 100))
+    offset = max(0, offset)
+
+    conditions = [Bill.shop_id == current_user.shop_id, Bill.status != "Cancelled"]
+    if date_from:
+        conditions.append(cast(Bill.timestamp, Date) >= date_from)
+    if date_to:
+        conditions.append(cast(Bill.timestamp, Date) <= date_to)
+    if customer_id is not None:
+        conditions.append(Bill.customer_id == customer_id)
+
+    result = await db.execute(
+        select(Bill, func.count().over().label("total_count"))
+        .options(selectinload(Bill.customer))
+        .where(*conditions)
+        .order_by(Bill.timestamp.desc())
+        .limit(limit).offset(offset)
+    )
+    rows = result.all()
+    total = rows[0][1] if rows else 0
+
+    transactions = []
+    for bill, _ in rows:
+        tx = bill.to_dict()
+        tx["customer_name"] = bill.customer.name if bill.customer else None
+        tx["customer_phone"] = bill.customer.phone_number if bill.customer else None
+        transactions.append(tx)
+
+    return JSONResponse({"status": "success", "transactions": transactions, "total": total})
+
+
 @router.post("/orders/{bill_slug}/update", response_class=JSONResponse, dependencies=[Depends(require_active_shop)])
 async def update_order_status(
     bill_slug: str,

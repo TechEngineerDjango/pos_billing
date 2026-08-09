@@ -86,17 +86,31 @@
                             class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-bold p-0 focus:ring-0">
                     </div>
 
-                    <div class="bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
+                    <div class="relative bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5"
+                        x-data="{ open: false, options: [
+                            {v:'', l:'Fixed Price (no unit)'},
+                            {v:'piece', l:'piece'},
+                            {v:'kg', l:'kg — per kilogram'},
+                            {v:'g', l:'g — per gram'},
+                            {v:'liter', l:'liter — per litre'},
+                            {v:'ml', l:'ml — per millilitre'}
+                        ] }"
+                        @click.outside="open = false">
                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Pricing Unit</label>
-                        <select name="unit" x-model="selectedUnit"
-                            class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0 cursor-pointer appearance-none">
-                            <option value="">Fixed Price (no unit)</option>
-                            <option value="piece" {% if item.unit == 'piece' %}selected{% endif %}>piece</option>
-                            <option value="kg" {% if item.unit == 'kg' %}selected{% endif %}>kg — per kilogram</option>
-                            <option value="g" {% if item.unit == 'g' %}selected{% endif %}>g — per gram</option>
-                            <option value="liter" {% if item.unit == 'liter' %}selected{% endif %}>liter — per litre</option>
-                            <option value="ml" {% if item.unit == 'ml' %}selected{% endif %}>ml — per millilitre</option>
-                        </select>
+                        <input type="hidden" name="unit" :value="selectedUnit">
+                        <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between gap-2 bg-transparent border-0 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
+                            <span x-text="options.find(o => o.v === selectedUnit).l"></span>
+                            <i class="bi bi-chevron-down text-sm text-gray-400"></i>
+                        </button>
+                        <div x-show="open" x-cloak
+                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                            <template x-for="opt in options" :key="opt.v">
+                                <button type="button" @click="selectedUnit = opt.v; open = false"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                    x-text="opt.l"></button>
+                            </template>
+                        </div>
                         <p class="text-[10px] text-gray-400 mt-2 font-medium"
                             x-show="selectedUnit && selectedUnit !== 'piece'" x-cloak>
                             Cashier enters actual quantity at billing — rate × qty = total

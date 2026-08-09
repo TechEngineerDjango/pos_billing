@@ -118,7 +118,7 @@
                     </svg>
                     Print
                 </button>
-                <a href="/admin/?tab=reports"
+                <a id="back-to-dashboard-link" href="/admin/?tab=reports"
                     class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -149,6 +149,15 @@
         }
     }
 </style>
+<script>
+    // Embedded in the Dashboard's Transactions "View" modal via an iframe —
+    // "Back to Dashboard" would navigate that iframe to a full dashboard
+    // page inside the small preview pane, which reads as broken. The modal
+    // already has its own close (X) icon, so drop the link when framed.
+    if (window.self !== window.top) {
+        document.getElementById('back-to-dashboard-link')?.remove();
+    }
+</script>
 {% endblock %}
 
 {% if bill.payment_status in ('Unpaid', 'PartiallyPaid') and shop.upi_id %}

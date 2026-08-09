@@ -190,10 +190,10 @@
         x-transition:leave-end="opacity-0 translate-y-4"
         @click.outside="mobileMenuOpen = false"
         class="lg:hidden fixed bottom-24 left-4 right-4 z-50 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4">
-        <div class="grid grid-cols-3 gap-3">
+        <div class="flex flex-wrap justify-center gap-3">
             <button @click="switchTab('menu')"
                 :class="activeTab === 'menu' ? 'bg-white/10 text-orange-400' : 'text-gray-300'"
-                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                class="w-[calc((100%-1.5rem)/3)] flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
@@ -201,7 +201,7 @@
             </button>
             <button @click="switchTab('customers')"
                 :class="activeTab === 'customers' ? 'bg-white/10 text-green-500' : 'text-gray-300'"
-                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                class="w-[calc((100%-1.5rem)/3)] flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
@@ -210,7 +210,7 @@
             </button>
             <button @click="switchTab('reports')"
                 :class="activeTab === 'reports' ? 'bg-white/10 text-purple-500' : 'text-gray-300'"
-                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                class="w-[calc((100%-1.5rem)/3)] flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
@@ -219,7 +219,7 @@
             </button>
             <button @click="switchTab('staff')"
                 :class="activeTab === 'staff' ? 'bg-white/10 text-rose-500' : 'text-gray-300'"
-                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                class="w-[calc((100%-1.5rem)/3)] flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -229,7 +229,7 @@
             {% if features.customer_management %}
             <button @click="switchTab('rate_cards')"
                 :class="activeTab === 'rate_cards' ? 'bg-white/10 text-amber-400' : 'text-gray-300'"
-                class="flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                class="w-[calc((100%-1.5rem)/3)] flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M7 7h.01M7 3h5.586a1 1 0 01.707.293l6.414 6.414a1 1 0 010 1.414l-8.586 8.586a1 1 0 01-1.414 0l-6.414-6.414A1 1 0 013 12.586V7a4 4 0 014-4z"></path>
@@ -237,6 +237,24 @@
                 <span class="text-[10px] font-bold uppercase tracking-wide">Rate Cards</span>
             </button>
             {% endif %}
+            <button @click="switchTab('transactions')"
+                :class="activeTab === 'transactions' ? 'bg-white/10 text-cyan-400' : 'text-gray-300'"
+                class="w-[calc((100%-1.5rem)/3)] flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.123.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"></path>
+                </svg>
+                <span class="text-[10px] font-bold uppercase tracking-wide">Transactions</span>
+            </button>
+            <button @click="switchTab('printer_settings')"
+                :class="activeTab === 'printer_settings' ? 'bg-white/10 text-violet-400' : 'text-gray-300'"
+                class="w-[calc((100%-1.5rem)/3)] flex flex-col items-center gap-1.5 p-3 rounded-xl active:scale-95 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"></path>
+                </svg>
+                <span class="text-[10px] font-bold uppercase tracking-wide">Printer Settings</span>
+            </button>
         </div>
     </div>
 
@@ -327,180 +345,59 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
-                <div
-                    class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Revenue</p>
-                    <p class="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{{
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-10">
+
+                <!-- Today's Revenue — the one large tile, with inline sparkline -->
+                <div class="col-span-2 sm:row-span-2 bg-white dark:bg-slate-800 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6 sm:p-8 flex flex-col justify-between">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Today's Revenue</p>
+                    <p class="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white tracking-tighter">
+                        {{ shop.currency_symbol }}{{ "%.2f"|format(analytics.today_revenue or 0) }}</p>
+                    {% if analytics.chart_revenue and analytics.chart_revenue|length > 1 %}
+                    {% set max_rev = analytics.chart_revenue|max %}
+                    {% set min_rev = analytics.chart_revenue|min %}
+                    {% set rev_range = (max_rev - min_rev) if (max_rev - min_rev) > 0 else 1 %}
+                    {% set n = analytics.chart_revenue|length %}
+                    <svg viewBox="0 0 100 30" preserveAspectRatio="none" class="w-full h-10 mt-4">
+                        <polyline fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="text-gray-300 dark:text-slate-600"
+                            points="{% for v in analytics.chart_revenue %}{{ (loop.index0 * (100 / (n - 1)))|round(1) }},{{ (28 - ((v - min_rev) / rev_range * 26))|round(1) }}{% if not loop.last %} {% endif %}{% endfor %}" />
+                        <circle cx="{{ ((n - 1) * (100 / (n - 1)))|round(1) }}" cy="{{ (28 - ((analytics.chart_revenue[-1] - min_rev) / rev_range * 26))|round(1) }}" r="2.5" class="fill-orange-500" />
+                    </svg>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wide mt-1">{{ analytics.period_label }} trend</p>
+                    {% endif %}
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Today's Orders</p>
+                    <p class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{{ analytics.today_orders or 0 }}</p>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Avg Order Value</p>
+                    <p class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{{
+                        shop.currency_symbol }}{{ "%.2f"|format(analytics.avg_order_value or 0) }}</p>
+                </div>
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Lifetime Revenue</p>
+                    <p class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{{
                         shop.currency_symbol }}{{ "%.2f"|format(stats.total_sales) }}</p>
                 </div>
-                <div
-                    class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
-                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Total Orders</p>
-                    <p class="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{{ stats.order_count
-                        }}</p>
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
+                    <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Lifetime Orders</p>
+                    <p class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{{ stats.order_count }}</p>
                 </div>
-                <div
-                    class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
+
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Customers</p>
-                    <p class="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{{
-                        stats.customer_count }}</p>
+                    <p class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{{ stats.customer_count }}</p>
                 </div>
-                <div
-                    class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Menu Items</p>
-                    <p class="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{{ stats.menu_count }}
-                    </p>
+                    <p class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{{ stats.menu_count }}</p>
                 </div>
-                <div
-                    class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
+                <div class="bg-white dark:bg-slate-800 p-5 rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
                     <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Staff</p>
-                    <p class="text-3xl font-black text-gray-900 dark:text-white tracking-tighter">{{ stats.staff_count
-                        }}</p>
+                    <p class="text-2xl font-black text-gray-900 dark:text-white tracking-tighter">{{ stats.staff_count }}</p>
                 </div>
-            </div>
-
-            <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white tracking-tight">Recent Activity</h2>
-            <div
-                class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm">
-                <!-- Mobile: stacked cards -->
-                <div class="sm:hidden divide-y divide-gray-100 dark:divide-white/5">
-                    {% for bill in bills[:5] %}
-                    <div class="p-3 flex items-center justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="font-mono text-blue-500 text-sm">#{{ bill.bill_number }}</p>
-                            <p class="text-xs text-gray-500 uppercase font-bold mt-0.5">{{ bill.payment_method }}</p>
-                        </div>
-                        <p class="font-black text-gray-900 dark:text-white shrink-0">{{ shop.currency_symbol }}{{ "%.2f"|format(bill.total_amount) }}</p>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- Desktop: table -->
-                <div class="hidden sm:block overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-gray-50 dark:bg-slate-900/50">
-                            <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
-                                <th class="p-6">Bill ID</th>
-                                <th class="p-6">Method</th>
-                                <th class="p-6 text-right">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-white/5">
-                            {% for bill in bills[:5] %}
-                            <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transform transition-colors">
-                                <td class="p-6 font-mono text-blue-500 text-sm">#{{ bill.bill_number }}</td>
-                                <td class="p-6 text-sm text-gray-500 uppercase font-bold">{{ bill.payment_method }}</td>
-                                <td class="p-6 text-right font-black text-gray-900 dark:text-white">{{ shop.currency_symbol
-                                    }}{{ "%.2f"|format(bill.total_amount) }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Receipt & Printer Settings -->
-            <div class="mt-10">
-                <h2 class="text-xl font-bold mb-6 text-gray-900 dark:text-white tracking-tight flex items-center gap-2">
-                    <span class="text-purple-400"><i class="bi bi-printer-fill"></i></span> Receipt & Printer Settings
-                </h2>
-                <form action="/admin/settings" method="POST" enctype="multipart/form-data"
-                    class="bg-white dark:bg-slate-800 rounded-3xl border border-gray-200 dark:border-white/5 p-6 shadow-sm">
-                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                    <!-- Hidden fields to preserve existing shop settings on POST -->
-                    <input type="hidden" name="name" value="{{ shop.name }}">
-                    <input type="hidden" name="address" value="{{ shop.address or '' }}">
-                    <input type="hidden" name="currency" value="{{ shop.currency_symbol }}">
-                    <input type="hidden" name="font_color" value="{{ shop.font_color }}">
-                    <input type="hidden" name="background_color" value="{{ shop.background_color }}">
-                    <input type="hidden" name="header_color" value="{{ shop.header_color }}">
-                    <input type="hidden" name="logo_size" value="{{ shop.logo_size }}">
-                    <input type="hidden" name="watermark_opacity" value="{{ shop.watermark_opacity }}">
-                    <input type="hidden" name="card_bg_color" value="{{ shop.card_bg_color or '#1e293b' }}">
-                    <input type="hidden" name="sidebar_bg_color" value="{{ shop.sidebar_bg_color or '#0f172a' }}">
-                    <input type="hidden" name="accent_color" value="{{ shop.accent_color or '#f97316' }}">
-                    <input type="hidden" name="border_color" value="{{ shop.border_color or 'rgba(255,255,255,0.1)' }}">
-                    <input type="hidden" name="header_text_color" value="{{ shop.header_text_color or '#ffffff' }}">
-                    <input type="hidden" name="cart_bg_color" value="{{ shop.cart_bg_color or '#0f172a' }}">
-                    <input type="hidden" name="upi_id" value="{{ shop.upi_id or '' }}">
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <!-- Receipt Footer -->
-                        <div class="md:col-span-2">
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Receipt Footer Message</label>
-                            <input type="text" name="receipt_footer" value="{{ shop.receipt_footer or '' }}" placeholder="e.g. Thank you for your order!"
-                                class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
-                            <p class="text-[10px] text-gray-400 mt-1">Appears at the bottom of WhatsApp and Thermal receipts.</p>
-                        </div>
-
-                        <!-- Paper Width -->
-                        <div>
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Printer Paper Width</label>
-                            <select name="printer_paper_width"
-                                class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
-                                <option value="58mm" {% if shop.printer_paper_width == '58mm' %}selected{% endif %}>58mm (Narrow)</option>
-                                <option value="80mm" {% if shop.printer_paper_width == '80mm' %}selected{% endif %}>80mm (Wide)</option>
-                            </select>
-                        </div>
-
-                        <!-- Printer Alignment -->
-                        <div>
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Printer Text Alignment</label>
-                            <select name="printer_alignment"
-                                class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
-                                <option value="left" {% if shop.printer_alignment == 'left' %}selected{% endif %}>Left Aligned</option>
-                                <option value="center" {% if shop.printer_alignment == 'center' %}selected{% endif %}>Center Aligned</option>
-                            </select>
-                        </div>
-
-                        <!-- Timezone -->
-                        <div class="md:col-span-2">
-                            <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Shop Timezone</label>
-                            <select name="timezone"
-                                class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
-                                {% set ns = namespace(current_group=None) %}
-                                {% for tz_name, tz_label, tz_continent in timezone_choices %}
-                                {% if tz_continent != ns.current_group %}
-                                    {% if ns.current_group is not none %}</optgroup>{% endif %}
-                                    <optgroup label="{{ tz_continent }}">
-                                    {% set ns.current_group = tz_continent %}
-                                {% endif %}
-                                <option value="{{ tz_name }}" {% if shop.timezone == tz_name %}selected{% endif %}>{{ tz_label }}</option>
-                                {% if loop.last %}</optgroup>{% endif %}
-                                {% endfor %}
-                            </select>
-                            <p class="text-[10px] text-gray-400 mt-1">Controls the local time shown on bills and receipts, regardless of the viewing device.</p>
-                        </div>
-
-                        <!-- Pay Later credit limit enforcement -->
-                        <div class="md:col-span-2 flex items-center justify-between gap-3 bg-gray-50 dark:bg-slate-900 rounded-xl px-4 py-3 border border-gray-200 dark:border-white/10">
-                            <label for="block_over_credit_limit" class="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                                <span class="font-medium text-gray-900 dark:text-white block">Block Pay Later bills that exceed a customer's credit limit</span>
-                                <span class="text-[10px] text-gray-400">Off (default): the bill still goes through, with a warning. On: the bill is rejected until the limit is raised or the balance is paid down.</span>
-                            </label>
-                            <label class="relative inline-flex items-center gap-2 cursor-pointer shrink-0">
-                                <input type="checkbox" id="block_over_credit_limit" name="block_over_credit_limit"
-                                    {% if shop.block_over_credit_limit %}checked{% endif %} class="sr-only peer">
-                                <span class="relative w-12 h-6 rounded-full bg-gray-300 dark:bg-slate-700 peer-checked:bg-green-500
-                                             peer-focus-visible:ring-2 peer-focus-visible:ring-green-400/50 transition-colors duration-200
-                                             after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5
-                                             after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-200
-                                             peer-checked:after:translate-x-6"></span>
-                                <span class="w-8 text-center text-xs font-black uppercase tracking-widest text-gray-400 peer-checked:hidden">Off</span>
-                                <span class="hidden w-8 text-center text-xs font-black uppercase tracking-widest text-green-400 peer-checked:inline
-                                             [text-shadow:0_0_6px_rgba(74,222,128,.9),0_0_14px_rgba(74,222,128,.6)]">On</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="pt-4 mt-4 border-t border-gray-100 dark:border-white/5 flex justify-end">
-                        <button type="submit"
-                            class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-purple-900/20 transform hover:scale-[1.02] transition-all">
-                            Save Receipt Settings
-                        </button>
-                    </div>
-                </form>
             </div>
         </div>
 
@@ -512,9 +409,9 @@
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Menu
                     </h1>
                 </div>
-                <button @click="showAddModal = true"
-                    class="bg-orange-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-orange-600 transition-all shadow-lg shadow-orange-500/20">
-                    Add New Item
+                <button @click="showAddModal = true" title="Add New Item"
+                    class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-orange-500 text-white transition-all shadow-lg shadow-orange-500/20">
+                    <i class="bi bi-plus-lg"></i>
                 </button>
             </div>
 
@@ -602,9 +499,9 @@
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">
                         Customers</h1>
                 </div>
-                <button @click="showCustomerModal = true"
-                    class="bg-green-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-green-600 transition-all shadow-lg shadow-green-500/20">
-                    Add Customer
+                <button @click="showCustomerModal = true" title="Add Customer"
+                    class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-green-500 text-white transition-all shadow-lg shadow-green-500/20">
+                    <i class="bi bi-plus-lg"></i>
                 </button>
             </div>
 
@@ -838,66 +735,6 @@
                 </div>
             </div>
 
-            <!-- Transaction Log -->
-            <div
-                class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5">
-                <div class="p-4 sm:p-6 border-b border-gray-100 dark:border-white/5">
-                    <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest"><i class="bi bi-clipboard-data-fill"></i> Recent Transactions</h3>
-                </div>
-
-                <!-- Mobile: stacked cards, everything visible without scrolling -->
-                <div class="sm:hidden divide-y divide-gray-100 dark:divide-white/5">
-                    {% for bill in bills[:20] %}
-                    <div class="p-3 flex items-center justify-between gap-3">
-                        <div class="min-w-0">
-                            <p class="font-mono text-blue-500 text-sm italic">#{{ bill.bill_number }}</p>
-                            <p class="text-[11px] font-bold text-gray-500 uppercase tracking-tighter mt-0.5">{{ (bill.timestamp | shop_local(shop.timezone if shop else "UTC")).strftime('%d %b %Y | %H:%M') }}</p>
-                            <span class="inline-block mt-1 text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 border border-white/10 rounded-lg">{{ bill.payment_method }}</span>
-                        </div>
-                        <div class="text-right shrink-0">
-                            <p class="font-black text-gray-900 dark:text-white tracking-tighter">{{ shop.currency_symbol }}{{ "%.2f"|format(bill.total_amount) }}</p>
-                            <a href="/billing/bill/{{ bill.id }}" target="_blank"
-                                class="text-xs font-bold text-purple-500 hover:underline tracking-widest">DOC</a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- Desktop: table -->
-                <div class="hidden sm:block overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead class="bg-gray-50 dark:bg-slate-900/50">
-                            <tr class="text-gray-400 text-[10px] uppercase font-black tracking-widest">
-                                <th class="p-6">Transaction ID</th>
-                                <th class="p-6">Timestamp</th>
-                                <th class="p-6">Payment</th>
-                                <th class="p-6 text-right">Total Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-white/5">
-                            {% for bill in bills[:20] %}
-                            <tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                                <td class="p-6 font-mono text-blue-500 text-sm italic">#{{ bill.bill_number }}</td>
-                                <td class="p-6 text-xs font-bold text-gray-500 uppercase tracking-tighter">
-                                    <span>{{ (bill.timestamp | shop_local(shop.timezone if shop else "UTC")).strftime('%d %b %Y | %H:%M') }}</span>
-                                </td>
-                                <td class="p-6">
-                                    <span
-                                        class="text-[10px] font-black uppercase tracking-widest px-2 py-1 bg-gray-100 dark:bg-white/5 text-gray-400 border border-white/10 rounded-lg">{{
-                                        bill.payment_method }}</span>
-                                </td>
-                                <td class="p-6 text-right">
-                                    <span class="font-black text-gray-900 dark:text-white tracking-tighter mr-4">{{
-                                        shop.currency_symbol }}{{ "%.2f"|format(bill.total_amount) }}</span>
-                                    <a href="/billing/bill/{{ bill.id }}" target="_blank"
-                                        class="text-xs font-bold text-purple-500 hover:underline tracking-widest">DOC</a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
 
         <!-- STAFF TAB -->
@@ -908,9 +745,9 @@
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">
                         Staff</h1>
                 </div>
-                <button @click="showStaffModal = true"
-                    class="bg-rose-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-rose-600 transition-all shadow-lg shadow-rose-500/20">
-                    Onboard Staff
+                <button @click="showStaffModal = true" title="Onboard Staff"
+                    class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-rose-500 text-white transition-all shadow-lg shadow-rose-500/20">
+                    <i class="bi bi-plus-lg"></i>
                 </button>
             </div>
 
@@ -949,21 +786,25 @@
 
         {% if features.inventory_management %}
         <!-- INVENTORY TAB -->
-        <div x-show="activeTab === 'inventory'" x-data="inventoryApp()" @scan-success.window="handleScanResult($event.detail.result)" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
+        <div x-show="activeTab === 'inventory'" x-data="inventoryApp()"
+            x-init="$watch('activeTab', v => { if (v === 'inventory') load() }); if (activeTab === 'inventory') load()"
+            @scan-success.window="handleScanResult($event.detail.result)" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-emerald-500 uppercase tracking-widest mb-1">Stock Control</p>
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Inventory</h1>
                 </div>
-                <button @click="$dispatch('open-scanner')"
-                    class="flex items-center gap-2 bg-emerald-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0" />
-                    </svg>
-                    Scan to Restock
-                </button>
+                <div class="flex items-center gap-2 shrink-0">
+                    <button @click="$dispatch('open-scanner')" title="Scan to Restock"
+                        class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-emerald-500 text-white transition-all shadow-lg shadow-emerald-500/20">
+                        <i class="bi bi-upc-scan"></i>
+                    </button>
+                    <button @click="filtersOpen = !filtersOpen" title="Filters"
+                        class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl border transition-colors"
+                        :class="filtersOpen ? 'bg-sky-500/10 border-sky-400/60 text-sky-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-300'">
+                        <i class="bi bi-funnel-fill"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Low Stock Alert Banner -->
@@ -977,17 +818,29 @@
             </div>
             {% endif %}
 
-            <div class="flex flex-col sm:flex-row gap-3 mb-6">
-                <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search by name or SKU..."
-                    class="flex-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-2xl px-5 py-3 text-sm dark:text-white shadow-sm">
-                <select x-model="stockStatus" @change="onStockStatusChange()"
-                    class="sm:w-56 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-2xl px-5 py-3 text-sm dark:text-white shadow-sm">
-                    <option value="">All Stock Statuses</option>
-                    <option value="untracked">Untracked</option>
-                    <option value="out">Out of Stock</option>
-                    <option value="low">Low Stock</option>
-                    <option value="ok">OK</option>
-                </select>
+            <!-- Filters (collapsed by default) -->
+            <div x-show="filtersOpen" x-cloak class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 p-6 mb-6 flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[10rem]">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Search</label>
+                    <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search by name or SKU..."
+                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                </div>
+                <div class="relative sm:w-56" x-data="{ open: false }" @click.outside="open = false">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Stock Status</label>
+                    <button type="button" @click="open = !open"
+                        class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
+                        <span x-text="{'': 'All Stock Statuses', 'untracked': 'Untracked', 'out': 'Out of Stock', 'low': 'Low Stock', 'ok': 'OK'}[stockStatus]"></span>
+                        <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                    </button>
+                    <div x-show="open" x-cloak @click.outside="open = false"
+                        class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                        <template x-for="opt in [{v:'', l:'All Stock Statuses'}, {v:'untracked', l:'Untracked'}, {v:'out', l:'Out of Stock'}, {v:'low', l:'Low Stock'}, {v:'ok', l:'OK'}]" :key="opt.v">
+                            <button type="button" @click="stockStatus = opt.v; open = false; onStockStatusChange()"
+                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                x-text="opt.l"></button>
+                        </template>
+                    </div>
+                </div>
             </div>
 
             <!-- Inventory Table -->
@@ -1110,14 +963,24 @@
                                     class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0" placeholder="0.00">
                             </div>
                         </div>
-                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <div class="relative bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5"
+                            x-data="{ open: false, options: [{v:'Cash',l:'Cash'},{v:'UPI',l:'UPI'},{v:'Card',l:'Card'}] }"
+                            @click.outside="open = false">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Paid Via</label>
-                            <select name="payment_method"
-                                class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
-                                <option value="Cash">Cash</option>
-                                <option value="UPI">UPI</option>
-                                <option value="Card">Card</option>
-                            </select>
+                            <input type="hidden" name="payment_method" :value="restockPaymentMethod">
+                            <button type="button" @click="open = !open"
+                                class="w-full flex items-center justify-between gap-2 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                <span x-text="options.find(o => o.v === restockPaymentMethod).l"></span>
+                                <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                            </button>
+                            <div x-show="open" x-cloak
+                                class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                <template x-for="opt in options" :key="opt.v">
+                                    <button type="button" @click="restockPaymentMethod = opt.v; open = false"
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                        x-text="opt.l"></button>
+                                </template>
+                            </div>
                         </div>
                         <p class="text-[10px] text-gray-600 -mt-2">Enter a cost per unit to automatically log this
                             restock as an "Inventory Purchase" expense (tax is the total tax paid on the invoice) —
@@ -1151,22 +1014,23 @@
              server-rendered tabs) so the shell always shows; the fetch-driven
              Alpine component is scoped to the inner div so a failure there
              can't blank the whole panel. -->
-        <div x-show="activeTab === 'expenses'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10">
-        <div x-data="expensesApp('{{ shop.currency_symbol or '₹' }}', '{{ expense_categories[0] if expense_categories else '' }}')" x-init="init()">
+        <div x-show="activeTab === 'expenses'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
+        <div x-data="expensesApp('{{ shop.currency_symbol or '₹' }}', '{{ expense_categories[0] if expense_categories else '' }}')"
+            x-init="$watch('activeTab', v => { if (v === 'expenses') load() }); if (activeTab === 'expenses') load()">
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-teal-500 uppercase tracking-widest mb-1">Outgoings</p>
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Expenses</h1>
                 </div>
                 <div class="flex items-center gap-2">
+                    <button @click="openAddModal()" title="Add Expense"
+                        class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-teal-500 text-white transition-all shadow-lg shadow-teal-500/20">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
                     <button @click="filtersOpen = !filtersOpen" title="Filters"
                         class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl border transition-colors"
                         :class="filtersOpen ? 'bg-sky-500/10 border-sky-400/60 text-sky-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-300'">
                         <i class="bi bi-funnel-fill"></i>
-                    </button>
-                    <button @click="openAddModal()"
-                        class="bg-teal-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-teal-600 transition-all shadow-lg shadow-teal-500/20">
-                        Add Expense
                     </button>
                 </div>
             </div>
@@ -1187,15 +1051,21 @@
                     <input type="text" x-model="search" @input="onSearchInput()" placeholder="Description or vendor..."
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
                 </div>
-                <div>
+                <div class="relative" x-data='{ open: false, options: [{v:"",l:"All Categories"}{% for cat in expense_categories %}, {v: {{ cat | tojson }}, l: {{ cat | tojson }}}{% endfor %}] }' @click.outside="open = false">
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
-                    <select x-model="filters.category" @change="offset = 0; fetchExpenses()"
-                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
-                        <option value="">All Categories</option>
-                        {% for cat in expense_categories %}
-                        <option value="{{ cat }}">{{ cat }}</option>
-                        {% endfor %}
-                    </select>
+                    <button type="button" @click="open = !open"
+                        class="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white whitespace-nowrap">
+                        <span x-text="options.find(o => o.v === filters.category).l"></span>
+                        <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                    </button>
+                    <div x-show="open" x-cloak
+                        class="absolute left-0 top-full mt-2 min-w-full max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30">
+                        <template x-for="opt in options" :key="opt.v">
+                            <button type="button" @click="filters.category = opt.v; open = false; offset = 0; fetchExpenses()"
+                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                x-text="opt.l"></button>
+                        </template>
+                    </div>
                 </div>
                 <div>
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">From</label>
@@ -1285,13 +1155,23 @@
                     <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-6 dark:text-white" x-text="editingSlug ? 'Edit Expense' : 'Add Expense'"></h2>
                     <p x-show="formError" x-text="formError" class="text-red-500 text-sm font-bold mb-4"></p>
                     <div class="space-y-4">
-                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <div class="relative bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5"
+                            x-data='{ open: false, options: [{% for cat in expense_categories %}{v: {{ cat | tojson }}, l: {{ cat | tojson }}}{% if not loop.last %}, {% endif %}{% endfor %}] }'
+                            @click.outside="open = false">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
-                            <select x-model="form.category" class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
-                                {% for cat in expense_categories %}
-                                <option value="{{ cat }}">{{ cat }}</option>
-                                {% endfor %}
-                            </select>
+                            <button type="button" @click="open = !open"
+                                class="w-full flex items-center justify-between gap-2 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                <span x-text="form.category"></span>
+                                <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                            </button>
+                            <div x-show="open" x-cloak
+                                class="absolute left-0 top-full mt-2 min-w-full max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                <template x-for="opt in options" :key="opt.v">
+                                    <button type="button" @click="form.category = opt.v; open = false"
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                        x-text="opt.l"></button>
+                                </template>
+                            </div>
                         </div>
                         <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Description</label>
@@ -1321,13 +1201,23 @@
                                 <input type="date" x-model="form.expense_date"
                                     class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
                             </div>
-                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                            <div class="relative bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5"
+                                x-data="{ open: false, options: [{v:'Cash',l:'Cash'},{v:'UPI',l:'UPI'},{v:'Card',l:'Card'}] }"
+                                @click.outside="open = false">
                                 <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Payment Method</label>
-                                <select x-model="form.payment_method" class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
-                                    <option value="Cash">Cash</option>
-                                    <option value="UPI">UPI</option>
-                                    <option value="Card">Card</option>
-                                </select>
+                                <button type="button" @click="open = !open"
+                                    class="w-full flex items-center justify-between gap-2 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                    <span x-text="form.payment_method"></span>
+                                    <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                                </button>
+                                <div x-show="open" x-cloak
+                                    class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                    <template x-for="opt in options" :key="opt.v">
+                                        <button type="button" @click="form.payment_method = opt.v; open = false"
+                                            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                            x-text="opt.l"></button>
+                                    </template>
+                                </div>
                             </div>
                         </div>
                         <div class="flex gap-3 pt-4">
@@ -1346,29 +1236,31 @@
 
         <!-- CREDIT BOOK TAB -->
         {% if features.customer_management %}
-        <div x-show="activeTab === 'credit_book'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10">
-        <div x-data="creditBookApp('{{ shop.currency_symbol or '₹' }}', '{{ shop.upi_id if shop else '' }}', '{{ shop.name if shop else '' }}')" x-init="init()">
+        <div x-show="activeTab === 'credit_book'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
+        <div x-data="creditBookApp('{{ shop.currency_symbol or '₹' }}', '{{ shop.upi_id if shop else '' }}', '{{ shop.name if shop else '' }}')"
+            x-init="$watch('activeTab', v => { if (v === 'credit_book') load() }); if (activeTab === 'credit_book') load()">
 
             <!-- ============ LIST VIEW ============ -->
             <template x-if="view === 'list'">
             <div>
-                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 mb-4">
-                    <div class="flex items-baseline gap-3 min-w-0">
-                        <h1 class="text-2xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase shrink-0">Credit Book</h1>
-                        <p class="text-xs text-gray-400 truncate hidden md:block">The khata, digitized — sorted by who needs collecting from first.</p>
+                <div class="flex justify-between items-end mb-2">
+                    <div>
+                        <p class="text-sm font-bold text-indigo-500 uppercase tracking-widest mb-1">Khata</p>
+                        <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Credit Book</h1>
                     </div>
-                    <div class="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button @click="generateStatements()" :disabled="generating" title="Generate Statements Now"
+                            class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-indigo-500 text-white transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50">
+                            <i class="bi" :class="generating ? 'bi-hourglass-split' : 'bi-receipt'"></i>
+                        </button>
                         <button @click="filtersOpen = !filtersOpen" title="Filters"
                             class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl border transition-colors"
                             :class="filtersOpen ? 'bg-sky-500/10 border-sky-400/60 text-sky-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-300'">
                             <i class="bi bi-funnel-fill"></i>
                         </button>
-                        <button @click="generateStatements()" :disabled="generating"
-                            class="bg-indigo-500 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50">
-                            <span x-text="generating ? 'Generating...' : 'Generate Statements Now'"></span>
-                        </button>
                     </div>
                 </div>
+                <p class="text-xs text-gray-400 mb-6">The khata, digitized — sorted by who needs collecting from first.</p>
                 <p x-show="notice" x-text="notice" class="text-indigo-500 text-sm font-bold mb-3"></p>
                 <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-3"></p>
 
@@ -1393,25 +1285,41 @@
                     <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search account..."
                         class="flex-1 min-w-[12rem] bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
 
-                    <select x-model="sortBy" @change="accountsOffset = 0; fetchAccounts()"
-                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
-                        <option value="urgency">Sort: Urgency</option>
-                        <option value="balance">Sort: Balance</option>
-                        <option value="overdue_days">Sort: Days Overdue</option>
-                        <option value="name">Sort: Name</option>
-                    </select>
+                    <div class="relative" x-data="{ open: false, options: [{v:'urgency',l:'Sort: Urgency'},{v:'balance',l:'Sort: Balance'},{v:'overdue_days',l:'Sort: Days Overdue'},{v:'name',l:'Sort: Name'}] }" @click.outside="open = false">
+                        <button type="button" @click="open = !open"
+                            class="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white whitespace-nowrap">
+                            <span x-text="options.find(o => o.v === sortBy).l"></span>
+                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        <div x-show="open" x-cloak
+                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                            <template x-for="opt in options" :key="opt.v">
+                                <button type="button" @click="sortBy = opt.v; open = false; accountsOffset = 0; fetchAccounts()"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                    x-text="opt.l"></button>
+                            </template>
+                        </div>
+                    </div>
                     <button @click="order = (order === 'asc' ? 'desc' : 'asc'); accountsOffset = 0; fetchAccounts()"
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white font-bold">
                         <span x-text="order === 'asc' ? '↑ Asc' : '↓ Desc'"></span>
                     </button>
 
-                    <select x-model="paymentTermType" @change="accountsOffset = 0; fetchAccounts()"
-                        class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
-                        <option value="">All Terms</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="net_days">Net Days</option>
-                    </select>
+                    <div class="relative" x-data="{ open: false, options: [{v:'',l:'All Terms'},{v:'weekly',l:'Weekly'},{v:'monthly',l:'Monthly'},{v:'net_days',l:'Net Days'}] }" @click.outside="open = false">
+                        <button type="button" @click="open = !open"
+                            class="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white whitespace-nowrap">
+                            <span x-text="options.find(o => o.v === paymentTermType).l"></span>
+                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        <div x-show="open" x-cloak
+                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                            <template x-for="opt in options" :key="opt.v">
+                                <button type="button" @click="paymentTermType = opt.v; open = false; accountsOffset = 0; fetchAccounts()"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                    x-text="opt.l"></button>
+                            </template>
+                        </div>
+                    </div>
 
                     <label class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 font-bold whitespace-nowrap">
                         <input type="checkbox" x-model="overdueOnly" @change="accountsOffset = 0; fetchAccounts()" class="rounded">
@@ -1718,13 +1626,21 @@
                                     class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
                                 <input type="number" step="0.01" x-model="billsFilters.max_amount" @change="onBillsFilterChange()" placeholder="Max amount"
                                     class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
-                                <select x-model="billsFilters.status" @change="onBillsFilterChange()"
-                                    class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
-                                    <option value="">All Statuses</option>
-                                    <option value="Paid">Paid</option>
-                                    <option value="Unpaid">Unpaid</option>
-                                    <option value="PartiallyPaid">Partially Paid</option>
-                                </select>
+                                <div class="relative" x-data="{ open: false, options: [{v:'',l:'All Statuses'},{v:'Paid',l:'Paid'},{v:'Unpaid',l:'Unpaid'},{v:'PartiallyPaid',l:'Partially Paid'}] }" @click.outside="open = false">
+                                    <button type="button" @click="open = !open"
+                                        class="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white whitespace-nowrap">
+                                        <span x-text="options.find(o => o.v === billsFilters.status).l"></span>
+                                        <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                                    </button>
+                                    <div x-show="open" x-cloak
+                                        class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                        <template x-for="opt in options" :key="opt.v">
+                                            <button type="button" @click="billsFilters.status = opt.v; open = false; onBillsFilterChange()"
+                                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                                x-text="opt.l"></button>
+                                        </template>
+                                    </div>
+                                </div>
                                 <button @click="clearBillsFilters()" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white sm:ml-auto">Clear</button>
                             </div>
                             <template x-if="!billsLoading && bills.length === 0">
@@ -1783,7 +1699,8 @@
              billing/router.py for why: a shop must still be able to fulfill
              orders it already committed to after losing the feature. -->
         <div x-show="activeTab === 'orders'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
-        <div x-data="ordersTabApp('{{ shop.currency_symbol or '₹' }}', '{{ shop.upi_id if shop else '' }}', '{{ shop.name if shop else '' }}')" x-init="init()">
+        <div x-data="ordersTabApp('{{ shop.currency_symbol or '₹' }}', '{{ shop.upi_id if shop else '' }}', '{{ shop.name if shop else '' }}')"
+            x-init="$watch('activeTab', v => { if (v === 'orders') load() }); if (activeTab === 'orders') load()">
             <div class="flex justify-between items-end mb-2">
                 <div>
                     <p class="text-sm font-bold text-sky-500 uppercase tracking-widest mb-1">Pay Later</p>
@@ -2064,7 +1981,7 @@
                                         <i class="bi bi-chevron-down text-[8px]"></i>
                                     </button>
                                     <div x-show="open" x-cloak @click.outside="open = false"
-                                        class="absolute left-0 top-full mt-1 min-w-[10rem] bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                        class="absolute right-0 top-full mt-1 min-w-[10rem] bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
                                         <template x-for="s in ['Pending', 'Out for Delivery', 'Delivered']" :key="s">
                                             <button type="button" @click="setDeliveryStatus(viewModal.order, s); open = false"
                                                 class="w-full text-left px-3 py-2 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
@@ -2110,18 +2027,305 @@
         </div>
         </div>
 
+        <!-- TRANSACTIONS TAB — full bill ledger (any payment method/status
+             except Cancelled), filterable by date range and customer. Not
+             gated behind any feature flag — every shop needs visibility into
+             everything it has billed, matching Orders' ungated rationale. -->
+        <div x-show="activeTab === 'transactions'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
+        <div x-data="transactionsApp('{{ shop.currency_symbol or '₹' }}')"
+            x-init="$watch('activeTab', v => { if (v === 'transactions') load() }); if (activeTab === 'transactions') load()">
+            <div class="flex justify-between items-end mb-2">
+                <div>
+                    <p class="text-sm font-bold text-cyan-500 uppercase tracking-widest mb-1">Full Ledger</p>
+                    <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Transactions</h1>
+                </div>
+                <button @click="filtersOpen = !filtersOpen" title="Filters"
+                    class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl border transition-colors"
+                    :class="filtersOpen ? 'bg-cyan-500/10 border-cyan-400/60 text-cyan-500' : 'bg-white dark:bg-slate-800 border-gray-200 dark:border-white/10 text-gray-500 dark:text-gray-300'">
+                    <i class="bi bi-funnel-fill"></i>
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-6">Every bill this shop has issued — sorted newest first.</p>
+            <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-4"></p>
+
+            <!-- Filters (collapsed by default) -->
+            <div x-show="filtersOpen" x-cloak class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-4 mb-6 grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 sm:items-end">
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">From</label>
+                    <input type="date" x-model="filters.date_from" @change="onFilterChange()"
+                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                </div>
+                <div>
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">To</label>
+                    <input type="date" x-model="filters.date_to" @change="onFilterChange()"
+                        class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                </div>
+                <div class="relative sm:w-64 col-span-2 sm:col-span-1" @click.outside="customerResults = []">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Customer</label>
+                    <template x-if="!selectedCustomer">
+                        <input type="text" x-model="customerSearch" @input="onCustomerSearchInput()"
+                            placeholder="Search by name or phone..."
+                            class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2.5 text-sm dark:text-white">
+                    </template>
+                    <template x-if="selectedCustomer">
+                        <div class="w-full flex items-center justify-between gap-2 bg-cyan-500/10 border border-cyan-400/40 rounded-xl px-3 py-2.5 text-sm">
+                            <span class="truncate text-cyan-600 dark:text-cyan-400 font-bold" x-text="selectedCustomer.name"></span>
+                            <button type="button" @click="clearCustomerFilter()" class="shrink-0 text-cyan-500 hover:text-cyan-700">
+                                <i class="bi bi-x-lg text-xs"></i>
+                            </button>
+                        </div>
+                    </template>
+                    <div x-show="customerResults.length > 0" x-cloak
+                        class="absolute left-0 top-full mt-1 w-full max-h-56 overflow-y-auto bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30">
+                        <template x-for="c in customerResults" :key="c.id">
+                            <button type="button" @click="selectCustomerFilter(c)"
+                                class="w-full text-left px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/10">
+                                <p class="text-sm font-bold text-gray-900 dark:text-white" x-text="c.name"></p>
+                                <p class="text-xs text-gray-400 font-mono" x-text="c.phone_number"></p>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                <button @click="clearFilters()" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white sm:ml-auto">Clear</button>
+            </div>
+
+            <!-- List -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 overflow-hidden">
+                <template x-if="!loading && transactions.length === 0">
+                    <p class="p-6 text-sm text-gray-400">No transactions match these filters.</p>
+                </template>
+                <div class="divide-y divide-gray-100 dark:divide-white/5">
+                    <template x-for="tx in transactions" :key="tx.slug">
+                        <div class="p-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                            <div class="min-w-0">
+                                <p class="font-bold text-gray-900 dark:text-white text-sm truncate" x-text="tx.bill_number"></p>
+                                <p class="text-xs text-gray-400 truncate" x-text="(tx.customer_name || 'Walk-in') + ' · ' + tx.payment_method + ' · ' + (tx.timestamp ? tx.timestamp.slice(0,10) : '')"></p>
+                            </div>
+                            <div class="flex items-center justify-between sm:justify-end gap-3 flex-wrap">
+                                <span class="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg shrink-0"
+                                    :class="{'bg-emerald-500/10 text-emerald-500': tx.status === 'Completed', 'bg-amber-500/10 text-amber-500': tx.status === 'Held'}"
+                                    x-text="tx.status"></span>
+                                <p class="font-black text-gray-900 dark:text-white text-sm whitespace-nowrap" x-text="formatCurrency(tx.total_amount)"></p>
+                                <button type="button" @click="viewBill(tx.id)" class="text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-600 transition-colors shrink-0">View</button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div class="p-3 flex items-center justify-between gap-3" x-show="total > 0">
+                    <select x-model.number="limit" @change="changeLimit()"
+                        class="text-[10px] bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 dark:text-white">
+                        <option value="10">10 / page</option>
+                        <option value="25">25 / page</option>
+                        <option value="50">50 / page</option>
+                        <option value="100">100 / page</option>
+                    </select>
+                    <div class="flex items-center gap-4">
+                        <button @click="goToPage(page - 1)" :disabled="page <= 1 || loading"
+                            class="text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                            Prev
+                        </button>
+                        <p class="text-xs text-gray-400" x-text="'Page ' + page + ' of ' + totalPages"></p>
+                        <button @click="goToPage(page + 1)" :disabled="page >= totalPages || loading"
+                            class="text-[10px] font-black uppercase tracking-widest text-cyan-500 hover:text-cyan-600 disabled:opacity-30 disabled:cursor-not-allowed">
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bill View Modal — shows the receipt in-page instead of a new tab -->
+            <div x-show="viewBillId" x-cloak class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" x-transition>
+                <div class="bg-white dark:bg-slate-900 w-full max-w-2xl h-[90vh] rounded-[2rem] relative shadow-2xl border border-white/5 overflow-hidden flex flex-col"
+                    @click.away="closeBillModal()">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5 shrink-0">
+                        <p class="text-sm font-black uppercase tracking-widest text-cyan-500">Bill Preview</p>
+                        <button type="button" @click="closeBillModal()" class="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-300">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <iframe :src="viewBillId ? '/billing/bill/' + viewBillId : ''" class="flex-1 w-full border-0"></iframe>
+                </div>
+            </div>
+        </div>
+        </div>
+
+        <!-- PRINTER SETTINGS TAB — relocated from Overview. Plain HTML POST
+             to /admin/settings, no Alpine data layer, no lazy-load needed. -->
+        <div x-show="activeTab === 'printer_settings'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <p class="text-sm font-bold text-violet-500 uppercase tracking-widest mb-1">Hardware & Receipts</p>
+                    <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Printer Settings</h1>
+                </div>
+            </div>
+
+            <form action="/admin/settings" method="POST" enctype="multipart/form-data"
+                x-data="{ paperWidth: '{{ shop.printer_paper_width or '80mm' }}', alignment: '{{ shop.printer_alignment or 'left' }}' }"
+                class="bg-white dark:bg-slate-800 rounded-3xl border border-gray-200 dark:border-white/5 p-6 shadow-sm">
+                <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+                <!-- Hidden fields to preserve existing shop settings on POST -->
+                <input type="hidden" name="name" value="{{ shop.name }}">
+                <input type="hidden" name="address" value="{{ shop.address or '' }}">
+                <input type="hidden" name="currency" value="{{ shop.currency_symbol }}">
+                <input type="hidden" name="font_color" value="{{ shop.font_color }}">
+                <input type="hidden" name="background_color" value="{{ shop.background_color }}">
+                <input type="hidden" name="header_color" value="{{ shop.header_color }}">
+                <input type="hidden" name="logo_size" value="{{ shop.logo_size }}">
+                <input type="hidden" name="watermark_opacity" value="{{ shop.watermark_opacity }}">
+                <input type="hidden" name="card_bg_color" value="{{ shop.card_bg_color or '#1e293b' }}">
+                <input type="hidden" name="sidebar_bg_color" value="{{ shop.sidebar_bg_color or '#0f172a' }}">
+                <input type="hidden" name="accent_color" value="{{ shop.accent_color or '#f97316' }}">
+                <input type="hidden" name="border_color" value="{{ shop.border_color or 'rgba(255,255,255,0.1)' }}">
+                <input type="hidden" name="header_text_color" value="{{ shop.header_text_color or '#ffffff' }}">
+                <input type="hidden" name="cart_bg_color" value="{{ shop.cart_bg_color or '#0f172a' }}">
+                <input type="hidden" name="upi_id" value="{{ shop.upi_id or '' }}">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Receipt Footer -->
+                    <div class="md:col-span-2">
+                        <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Receipt Footer Message</label>
+                        <input type="text" name="receipt_footer" value="{{ shop.receipt_footer or '' }}" placeholder="e.g. Thank you for your order!"
+                            class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                        <p class="text-[10px] text-gray-400 mt-1">Appears at the bottom of WhatsApp and Thermal receipts.</p>
+                    </div>
+
+                    <!-- Paper Width -->
+                    <div class="relative" x-data="{ open: false, options: [{v:'58mm',l:'58mm (Narrow)'},{v:'80mm',l:'80mm (Wide)'}] }" @click.outside="open = false">
+                        <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Printer Paper Width</label>
+                        <input type="hidden" name="printer_paper_width" :value="paperWidth">
+                        <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                            <span x-text="options.find(o => o.v === paperWidth).l"></span>
+                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        <div x-show="open" x-cloak
+                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                            <template x-for="opt in options" :key="opt.v">
+                                <button type="button" @click="paperWidth = opt.v; open = false"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                    x-text="opt.l"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Printer Alignment -->
+                    <div class="relative" x-data="{ open: false, options: [{v:'left',l:'Left Aligned'},{v:'center',l:'Center Aligned'}] }" @click.outside="open = false">
+                        <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Printer Text Alignment</label>
+                        <input type="hidden" name="printer_alignment" :value="alignment">
+                        <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                            <span x-text="options.find(o => o.v === alignment).l"></span>
+                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                        </button>
+                        <div x-show="open" x-cloak
+                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                            <template x-for="opt in options" :key="opt.v">
+                                <button type="button" @click="alignment = opt.v; open = false"
+                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                    x-text="opt.l"></button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Timezone -->
+                    <div class="md:col-span-2 relative"
+                        x-data='{
+                            open: false,
+                            search: "",
+                            selected: {{ (shop.timezone or "UTC") | tojson }},
+                            items: [{% for tz_name, tz_label, tz_continent in timezone_choices %}{v: {{ tz_name | tojson }}, l: {{ tz_label | tojson }}, g: {{ tz_continent | tojson }}}{% if not loop.last %}, {% endif %}{% endfor %}],
+                            get filtered() {
+                                const q = this.search.toLowerCase();
+                                return this.items.filter(i => !q || i.l.toLowerCase().includes(q) || i.v.toLowerCase().includes(q));
+                            },
+                            get grouped() {
+                                const out = [];
+                                let lastG = null, bucket = null;
+                                for (const i of this.filtered) {
+                                    if (i.g !== lastG) { bucket = { g: i.g, items: [] }; out.push(bucket); lastG = i.g; }
+                                    bucket.items.push(i);
+                                }
+                                return out;
+                            },
+                            get label() {
+                                const found = this.items.find(i => i.v === this.selected);
+                                return found ? found.l : this.selected;
+                            }
+                        }'
+                        @click.outside="open = false; search = ''">
+                        <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Shop Timezone</label>
+                        <input type="hidden" name="timezone" :value="selected">
+                        <button type="button" @click="open = !open"
+                            class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
+                            <span x-text="label"></span>
+                            <i class="bi bi-chevron-down text-sm text-gray-400"></i>
+                        </button>
+                        <div x-show="open" x-cloak
+                            class="absolute left-0 top-full mt-2 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 flex flex-col overflow-hidden">
+                            <div class="p-2 border-b border-gray-100 dark:border-white/10 shrink-0">
+                                <input type="text" x-model="search" placeholder="Search timezone..."
+                                    class="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm dark:text-white focus:outline-none">
+                            </div>
+                            <div class="max-h-64 overflow-y-auto">
+                                <template x-for="grp in grouped" :key="grp.g">
+                                    <div>
+                                        <p class="px-3 pt-2 pb-1 text-[10px] font-black uppercase tracking-widest text-gray-400" x-text="grp.g"></p>
+                                        <template x-for="opt in grp.items" :key="opt.v">
+                                            <button type="button" @click="selected = opt.v; open = false; search = ''"
+                                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                                x-text="opt.l"></button>
+                                        </template>
+                                    </div>
+                                </template>
+                                <p x-show="grouped.length === 0" class="px-3 py-4 text-sm text-gray-400">No matches.</p>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-gray-400 mt-1">Controls the local time shown on bills and receipts, regardless of the viewing device.</p>
+                    </div>
+
+                    <!-- Pay Later credit limit enforcement -->
+                    <div class="md:col-span-2 flex items-center justify-between gap-3 bg-gray-50 dark:bg-slate-900 rounded-xl px-4 py-3 border border-gray-200 dark:border-white/10">
+                        <label for="block_over_credit_limit" class="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+                            <span class="font-medium text-gray-900 dark:text-white block">Block Pay Later bills that exceed a customer's credit limit</span>
+                            <span class="text-[10px] text-gray-400">Off (default): the bill still goes through, with a warning. On: the bill is rejected until the limit is raised or the balance is paid down.</span>
+                        </label>
+                        <label class="relative inline-flex items-center gap-2 cursor-pointer shrink-0">
+                            <input type="checkbox" id="block_over_credit_limit" name="block_over_credit_limit"
+                                {% if shop.block_over_credit_limit %}checked{% endif %} class="sr-only peer">
+                            <span class="relative w-12 h-6 rounded-full bg-gray-300 dark:bg-slate-700 peer-checked:bg-green-500
+                                         peer-focus-visible:ring-2 peer-focus-visible:ring-green-400/50 transition-colors duration-200
+                                         after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5
+                                         after:rounded-full after:bg-white after:shadow after:transition-transform after:duration-200
+                                         peer-checked:after:translate-x-6"></span>
+                            <span class="w-8 text-center text-xs font-black uppercase tracking-widest text-gray-400 peer-checked:hidden">Off</span>
+                            <span class="hidden w-8 text-center text-xs font-black uppercase tracking-widest text-green-400 peer-checked:inline
+                                         [text-shadow:0_0_6px_rgba(74,222,128,.9),0_0_14px_rgba(74,222,128,.6)]">On</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="pt-4 mt-4 border-t border-gray-100 dark:border-white/5 flex justify-end">
+                    <button type="submit"
+                        class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-purple-900/20 transform hover:scale-[1.02] transition-all">
+                        Save Receipt Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <!-- RATE CARDS TAB -->
         {% if features.customer_management %}
-        <div x-show="activeTab === 'rate_cards'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10">
-        <div x-data="rateCardsApp('{{ shop.currency_symbol or '₹' }}')" x-init="init()">
+        <div x-show="activeTab === 'rate_cards'" class="h-full overflow-y-auto p-4 pb-24 sm:p-6 lg:p-10" x-cloak>
+        <div x-data="rateCardsApp('{{ shop.currency_symbol or '₹' }}')"
+            x-init="$watch('activeTab', v => { if (v === 'rate_cards') load() }); if (activeTab === 'rate_cards') load()">
             <div class="flex justify-between items-end mb-8">
                 <div>
                     <p class="text-sm font-bold text-amber-500 uppercase tracking-widest mb-1">Negotiated Pricing</p>
                     <h1 class="text-4xl font-black text-gray-900 dark:text-white italic tracking-tighter uppercase">Rate Cards</h1>
                 </div>
-                <button @click="openAddModal()" :disabled="!selectedCustomer"
-                    class="bg-amber-500 text-white px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20 disabled:opacity-40">
-                    Add Price Override
+                <button @click="openAddModal()" :disabled="!selectedCustomer" title="Add Price Override"
+                    class="w-10 h-10 flex items-center justify-center shrink-0 rounded-xl bg-amber-500 text-white transition-all shadow-lg shadow-amber-500/20 disabled:opacity-40">
+                    <i class="bi bi-plus-lg"></i>
                 </button>
             </div>
             <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-4"></p>
@@ -2270,47 +2474,48 @@
                 <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                 <input type="hidden" name="shop_id" value="{{ shop.id }}">
                 <div class="space-y-4">
-                    <div class="flex gap-4">
-                        <div class="flex-1 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" x-data="{ selectedUnit: '' }">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Product Name</label>
                             <input type="text" name="name" required
                                 class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
                         </div>
-                        <div class="flex-1 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">SKU Override (Optional)</label>
                             <input type="text" name="sku" placeholder="Auto-generated"
                                 class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0 placeholder-gray-400">
                         </div>
-                    </div>
-                    <div class="flex gap-4" x-data="{ selectedUnit: '' }">
-                        <div
-                            class="flex-1 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
                             <input type="text" name="category" value="Burger" required
                                 class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
                         </div>
-                        <div
-                            class="w-28 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1"
                                 x-text="selectedUnit && selectedUnit !== 'piece' ? 'Price / ' + selectedUnit : 'Price'">Price</label>
                             <input type="number" step="0.01" name="price" required
                                 class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
                         </div>
-                        <div
-                            class="w-24 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <div class="relative bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5"
+                            x-data="{ open: false, options: [{v:'', l:'Fixed'}, {v:'piece', l:'piece'}, {v:'kg', l:'kg'}, {v:'g', l:'g'}, {v:'liter', l:'liter'}, {v:'ml', l:'ml'}] }"
+                            @click.outside="open = false">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Unit</label>
-                            <select name="unit" x-model="selectedUnit"
-                                class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0 cursor-pointer appearance-none">
-                                <option value="">Fixed</option>
-                                <option value="piece">piece</option>
-                                <option value="kg">kg</option>
-                                <option value="g">g</option>
-                                <option value="liter">liter</option>
-                                <option value="ml">ml</option>
-                            </select>
+                            <input type="hidden" name="unit" :value="selectedUnit">
+                            <button type="button" @click="open = !open"
+                                class="w-full flex items-center justify-between gap-2 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
+                                <span x-text="options.find(o => o.v === selectedUnit).l"></span>
+                                <i class="bi bi-chevron-down text-xs text-gray-400"></i>
+                            </button>
+                            <div x-show="open" x-cloak
+                                class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
+                                <template x-for="opt in options" :key="opt.v">
+                                    <button type="button" @click="selectedUnit = opt.v; open = false"
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
+                                        x-text="opt.l"></button>
+                                </template>
+                            </div>
                         </div>
-                        <div
-                            class="w-24 bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Tax (%)</label>
                             <input type="number" step="0.01" name="tax_rate" value="0.0" required
                                 class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
@@ -2418,8 +2623,8 @@
 {% endblock %}
 
 {% block scripts %}
-<!-- Chart.js for Analytics -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- Chart.js is loaded on demand by loadChartJs() in dashboard-app.js the
+     first time the Reports tab is opened, instead of blocking page load. -->
 
 <!-- Analytics Data -->
 <script id="analytics-data" type="application/json">

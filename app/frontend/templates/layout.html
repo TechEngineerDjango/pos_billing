@@ -216,7 +216,7 @@
     </div>
     {% endif %}
 
-    <main class="flex-1 relative flex flex-col overflow-x-hidden">
+    <main id="page-main" class="flex-1 relative flex flex-col overflow-x-hidden">
         <!-- Background Ambient Glow -->
         <div class="absolute top-0 left-1/4 w-96 h-96 bg-orange-500/20 rounded-full blur-[128px] pointer-events-none">
         </div>
@@ -227,10 +227,20 @@
     </main>
 
     <script src="/static/js/core/api.js"></script>
+    <script src="/static/js/core/fullscreen.js"></script>
     <script src="/static/vendor/qrcode/qrcode.js"></script>
     <script src="/static/js/core/qr.js"></script>
 
-    {% block scripts %}{% endblock %}
+    <!-- #page-main and #page-scripts are the two regions spa-nav.js swaps
+         between POS <-> Dashboard without a full page reload (keeps
+         fullscreen mode alive — browsers force-exit fullscreen on any real
+         top-level navigation). Everything outside these two regions (this
+         script block included) is shared chrome and never gets replaced. -->
+    <div id="page-scripts">{% block scripts %}{% endblock %}</div>
+
+    <!-- Loaded after #page-scripts exists so it can seed its already-loaded-
+         script tracking from what's actually in the DOM at this point. -->
+    <script src="/static/js/core/spa-nav.js"></script>
 
     <script src="/static/js/auth.js"></script>
     <script src="/static/js/timestamp-utils.js"></script>

@@ -1,5 +1,5 @@
 // Initialize Alpine feature store BEFORE posApp() runs
-document.addEventListener('alpine:init', () => {
+function initPosFeatureStore() {
     const raw = JSON.parse(document.getElementById('pos-features-data')?.textContent || '{}');
     // Normalize: FeatureService returns {KEY: {enabled: bool, ...}} — flatten to {KEY: bool}
     const flat = {};
@@ -7,7 +7,15 @@ document.addEventListener('alpine:init', () => {
         flat[k] = (typeof v === 'object' && v !== null) ? (v.enabled === true) : Boolean(v);
     }
     Alpine.store('features', flat);
-});
+}
+if (window.Alpine && window.Alpine.store) {
+    // Alpine is already running — this script is re-executing after an
+    // in-page nav swap (spa-nav.js), not a fresh document load. alpine:init
+    // only fires once per page, so waiting for it here would never run.
+    initPosFeatureStore();
+} else {
+    document.addEventListener('alpine:init', initPosFeatureStore);
+}
 
 /**
  * Burger POS - Industrial Service-Oriented Architecture

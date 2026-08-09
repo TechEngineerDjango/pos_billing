@@ -91,10 +91,13 @@ async def test_full_platform_lifecycle_e2e(async_client: AsyncClient, db_session
     assert "bill_number" in bill_data
     
     # --- PHASE 4: REPORTING ---
-    # Check Dashboard Sales History
-    dash_resp = await async_client.get("/admin/", follow_redirects=True)
-    assert bill_data["bill_number"] in dash_resp.text
-    assert "Q200.0" in dash_resp.text # Total for 2 burgers
+    # Check the bill surfaces in the Transactions ledger
+    tx_resp = await async_client.get("/billing/transactions", follow_redirects=True)
+    assert tx_resp.status_code == 200
+    tx_data = tx_resp.json()
+    matching = [t for t in tx_data["transactions"] if t["bill_number"] == bill_data["bill_number"]]
+    assert len(matching) == 1
+    assert matching[0]["total_amount"] == 200.0
 
     # Verify Database record
     result = await db_session.execute(select(Bill).filter_by(bill_number=bill_data["bill_number"]))

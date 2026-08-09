@@ -39,6 +39,7 @@ function dashboardApp(currencySymbol) {
         menuOffset: 0,
         menuLimit: 10,
         menuTotal: 0,
+        _menuLoaded: false,
 
         // Customers tab — same treatment, reuses the existing
         // /admin/customers/search endpoint built for the Credit Book/Rate
@@ -50,6 +51,7 @@ function dashboardApp(currencySymbol) {
         customerOffset: 0,
         customerLimit: 10,
         customerTotal: 0,
+        _customersLoaded: false,
         // Browser-local calendar date, string-comparable against the
         // ISO next_due_date the server sends — only used for the
         // Customers-tab overdue-highlight styling, not authoritative
@@ -140,31 +142,51 @@ function dashboardApp(currencySymbol) {
             const url = new URL(window.location);
             url.searchParams.set('tab', t);
             window.history.replaceState({}, '', url);
+            this.loadTabData(t);
+        },
 
-            // Initialize charts when switching to reports tab
-            if (t === 'reports') {
+        // Each tab's data fetch fires the first time it becomes active — not
+        // on page load — so opening the Dashboard doesn't kick off a fetch
+        // for every tab regardless of which one you're actually looking at.
+        loadTabData(t) {
+            if (t === 'menu' && !this._menuLoaded) {
+                this._menuLoaded = true;
+                this.searchMenuItems();
+            } else if (t === 'customers' && !this._customersLoaded) {
+                this._customersLoaded = true;
+                this.searchCustomersTab();
+            } else if (t === 'reports') {
                 this.$nextTick(() => {
-                    initCharts();
+                    loadChartJs().then(initCharts).catch(() => console.error('Failed to load Chart.js'));
                 });
             }
         },
 
         init() {
-            this.searchMenuItems();
-            this.searchCustomersTab();
-
-            // Initialize charts if already on reports tab
-            if (this.activeTab === 'reports') {
-                this.$nextTick(() => {
-                    initCharts();
-                });
-            }
+            this.loadTabData(this.activeTab);
         }
     }
 }
 
 let revenueChart = null;
 let hourlyChart = null;
+
+// Chart.js is only needed by the Reports tab — loaded on demand the first
+// time that tab is opened instead of blocking every Dashboard page load.
+let chartJsPromise = null;
+function loadChartJs() {
+    if (window.Chart) return Promise.resolve();
+    if (!chartJsPromise) {
+        chartJsPromise = new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
+            script.onload = resolve;
+            script.onerror = () => { chartJsPromise = null; reject(new Error('Failed to load Chart.js')); };
+            document.head.appendChild(script);
+        });
+    }
+    return chartJsPromise;
+}
 
 function initCharts() {
     const analyticsEl = document.getElementById('analytics-data');
@@ -314,19 +336,26 @@ function inventoryApp() {
         restockItemId: null,
         restockItemName: '',
         restockCurrentStock: 0,
+        restockPaymentMethod: 'Cash',
         restockSaving: false,
         restockError: '',
 
         items: [],
         search: '',
         stockStatus: '',
+        filtersOpen: false,
         _searchTimer: null,
         loading: false,
         offset: 0,
         limit: 10,
         total: 0,
+        _loaded: false,
 
-        init() {
+        // Called from x-init once this tab first becomes active, not on
+        // page load — see loadTabData() in dashboardApp() for the pattern.
+        load() {
+            if (this._loaded) return;
+            this._loaded = true;
             this.searchItems();
         },
 
@@ -378,6 +407,7 @@ function inventoryApp() {
             this.restockItemId = itemId;
             this.restockItemName = itemName;
             this.restockCurrentStock = currentStock;
+            this.restockPaymentMethod = 'Cash';
             this.restockError = '';
             this.showRestockModal = true;
         },
@@ -397,6 +427,7 @@ function inventoryApp() {
                 if (!response.ok) throw new Error('Failed to restock item');
                 this.showRestockModal = false;
                 event.target.reset();
+                this.restockPaymentMethod = 'Cash';
                 await this.searchItems();
             } catch (e) {
                 this.restockError = e.message || 'Failed to restock item';
@@ -445,8 +476,11 @@ function expensesApp(currencySymbol, defaultCategory) {
         saving: false,
         formError: '',
         form: { category: '', description: '', amount: '', tax_amount: '0.00', vendor_name: '', expense_date: '', payment_method: 'Cash' },
+        _loaded: false,
 
-        init() {
+        load() {
+            if (this._loaded) return;
+            this._loaded = true;
             this.fetchExpenses();
         },
 
@@ -573,8 +607,11 @@ function ordersTabApp(currencySymbol, shopUpiId, shopName) {
         viewModal: { open: false, order: null },
         filtersOpen: false,
         showCompleted: false,
+        _loaded: false,
 
-        init() {
+        load() {
+            if (this._loaded) return;
+            this._loaded = true;
             this.fetchOrders();
         },
 
@@ -783,6 +820,108 @@ function ordersTabApp(currencySymbol, shopUpiId, shopName) {
     };
 }
 
+function transactionsApp(currencySymbol) {
+    return {
+        currencySymbol,
+        transactions: [], total: 0, offset: 0, limit: 25,
+        filters: { date_from: '', date_to: '', customer_id: '' },
+        filtersOpen: false, loading: false, error: '', _loaded: false,
+        customerSearch: '', customerResults: [], customerSearchLoading: false,
+        _customerSearchTimer: null, selectedCustomer: null,
+        viewBillId: null,
+
+        load() {
+            if (this._loaded) return;
+            this._loaded = true;
+            this.fetchTransactions();
+        },
+
+        formatCurrency(v) {
+            return `${this.currencySymbol}${Number(v || 0).toFixed(2)}`;
+        },
+
+        viewBill(id) {
+            this.viewBillId = id;
+        },
+
+        closeBillModal() {
+            this.viewBillId = null;
+        },
+
+        onFilterChange() {
+            this.offset = 0;
+            this.fetchTransactions();
+        },
+
+        clearFilters() {
+            this.filters = { date_from: '', date_to: '', customer_id: '' };
+            this.selectedCustomer = null;
+            this.customerSearch = '';
+            this.customerResults = [];
+            this.onFilterChange();
+        },
+
+        async fetchTransactions() {
+            this.loading = true;
+            try {
+                const f = this.filters;
+                const filterParams = { limit: this.limit };
+                if (f.date_from) filterParams.date_from = f.date_from;
+                if (f.date_to) filterParams.date_to = f.date_to;
+                if (f.customer_id) filterParams.customer_id = f.customer_id;
+                const result = await fetchPaginated('/billing/transactions', filterParams, this.offset, 'transactions');
+                this.transactions = result.items;
+                this.total = result.total;
+            } catch (e) {
+                this.error = e.message || 'Failed to load transactions';
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        get page() { return Math.floor(this.offset / this.limit) + 1; },
+        get totalPages() { return Math.max(1, Math.ceil(this.total / this.limit)); },
+        goToPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.totalPages));
+            this.offset = (clamped - 1) * this.limit;
+            this.fetchTransactions();
+        },
+        changeLimit() {
+            this.offset = 0;
+            this.fetchTransactions();
+        },
+
+        onCustomerSearchInput() {
+            clearTimeout(this._customerSearchTimer);
+            this._customerSearchTimer = setTimeout(() => this.searchCustomersForFilter(), 300);
+        },
+        async searchCustomersForFilter() {
+            this.customerSearchLoading = true;
+            try {
+                const params = new URLSearchParams({ q: this.customerSearch, limit: '10' });
+                const data = await ApiClient.request(`/admin/customers/search?${params.toString()}`);
+                this.customerResults = data.customers;
+            } catch (e) {
+                console.error('Failed to search customers', e);
+            } finally {
+                this.customerSearchLoading = false;
+            }
+        },
+        selectCustomerFilter(c) {
+            this.selectedCustomer = c;
+            this.filters.customer_id = c.id;
+            this.customerResults = [];
+            this.customerSearch = '';
+            this.onFilterChange();
+        },
+        clearCustomerFilter() {
+            this.selectedCustomer = null;
+            this.filters.customer_id = '';
+            this.onFilterChange();
+        },
+    };
+}
+
 function creditBookApp(currencySymbol, shopUpiId, shopName) {
     return {
         currencySymbol,
@@ -825,8 +964,11 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
         billsOffset: 0,
         billsLimit: 10,
         billsFilters: { date_from: '', date_to: '', min_amount: '', max_amount: '', status: '' },
+        _loaded: false,
 
-        init() {
+        load() {
+            if (this._loaded) return;
+            this._loaded = true;
             this.fetchAccounts();
         },
 
@@ -1125,8 +1267,11 @@ function rateCardsApp(currencySymbol) {
         form: { menu_item_id: '', price: '', valid_from: '', valid_to: '' },
         formError: '',
         saving: false,
+        _loaded: false,
 
-        init() {
+        load() {
+            if (this._loaded) return;
+            this._loaded = true;
             this.searchCustomers();
         },
 
