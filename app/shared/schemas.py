@@ -34,7 +34,7 @@ def as_form(cls: Type[BaseModel]):
 
 class CartItem(BaseModel):
     id: int
-    qty: float = Field(..., gt=0)  # float accepts whole (2) and fractional (1.6 kg) quantities; JSON-serializable
+    qty: Decimal = Field(..., gt=0)  # Decimal (not float) — whole (2) or fractional (0.25 kg) quantities without binary float drift
 
 class CustomerSearchResponse(BaseModel):
     found: bool
@@ -58,6 +58,36 @@ class BillCreate(BaseModel):
     customer_phone: Optional[str] = None
     customer_country_code: Optional[str] = None
     delivery_charge: float = Field(default=0, ge=0)
+
+
+DELIVERY_STATUSES = ("Pending", "Out for Delivery", "Delivered")
+# No PartiallyPaid here — Pay Later orders are binary (Unpaid/Paid) by design.
+# PartiallyPaid is a Credit Book concept for registered credit accounts, tracked
+# separately via CreditPayment (see /admin/credit/payments), not this endpoint.
+PAYMENT_STATUSES = ("Unpaid", "Paid")
+
+
+class OrderStatusUpdate(BaseModel):
+    """Orders view: update a Pay Later bill's delivery_status and/or payment_status.
+    payment_status is only accepted for non-credit customers — an actual
+    is_credit_customer bill must be paid via POST /admin/credit/payments so the
+    CreditPayment audit trail and credit_balance stay correct (see billing/router.py).
+    mark_paid is kept as a shorthand for payment_status='Paid' for existing callers."""
+    delivery_status: Optional[str] = None
+    payment_status: Optional[str] = None
+    mark_paid: bool = False
+
+    @validator("delivery_status")
+    def valid_delivery_status(cls, v):
+        if v is not None and v not in DELIVERY_STATUSES:
+            raise ValueError(f"delivery_status must be one of {DELIVERY_STATUSES}")
+        return v
+
+    @validator("payment_status")
+    def valid_payment_status(cls, v):
+        if v is not None and v not in PAYMENT_STATUSES:
+            raise ValueError(f"payment_status must be one of {PAYMENT_STATUSES}")
+        return v
 
 import re
 
@@ -317,7 +347,8 @@ class ShopCreate(BaseModel):
     cash_upi_option_color: str = "#1e293b"
     cash_upi_font_color: str = "#ffffff"
     upi_id: Optional[str] = None
-    
+    block_over_credit_limit: bool = False
+
     receipt_footer: str = "Thank you for your order!"
     printer_paper_width: str = "80mm"
     printer_alignment: str = "center"
@@ -337,7 +368,7 @@ class PasswordChangeRequest(BaseModel):
 @as_form
 class StockRestockRequest(BaseModel):
     """Used by owner to add stock — via manual form or QR scanner."""
-    qty: float = Field(gt=0, description="Quantity to add (must be positive)")
+    qty: Decimal = Field(gt=0, description="Quantity to add (must be positive)")
     note: Optional[str] = Field(None, max_length=255)
     source: str = Field(default="manual", description="'manual' or 'scanner'")
     unit_cost: Optional[Decimal] = Field(
@@ -399,3 +430,6 @@ class BillActionResponse(BaseModel):
     bill_id: Optional[str] = None
     total: Optional[float] = None
     updated_items: List[StockUpdate] = []
+    # Non-blocking heads-up (e.g. a Pay Later bill pushed a credit customer
+    # over their limit) — the bill already succeeded, this is informational.
+    warning: Optional[str] = None

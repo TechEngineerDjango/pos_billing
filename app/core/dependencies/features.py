@@ -109,3 +109,40 @@ def require_feature(feature_key: str):
             )
 
     return _dependency
+
+
+async def require_active_shop(
+    current_user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Lightweight sibling of require_feature() for routes that must keep working
+    for a shop regardless of its feature/plan state (e.g. managing Pay Later
+    orders a shop already committed to, even after losing the credit_billing
+    feature) but still must not be reachable once the shop itself is
+    deactivated/suspended. No subscription/plan_feature_links eager-load —
+    only the is_active check, which require_feature() would otherwise bundle
+    in in a way that's inseparable from its feature gate.
+    """
+    if current_user.role == "superadmin":
+        return
+
+    if not current_user.shop_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No shop associated with this account.",
+        )
+
+    result = await db.execute(select(Shop.is_active).where(Shop.id == current_user.shop_id))
+    is_active = result.scalar_one_or_none()
+
+    if is_active is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No shop associated with this account.",
+        )
+    if not is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This shop has been deactivated. Contact support.",
+        )

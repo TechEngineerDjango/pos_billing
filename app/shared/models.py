@@ -174,6 +174,10 @@ class Shop(Base):
     cash_upi_option_color = Column(String, default="#1e293b")
     cash_upi_font_color = Column(String, default="#ffffff")
     upi_id = Column(String, nullable=True)  # Added for UPI QR code
+    # Pay Later (Credit) bills that would push a credit customer over their
+    # limit are allowed through with a warning by default; set True to
+    # reject them outright (the old, hard-block behavior).
+    block_over_credit_limit = Column(Boolean, nullable=False, default=False, server_default="false")
     country_code = Column(String(3), nullable=True)  # Phone country code (e.g., "91" for India, "1" for US)
     timezone = Column(String, nullable=False, server_default="Asia/Kolkata")  # IANA name; controls how bill/receipt timestamps are displayed
 
@@ -229,6 +233,7 @@ class Shop(Base):
             "cash_upi_option_color": self.cash_upi_option_color,
             "cash_upi_font_color": self.cash_upi_font_color,
             "upi_id": self.upi_id,
+            "block_over_credit_limit": self.block_over_credit_limit,
             "subscription_id": self.subscription_id,
             "is_active": self.is_active,
             "gst_registered": self.gst_registered,
@@ -444,9 +449,12 @@ class MenuItem(Base):
     # SKU — industrial standard: SHOP-CAT-SEQ, auto-generated, owner-overridable
     sku = Column(String(64), nullable=True, index=True)
 
-    # Inventory tracking — NULL means this item is NOT tracked
-    stock_quantity = Column(Float, nullable=True, default=None)
-    reserved_quantity = Column(Float, nullable=False, default=0.0)
+    # Inventory tracking — NULL means this item is NOT tracked.
+    # Numeric (not Float) so repeated sale deductions on fractional-weight
+    # items (e.g. 0.25 kg) don't accumulate binary floating-point error —
+    # same reasoning as the Numeric money columns above.
+    stock_quantity = Column(Numeric(10, 3), nullable=True, default=None)
+    reserved_quantity = Column(Numeric(10, 3), nullable=False, default=0.0)
     low_stock_threshold = Column(Float, nullable=True, default=DEFAULT_LOW_STOCK_THRESHOLD)
 
     # Unit-based pricing:
@@ -475,9 +483,9 @@ class MenuItem(Base):
             "shop_id": self.shop_id,
             "unit": self.unit,   # None → fixed price; 'kg'/'g'/'liter'/'ml' → rate-based
             "sku": self.sku,
-            "stock_quantity": self.stock_quantity,
-            "reserved_quantity": self.reserved_quantity,
-            "available_stock": self.stock_quantity - self.reserved_quantity if self.stock_quantity is not None else None,
+            "stock_quantity": float(self.stock_quantity) if self.stock_quantity is not None else None,
+            "reserved_quantity": float(self.reserved_quantity),
+            "available_stock": float(self.stock_quantity - self.reserved_quantity) if self.stock_quantity is not None else None,
             "low_stock_threshold": self.low_stock_threshold,
             "tax_rate": float(self.tax_rate) if self.tax_rate is not None else 0.0,
         }
@@ -511,7 +519,10 @@ class Bill(Base):
     amount_paid = Column(Numeric(10, 2), default=0.00)
     due_date = Column(DateTime(timezone=True), nullable=True)
     credit_statement_id = Column(Integer, ForeignKey("credit_statements.id", ondelete="SET NULL"), nullable=True, index=True)
-    
+
+    # Orders tracking for Pay Later (Credit) bills: Pending, Out for Delivery, Delivered
+    delivery_status = Column(String, nullable=False, default="Pending", server_default="Pending")
+
     timestamp = Column(DateTime(timezone=True), default=lambda: dt.datetime.now(timezone.utc))
     
     # CRITICAL: Store exact price/name at moment of sale
@@ -537,6 +548,7 @@ class Bill(Base):
             "payment_status": self.payment_status,
             "amount_paid": float(self.amount_paid) if self.amount_paid is not None else 0.0,
             "due_date": self.due_date.isoformat() if self.due_date else None,
+            "delivery_status": self.delivery_status,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "items_snapshot": self.items_snapshot,
             "customer_id": self.customer_id,
@@ -577,7 +589,7 @@ class StockMovement(Base):
     id = Column(Integer, primary_key=True, index=True)
     menu_item_id = Column(Integer, ForeignKey("menu_items.id", ondelete="CASCADE"), nullable=False)
     shop_id = Column(Integer, ForeignKey("shops.id", ondelete="CASCADE"), nullable=False)
-    change_qty = Column(Float, nullable=False)   # positive = stock added, negative = stock removed
+    change_qty = Column(Numeric(10, 3), nullable=False)   # positive = stock added, negative = stock removed
     # reason: 'sale' | 'restock' | 'adjustment' | 'scanner_restock'
     reason = Column(String(32), nullable=False, default="adjustment")
     note = Column(String, nullable=True)          # e.g. "Bill #BS-1748440000" or "Received delivery"
@@ -592,7 +604,7 @@ class StockMovement(Base):
             "id": self.id,
             "menu_item_id": self.menu_item_id,
             "shop_id": self.shop_id,
-            "change_qty": self.change_qty,
+            "change_qty": float(self.change_qty),
             "reason": self.reason,
             "note": self.note,
             "created_by_user_id": self.created_by_user_id,

@@ -239,7 +239,7 @@ async def get_stock_movements(
         "item_id": item_id,
         "item_name": item.name,
         "sku": item.sku,
-        "current_stock": item.stock_quantity,
+        "current_stock": float(item.stock_quantity) if item.stock_quantity is not None else None,
         "movements": [m.to_dict() for m in movements],
     })
 
@@ -274,7 +274,7 @@ async def restock_item(
 
     # Initialise stock if not yet tracked
     if item.stock_quantity is None:
-        item.stock_quantity = 0.0
+        item.stock_quantity = Decimal("0.000")
 
     item.stock_quantity += data.qty
 

@@ -9,6 +9,7 @@ from typing import Optional
 import re
 import logging
 import textwrap
+from urllib.parse import quote
 
 from app.shared.models import Bill, MenuItem, Shop, User, Customer, StockMovement, DEFAULT_LOW_STOCK_THRESHOLD
 from app.infrastructure.integrations.notifications import get_notification_service
@@ -41,7 +42,7 @@ class BillingService:
             {
                 "id": int(item.id),
                 "available_stock": (
-                    float(item.stock_quantity) - float(item.reserved_quantity)
+                    float(item.stock_quantity - item.reserved_quantity)
                     if item.stock_quantity is not None else None
                 ),
             }
@@ -211,7 +212,7 @@ class BillingService:
                 )
 
             # Server-side stock enforcement (accounts for stock already reserved by Held bills)
-            available = float(menu_item.stock_quantity) - float(menu_item.reserved_quantity) if menu_item.stock_quantity is not None else None
+            available = menu_item.stock_quantity - menu_item.reserved_quantity if menu_item.stock_quantity is not None else None
             if available is not None and cart_item.qty > available:
                 raise HTTPException(
                     status_code=400,
@@ -240,7 +241,7 @@ class BillingService:
                 "category": menu_item.category,
                 "price": float(unit_price),
                 "unit": menu_item.unit,
-                "qty": cart_item.qty,
+                "qty": float(cart_item.qty),
                 "tax_rate": float(tax_rate),
                 "line_subtotal": float(line_subtotal),
                 "line_tax": float(line_tax),
@@ -321,7 +322,7 @@ class BillingService:
                     self.db.add(StockMovement(
                         menu_item_id=menu_item.id,
                         shop_id=shop.id,
-                        change_qty=0.0,
+                        change_qty=Decimal("0.000"),
                         reason="held_reserve",
                         note=f"Reserved for Held Bill #{bill_number}",
                         created_by_user_id=current_user.id,
@@ -455,7 +456,7 @@ class BillingService:
                 if old_id in menu_items_db:
                     menu_item = menu_items_db[old_id]
                     if menu_item.stock_quantity is not None:
-                        menu_item.reserved_quantity = max(0.0, float(menu_item.reserved_quantity) - float(old_qty))
+                        menu_item.reserved_quantity = max(Decimal("0.000"), menu_item.reserved_quantity - Decimal(str(old_qty)))
 
         for cart_item in bill_in.items:
             menu_item = menu_items_db.get(cart_item.id)
@@ -464,7 +465,7 @@ class BillingService:
                 raise HTTPException(status_code=400, detail=f"Item ID {cart_item.id} not found")
 
             # Calculate available stock correctly
-            available = float(menu_item.stock_quantity) - float(menu_item.reserved_quantity) if menu_item.stock_quantity is not None else None
+            available = menu_item.stock_quantity - menu_item.reserved_quantity if menu_item.stock_quantity is not None else None
             
             if available is not None and cart_item.qty > available:
                 raise HTTPException(status_code=400, detail=f"Insufficient stock for '{menu_item.name}'")
@@ -485,7 +486,7 @@ class BillingService:
             items_snapshot.append({
                 "id": menu_item.id, "name": menu_item.name, "sku": menu_item.sku,
                 "category": menu_item.category, "price": float(unit_price), "unit": menu_item.unit,
-                "qty": cart_item.qty, "tax_rate": float(tax_rate),
+                "qty": float(cart_item.qty), "tax_rate": float(tax_rate),
                 "line_subtotal": float(line_subtotal), "line_tax": float(line_tax), "line_total": float(line_total),
             })
             stock_updates.append((menu_item, cart_item.qty))
@@ -615,9 +616,9 @@ class BillingService:
                 if old_id in menu_items_db:
                     menu_item = menu_items_db[old_id]
                     if menu_item.stock_quantity is not None:
-                        menu_item.reserved_quantity = max(0.0, float(menu_item.reserved_quantity) - float(old_qty))
+                        menu_item.reserved_quantity = max(Decimal("0.000"), menu_item.reserved_quantity - Decimal(str(old_qty)))
                         self.db.add(StockMovement(
-                            menu_item_id=menu_item.id, shop_id=shop_id, change_qty=0.0,
+                            menu_item_id=menu_item.id, shop_id=shop_id, change_qty=Decimal("0.000"),
                             reason="held_release", note=f"Cancelled Held Bill #{bill.bill_number}", created_by_user_id=current_user.id,
                         ))
 
@@ -704,6 +705,8 @@ class BillingService:
         subtotal_amount: Optional[float] = None,
         tax_amount: Optional[float] = None,
         delivery_charge: float = 0.0,
+        upi_id: Optional[str] = None,
+        amount_paid: float = 0.0,
     ) -> str:
         """Single source of truth for WhatsApp bill receipt message format (Domain Layer).
 
@@ -771,9 +774,18 @@ class BillingService:
         if payment_status in ("Unpaid", "PartiallyPaid") and due_date:
             credit_line = f"\n*This is a credit sale — Payment Due: {due_date}*\n"
 
+        # Unpaid/PartiallyPaid bills get a tappable UPI deep link for the
+        # outstanding balance so the customer can pay straight from WhatsApp
+        # without a staff member needing to be present with the printed QR.
+        pay_line = ""
+        if payment_status in ("Unpaid", "PartiallyPaid") and upi_id:
+            due_amount = total_amount - amount_paid
+            pay_link = f"upi://pay?pa={quote(upi_id)}&pn={quote(shop_name)}&am={due_amount:.2f}&cu=INR"
+            pay_line = f"\n*Pay {currency}{due_amount:.2f} now:* {pay_link}\n"
+
         return f"""*{shop_name}*
 *Tax Invoice*
 Bill #{bill_number}
 {date_line}{items_table}
-{credit_line}
+{credit_line}{pay_line}
 {footer_message}"""

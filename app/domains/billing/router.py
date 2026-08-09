@@ -23,7 +23,7 @@ from app.infrastructure.integrations.notifications import get_notification_servi
 from app.domains.auth.router import get_current_user
 from app.shared.schemas import CartItem, BillCreate, BillActionResponse, CustomerSearchResponse, OrderStatusUpdate
 from app.core.dependencies.csrf import verify_csrf
-from app.core.dependencies.features import require_feature
+from app.core.dependencies.features import require_feature, require_active_shop
 from app.core.config import settings
 from app.shared.time_utils import utc_iso, shop_local
 
@@ -225,7 +225,7 @@ async def get_recent_bills(
     })
 
 
-@router.get("/orders", response_class=JSONResponse)
+@router.get("/orders", response_class=JSONResponse, dependencies=[Depends(require_active_shop)])
 async def list_orders(
     date_from: Optional[dt.date] = None,
     date_to: Optional[dt.date] = None,
@@ -241,7 +241,15 @@ async def list_orders(
     """Pay Later orders for this shop — used by both the POS Orders shortcut
     (small default limit, no filters) and the Dashboard Orders tab (full
     filters + pagination, same pattern as credit/router.py's
-    list_customer_bills)."""
+    list_customer_bills).
+
+    Deliberately NOT gated behind require_feature("credit_billing") — creating
+    a new Credit-method bill IS gated (see create_bill/update_bill), but a shop
+    that later loses the feature must still be able to view and fulfill Pay
+    Later orders it already committed to. Gating this list/update pair would
+    permanently strand any bill left "awaiting delivery/payment" at the moment
+    the feature is disabled. Still gated behind require_active_shop — a
+    deactivated/suspended shop must not be able to touch its bills at all."""
     if not current_user.shop_id:
         return JSONResponse({"orders": [], "total": 0})
 
@@ -251,7 +259,7 @@ async def list_orders(
     conditions = [
         Bill.shop_id == current_user.shop_id,
         Bill.payment_method == "Credit",
-        Bill.status != "Cancelled",
+        Bill.status == "Completed",
     ]
     if date_from:
         conditions.append(cast(Bill.timestamp, Date) >= date_from)
@@ -287,7 +295,7 @@ async def list_orders(
     return JSONResponse({"status": "success", "orders": orders, "total": total})
 
 
-@router.post("/orders/{bill_slug}/update", response_class=JSONResponse)
+@router.post("/orders/{bill_slug}/update", response_class=JSONResponse, dependencies=[Depends(require_active_shop)])
 async def update_order_status(
     bill_slug: str,
     data: OrderStatusUpdate,
@@ -301,7 +309,12 @@ async def update_order_status(
     so the CreditPayment audit trail and credit_balance stay correct."""
     result = await db.execute(
         select(Bill).options(selectinload(Bill.customer))
-        .where(Bill.slug == bill_slug, Bill.shop_id == current_user.shop_id, Bill.payment_method == "Credit")
+        .where(
+            Bill.slug == bill_slug,
+            Bill.shop_id == current_user.shop_id,
+            Bill.payment_method == "Credit",
+            Bill.status == "Completed",
+        )
     )
     bill = result.scalars().first()
     if not bill:
