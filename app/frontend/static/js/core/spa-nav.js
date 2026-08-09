@@ -5,12 +5,18 @@
  * any top-level document navigation (by spec, in every browser), so this is
  * the only way fullscreen survives switching between the two.
  *
- * Scoped deliberately narrow: only these two exact routes are intercepted.
- * Every other link (logout, change password, superadmin, external) falls
+ * Scoped deliberately narrow: only these routes are intercepted. Every
+ * other link (logout, change password, superadmin, external) falls
  * through to a normal navigation untouched.
+ *
+ * Customer/Menu item edit pages are included as prefixes (not just the
+ * two dashboard/POS roots) because they're one click away from /admin/ and
+ * back — without this, clicking "Edit" on a customer or menu item forced
+ * fullscreen to exit the same way switching POS<->Dashboard used to.
  */
 (function () {
     const SPA_ROUTES = ['/billing/', '/admin/'];
+    const SPA_ROUTE_PREFIXES = ['/admin/customer/edit/', '/admin/menu/edit/'];
 
     // Tracks which page scripts (by absolute URL) have already run once in
     // this SPA session. A second run isn't just wasteful — dashboard-app.js
@@ -43,7 +49,8 @@
         } catch (e) {
             return false;
         }
-        return u.origin === window.location.origin && SPA_ROUTES.includes(u.pathname);
+        return u.origin === window.location.origin &&
+            (SPA_ROUTES.includes(u.pathname) || SPA_ROUTE_PREFIXES.some((p) => u.pathname.startsWith(p)));
     }
 
     // Executes the real <script src>/inline tags found in a parsed (not yet
