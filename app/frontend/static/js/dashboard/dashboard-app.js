@@ -11,6 +11,36 @@ async function fetchPaginated(url, params, offset, resultKey) {
     return { items: data[resultKey], total: data.total };
 }
 
+// Shared "lazy-load a tab's data exactly once" guard, used by every tab's
+// load() method. Centralizes a bug that existed identically in 8 copies:
+// marking loadedKey true BEFORE the fetch resolved meant a failed request
+// (realistic on a slow connection) permanently stranded that tab empty for
+// the rest of the page session — no visible error, no retry, since the
+// guard blocked every later load() call regardless of whether the first one
+// actually succeeded. loadedKey is only set true after fetchFn() resolves
+// WITHOUT throwing — which requires fetchFn to actually reject on failure,
+// not just swallow the error internally (every searchXxx()/fetchXxx() method
+// here does `throw e` at the end of its own catch for exactly this reason —
+// they still set their own `error` field first, so pagination/search calls
+// that call the same method directly, not through here, keep working
+// unchanged; guardedLoad is the only caller that needs the rejection).
+// loadingKey blocks a second overlapping fetch if the tab is switched away
+// and back while the first request is still in flight. Field names are
+// configurable because the two dashboardApp()-internal callers
+// (Menu/Customers tabs) use menuLoading/customersLoading — names already
+// read directly by the template — rather than the generic `loading` every
+// other component uses.
+async function guardedLoad(state, fetchFn, { loadedKey = '_loaded', loadingKey = 'loading' } = {}) {
+    if (state[loadedKey] || state[loadingKey]) return;
+    try {
+        await fetchFn();
+        state[loadedKey] = true;
+    } catch (e) {
+        // Already logged/recorded by fetchFn's own catch — nothing more to
+        // do here; the guard staying false is what makes this retryable.
+    }
+}
+
 function dashboardApp(currencySymbol) {
     const params = new URLSearchParams(window.location.search);
     if (params.get('error')) {
@@ -39,6 +69,7 @@ function dashboardApp(currencySymbol) {
         menuOffset: 0,
         menuLimit: 10,
         menuTotal: 0,
+        menuError: '',
         _menuLoaded: false,
 
         // Customers tab — same treatment, reuses the existing
@@ -51,6 +82,7 @@ function dashboardApp(currencySymbol) {
         customerOffset: 0,
         customerLimit: 10,
         customerTotal: 0,
+        customersError: '',
         _customersLoaded: false,
         // Browser-local calendar date, string-comparable against the
         // ISO next_due_date the server sends — only used for the
@@ -69,6 +101,7 @@ function dashboardApp(currencySymbol) {
 
         async searchMenuItems() {
             this.menuLoading = true;
+            this.menuError = '';
             try {
                 const result = await fetchPaginated(
                     '/admin/menu/search', { q: this.menuSearch, active_only: 'false', limit: this.menuLimit },
@@ -77,7 +110,8 @@ function dashboardApp(currencySymbol) {
                 this.menuItems = result.items;
                 this.menuTotal = result.total;
             } catch (e) {
-                console.error('Failed to search menu items', e);
+                this.menuError = e.message || 'Failed to load menu items';
+                throw e;
             } finally {
                 this.menuLoading = false;
             }
@@ -106,6 +140,7 @@ function dashboardApp(currencySymbol) {
 
         async searchCustomersTab() {
             this.customersLoading = true;
+            this.customersError = '';
             try {
                 const result = await fetchPaginated(
                     '/admin/customers/search', { q: this.customerSearch, limit: this.customerLimit, include_due_date: true },
@@ -114,7 +149,8 @@ function dashboardApp(currencySymbol) {
                 this.customerRows = result.items;
                 this.customerTotal = result.total;
             } catch (e) {
-                console.error('Failed to search customers', e);
+                this.customersError = e.message || 'Failed to load customers';
+                throw e;
             } finally {
                 this.customersLoading = false;
             }
@@ -148,13 +184,13 @@ function dashboardApp(currencySymbol) {
         // Each tab's data fetch fires the first time it becomes active — not
         // on page load — so opening the Dashboard doesn't kick off a fetch
         // for every tab regardless of which one you're actually looking at.
+        // See guardedLoad()'s own comment for why a failed first load must
+        // stay retryable rather than getting stuck on an empty tab forever.
         loadTabData(t) {
-            if (t === 'menu' && !this._menuLoaded) {
-                this._menuLoaded = true;
-                this.searchMenuItems();
-            } else if (t === 'customers' && !this._customersLoaded) {
-                this._customersLoaded = true;
-                this.searchCustomersTab();
+            if (t === 'menu') {
+                guardedLoad(this, () => this.searchMenuItems(), { loadedKey: '_menuLoaded', loadingKey: 'menuLoading' });
+            } else if (t === 'customers') {
+                guardedLoad(this, () => this.searchCustomersTab(), { loadedKey: '_customersLoaded', loadingKey: 'customersLoading' });
             } else if (t === 'reports') {
                 this.$nextTick(() => {
                     loadChartJs().then(initCharts).catch(() => console.error('Failed to load Chart.js'));
@@ -346,17 +382,17 @@ function inventoryApp() {
         filtersOpen: false,
         _searchTimer: null,
         loading: false,
+        error: '',
         offset: 0,
         limit: 10,
         total: 0,
         _loaded: false,
 
         // Called from x-init once this tab first becomes active, not on
-        // page load — see loadTabData() in dashboardApp() for the pattern.
+        // page load — see guardedLoad()'s comment for the retry-on-failure
+        // reasoning shared by every tab that uses this pattern.
         load() {
-            if (this._loaded) return;
-            this._loaded = true;
-            this.searchItems();
+            guardedLoad(this, () => this.searchItems());
         },
 
         onSearchInput() {
@@ -371,6 +407,7 @@ function inventoryApp() {
 
         async searchItems() {
             this.loading = true;
+            this.error = '';
             try {
                 const filterParams = { q: this.search, active_only: 'false', limit: this.limit };
                 if (this.stockStatus) filterParams.stock_status = this.stockStatus;
@@ -381,7 +418,8 @@ function inventoryApp() {
                 this.items = result.items;
                 this.total = result.total;
             } catch (e) {
-                console.error('Failed to search inventory items', e);
+                this.error = e.message || 'Failed to load inventory';
+                throw e;
             } finally {
                 this.loading = false;
             }
@@ -479,9 +517,7 @@ function expensesApp(currencySymbol, defaultCategory) {
         _loaded: false,
 
         load() {
-            if (this._loaded) return;
-            this._loaded = true;
-            this.fetchExpenses();
+            guardedLoad(this, () => this.fetchExpenses());
         },
 
         formatCurrency(v) {
@@ -531,6 +567,7 @@ function expensesApp(currencySymbol, defaultCategory) {
                 this.totalAmountFiltered = data.total_amount;
             } catch (e) {
                 this.error = e.message || 'Failed to load expenses';
+                throw e;
             } finally {
                 this.loading = false;
             }
@@ -610,9 +647,7 @@ function ordersTabApp(currencySymbol, shopUpiId, shopName) {
         _loaded: false,
 
         load() {
-            if (this._loaded) return;
-            this._loaded = true;
-            this.fetchOrders();
+            guardedLoad(this, () => this.fetchOrders());
         },
 
         formatCurrency(v) {
@@ -687,6 +722,7 @@ function ordersTabApp(currencySymbol, shopUpiId, shopName) {
                 this.total = result.total;
             } catch (e) {
                 this.error = e.message || 'Failed to load orders';
+                throw e;
             } finally {
                 this.loading = false;
             }
@@ -831,9 +867,7 @@ function transactionsApp(currencySymbol) {
         viewBillId: null,
 
         load() {
-            if (this._loaded) return;
-            this._loaded = true;
-            this.fetchTransactions();
+            guardedLoad(this, () => this.fetchTransactions());
         },
 
         formatCurrency(v) {
@@ -874,6 +908,7 @@ function transactionsApp(currencySymbol) {
                 this.total = result.total;
             } catch (e) {
                 this.error = e.message || 'Failed to load transactions';
+                throw e;
             } finally {
                 this.loading = false;
             }
@@ -967,9 +1002,7 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
         _loaded: false,
 
         load() {
-            if (this._loaded) return;
-            this._loaded = true;
-            this.fetchAccounts();
+            guardedLoad(this, () => this.fetchAccounts());
         },
 
         onSearchInput() {
@@ -1011,6 +1044,7 @@ function creditBookApp(currencySymbol, shopUpiId, shopName) {
                 this.stats = data.stats;
             } catch (e) {
                 this.error = e.message || 'Failed to load credit accounts';
+                throw e;
             } finally {
                 this.loading = false;
             }
@@ -1270,9 +1304,7 @@ function rateCardsApp(currencySymbol) {
         _loaded: false,
 
         load() {
-            if (this._loaded) return;
-            this._loaded = true;
-            this.searchCustomers();
+            guardedLoad(this, () => this.searchCustomers(), { loadingKey: 'searchLoading' });
         },
 
         onSearchInput() {
@@ -1288,6 +1320,7 @@ function rateCardsApp(currencySymbol) {
                 this.customers = data.customers;
             } catch (e) {
                 this.error = e.message || 'Failed to search customers';
+                throw e;
             } finally {
                 this.searchLoading = false;
             }

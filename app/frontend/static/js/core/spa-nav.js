@@ -13,9 +13,11 @@
  * two dashboard/POS roots) because they're one click away from /admin/ and
  * back — without this, clicking "Edit" on a customer or menu item forced
  * fullscreen to exit the same way switching POS<->Dashboard used to.
+ * Change Password is included for the same reason: it's one click away
+ * from the dashboard's nav menu.
  */
 (function () {
-    const SPA_ROUTES = ['/billing/', '/admin/'];
+    const SPA_ROUTES = ['/billing/', '/admin/', '/superadmin/', '/auth/change-password'];
     const SPA_ROUTE_PREFIXES = ['/admin/customer/edit/', '/admin/menu/edit/'];
 
     // Tracks which page scripts (by absolute URL) have already run once in
@@ -126,7 +128,18 @@
         main.innerHTML = newMain.innerHTML;
         scriptsHost.innerHTML = newScriptsHost.innerHTML;
 
-        if (push) history.pushState({ spaNav: true }, '', url);
+        if (push) {
+            // A same-page re-click (the in-place-refresh case above) must not
+            // stack a new history entry — that would make Back re-land on the
+            // exact same page and require two Back presses to actually leave it.
+            const dest = new URL(url, window.location.origin);
+            const isSamePlace = dest.pathname === window.location.pathname && dest.search === window.location.search;
+            if (isSamePlace) {
+                history.replaceState({ spaNav: true }, '', url);
+            } else {
+                history.pushState({ spaNav: true }, '', url);
+            }
+        }
 
         if (window.Alpine && typeof Alpine.initTree === 'function') {
             Alpine.initTree(main);
@@ -142,7 +155,12 @@
         if (a.target && a.target !== '_self') return;
         if (a.hasAttribute('download')) return;
         if (!isSpaNavigable(a.href)) return;
-        if (new URL(a.href, window.location.origin).pathname === window.location.pathname) return;
+        // Clicking a nav link back to the page you're already on (e.g. the
+        // POS link while already on /billing/) must still go through the
+        // swap, not fall through to a real navigation — that's exactly what
+        // force-exits fullscreen, the same failure mode this file exists to
+        // avoid. navigateTo() re-fetches and re-swaps even for the same
+        // path, acting as an in-place refresh.
         e.preventDefault();
         navigateTo(a.href, true);
     });

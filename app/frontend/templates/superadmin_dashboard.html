@@ -295,7 +295,7 @@
 
         <!-- FLEET TAB -->
         <div x-show="activeTab === 'fleet'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
-            <div class="flex justify-between items-center w-full">
+            <div class="flex justify-between items-center w-full mb-6">
                 <div>
                     <h1 class="text-4xl font-black text-white mb-2 italic tracking-tighter">FLEET OVERVIEW</h1>
                     <p class="text-gray-400">Total operational control over all shops.</p>
@@ -306,96 +306,104 @@
                 </button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {% for shop in shops %}
-                <div data-shop-card="{{ shop.name }}" class="bg-slate-900/50 border border-white/10 rounded-[2rem] p-6 hover:border-blue-500/50 transition-all group relative overflow-hidden"
-                    x-data="{ showPlanChange: false }">
-                    <div class="flex flex-col gap-3 mb-6">
-                        <div class="min-w-0">
-                            <h3 class="text-2xl font-bold text-white mb-1 truncate">{{ shop.name }}</h3>
-                            <p class="text-gray-500 font-mono text-xs italic truncate">SHOP_ID: #{{ shop.slug }}</p>
-                        </div>
-                        <div class="flex gap-2 flex-wrap">
-                            <button @click="selectForDesign(shopsData.find(s => s.id === {{ shop.id }}))"
-                                class="bg-purple-500/10 text-purple-400 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all">
-                                Branding
-                            </button>
-                            <a href="/admin/?shop_slug={{ shop.slug }}"
-                                class="bg-blue-500/10 text-blue-400 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">
-                                Manage
-                            </a>
-                        </div>
-                    </div>
+            <input type="text" x-model="shopsSearch" @input="onShopsSearchInput()" placeholder="Search shops by name..."
+                class="w-full mb-6 bg-slate-900/50 border border-white/10 rounded-2xl px-5 py-3 text-sm text-white shadow-sm">
 
-                    <div class="space-y-2 mb-6">
-                        <div class="flex items-center gap-2 text-sm text-gray-400">
-                            <span class="opacity-50">📍</span> {{ shop.address or 'No location set' }}
-                        </div>
-                        <div class="flex items-center gap-2 text-sm text-gray-400">
-                            <span class="opacity-50">💰</span> Currency: {{ shop.currency_symbol }}
-                        </div>
-                        <!-- Subscription Plan Display -->
-                        <div class="flex items-center gap-2 text-sm">
-                            <span class="opacity-50">📋</span>
-                            <span
-                                class="{% if shop.subscription %}text-teal-400{% else %}text-gray-500{% endif %} font-medium">
-                                {{ shop.subscription.name if shop.subscription else 'No Plan' }}
-                            </span>
-                            {% if shop.subscription %}
-                            <span class="text-xs text-gray-600">(₹{{ shop.subscription.price }}/mo)</span>
-                            {% endif %}
-                            <button @click="showPlanChange = !showPlanChange"
-                                class="ml-auto text-[10px] text-teal-500 hover:text-teal-400 font-bold uppercase">
-                                Change
-                            </button>
-                        </div>
-                    </div>
+            <p x-show="shopsError" class="text-red-500 text-sm font-bold mb-4">
+                <span x-text="shopsError"></span>
+                <button type="button" @click="searchShops()" class="underline ml-1">Retry</button>
+            </p>
 
-                    <!-- Quick Plan Change (Inline) -->
-                    <div x-show="showPlanChange" x-transition
-                        class="mb-4 p-3 bg-teal-500/10 border border-teal-500/30 rounded-xl">
-                        <form action="/superadmin/subscriptions/assign" method="POST" class="flex items-center gap-3">
-                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                            <input type="hidden" name="shop_id" value="{{ shop.id }}">
-                            <select name="subscription_id"
-                                class="flex-1 bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:ring-teal-500">
-                                <option value="">No Plan (Free Tier)</option>
-                                {% for sub in subscriptions %}
-                                <option value="{{ sub.id }}" {% if shop.subscription and shop.subscription.id==sub.id
-                                    %}selected{% endif %}>
-                                    {{ sub.name }} (₹{{ sub.price }}/mo)
-                                </option>
-                                {% endfor %}
-                            </select>
-                            <button type="submit"
-                                class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all">
-                                Apply
-                            </button>
-                            <button type="button" @click="showPlanChange = false"
-                                class="text-gray-500 hover:text-white text-sm">✕</button>
-                        </form>
-                    </div>
+            <template x-if="!shopsLoading && shopsList.length === 0">
+                <p class="text-center text-sm text-gray-400 py-10" x-text="shopsSearch ? 'No shops match your search.' : 'No shops yet.'"></p>
+            </template>
 
-                    <div class="flex justify-between items-center pt-6 border-t border-white/5">
-                        <div class="flex items-center gap-2">
-                            <div
-                                class="w-2 h-2 rounded-full {% if shop.is_active %}bg-green-500 animate-pulse{% else %}bg-red-500{% endif %}">
+            <!-- List view (not cards) — one row per shop -->
+            <div class="flex flex-col gap-3">
+                <template x-for="shop in shopsList" :key="shop.id">
+                    <div :data-shop-card="shop.name" class="bg-slate-900/50 border border-white/10 rounded-2xl p-5 hover:border-blue-500/50 transition-all"
+                        x-data="{ showPlanChange: false, planUpdating: false }">
+                        <div class="flex flex-wrap items-center gap-4">
+                            <div class="flex items-center gap-2 min-w-[10rem]">
+                                <div class="w-2 h-2 rounded-full flex-shrink-0" :class="shop.is_active ? 'bg-green-500 animate-pulse' : 'bg-red-500'"></div>
+                                <div class="min-w-0">
+                                    <h3 class="font-bold text-white truncate" x-text="shop.name"></h3>
+                                    <p class="text-gray-500 font-mono text-[10px] italic truncate" x-text="'#' + shop.slug"></p>
+                                </div>
                             </div>
-                            <span id="superadmin-shop-status" class="text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                                {{ 'System Active' if shop.is_active else 'Deactivated' }}
-                            </span>
-                        </div>
-                        <form action="/superadmin/shops/toggle/{{ shop.id }}" method="POST">
-                            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
-                            <button id="superadmin-toggle-shop-btn"
-                                class="bg-white/5 hover:bg-white/10 px-3 py-1 rounded-lg text-[10px] font-bold text-gray-300 transition-colors">
-                                TOGGLE STATUS
-                            </button>
-                        </form>
-                    </div>
-                </div>
 
-                {% endfor %}
+                            <p class="text-sm text-gray-400 flex-1 min-w-[8rem] truncate" x-text="shop.address || 'No location set'"></p>
+
+                            <div class="flex items-center gap-2 text-sm">
+                                <span :class="shop.subscription ? 'text-teal-400' : 'text-gray-500'" class="font-medium" x-text="shop.subscription ? shop.subscription.name : 'No Plan'"></span>
+                                <span x-show="shop.subscription" class="text-xs text-gray-600" x-text="shop.subscription ? ('(' + shop.currency_symbol + shop.subscription.price + '/mo)') : ''"></span>
+                                <button @click="showPlanChange = !showPlanChange"
+                                    class="text-[10px] text-teal-500 hover:text-teal-400 font-bold uppercase">Change</button>
+                            </div>
+
+                            <div class="flex gap-2 flex-wrap ml-auto">
+                                <button @click="selectForDesign(shopsData.find(s => s.id === shop.id))"
+                                    class="bg-purple-500/10 text-purple-400 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all">
+                                    Branding
+                                </button>
+                                <a :href="'/admin/?shop_slug=' + shop.slug"
+                                    class="bg-blue-500/10 text-blue-400 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">
+                                    Manage
+                                </a>
+                                <button @click="toggleShop(shop)"
+                                    class="bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg text-[10px] font-bold text-gray-300 transition-colors">
+                                    TOGGLE STATUS
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Quick Plan Change (Inline) -->
+                        <div x-show="showPlanChange" x-transition
+                            class="mt-4 p-3 bg-teal-500/10 border border-teal-500/30 rounded-xl">
+                            <form action="/superadmin/subscriptions/assign" method="POST" class="flex items-center gap-3"
+                                @submit.prevent="planUpdating = true; assignPlan($event, shop).then(() => { showPlanChange = false }).finally(() => { planUpdating = false })">
+                                <input type="hidden" name="csrf_token" :value="csrfToken">
+                                <input type="hidden" name="shop_id" :value="shop.id">
+                                <select name="subscription_id"
+                                    class="flex-1 min-w-0 bg-slate-800 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:ring-teal-500">
+                                    <option value="">No Plan (Free Tier)</option>
+                                    {% for sub in subscriptions %}
+                                    <option value="{{ sub.id }}" :selected="shop.subscription && shop.subscription.id === {{ sub.id }}">
+                                        {{ sub.name }} (₹{{ sub.price }}/mo)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" :disabled="planUpdating"
+                                    class="bg-teal-600 hover:bg-teal-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50">
+                                    <span x-text="planUpdating ? '...' : 'Apply'"></span>
+                                </button>
+                                <button type="button" @click="showPlanChange = false"
+                                    class="text-gray-500 hover:text-white text-sm">✕</button>
+                            </form>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="flex items-center justify-between mt-6 gap-3" x-show="shopsTotal > 0">
+                <select x-model.number="shopsLimit" @change="changeShopsLimit()"
+                    class="text-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white">
+                    <option value="10">10 / page</option>
+                    <option value="25">25 / page</option>
+                    <option value="50">50 / page</option>
+                    <option value="100">100 / page</option>
+                </select>
+                <div class="flex items-center gap-4">
+                    <button @click="goToShopsPage(shopsPage - 1)" :disabled="shopsPage <= 1 || shopsLoading"
+                        class="text-xs font-black uppercase tracking-widest text-blue-500 hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Prev
+                    </button>
+                    <p class="text-xs text-gray-400" x-text="'Page ' + shopsPage + ' of ' + shopsTotalPages"></p>
+                    <button @click="goToShopsPage(shopsPage + 1)" :disabled="shopsPage >= shopsTotalPages || shopsLoading"
+                        class="text-xs font-black uppercase tracking-widest text-blue-500 hover:text-blue-400 disabled:opacity-30 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -1191,7 +1199,17 @@
 
 
         <!-- SECURITY MONITOR TAB -->
-        <div x-show="activeTab === 'security'" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak>
+        <div x-show="activeTab === 'security'" id="security-tab-panel" class="h-full overflow-y-auto p-6 pb-24 lg:p-10" x-cloak
+            x-init="setInterval(async () => {
+                if (activeTab !== 'security' || document.visibilityState !== 'visible') return;
+                try {
+                    const res = await fetch(window.location.pathname + '?tab=security', { headers: { 'X-Requested-With': 'fetch' } });
+                    if (!res.ok) return;
+                    const html = await res.text();
+                    const fresh = new DOMParser().parseFromString(html, 'text/html').getElementById('security-tab-panel');
+                    if (fresh) $el.innerHTML = fresh.innerHTML;
+                } catch (e) {}
+            }, 20000)">
             <div class="flex justify-between items-center mb-8">
                 <div>
                     <h1 class="text-4xl font-black text-white italic tracking-tighter uppercase flex items-center gap-3">

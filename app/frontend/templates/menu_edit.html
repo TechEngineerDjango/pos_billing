@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% from "partials/dropdown.html" import themed_dropdown %}
 
 {% block content %}
 <div class="h-[calc(100dvh-4rem)] bg-[#F5F5F7] dark:bg-[#0a0f1c] overflow-y-auto p-6 lg:p-12">
@@ -86,31 +87,13 @@
                             class="w-full bg-transparent border-0 text-gray-900 dark:text-white font-bold p-0 focus:ring-0">
                     </div>
 
-                    <div class="relative bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5"
-                        x-data="{ open: false, options: [
-                            {v:'', l:'Fixed Price (no unit)'},
-                            {v:'piece', l:'piece'},
-                            {v:'kg', l:'kg — per kilogram'},
-                            {v:'g', l:'g — per gram'},
-                            {v:'liter', l:'liter — per litre'},
-                            {v:'ml', l:'ml — per millilitre'}
-                        ] }"
-                        @click.outside="open = false">
+                    <div class="relative bg-gray-50 dark:bg-white/5 p-6 rounded-3xl border border-white/5">
                         <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Pricing Unit</label>
-                        <input type="hidden" name="unit" :value="selectedUnit">
-                        <button type="button" @click="open = !open"
-                            class="w-full flex items-center justify-between gap-2 bg-transparent border-0 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
-                            <span x-text="options.find(o => o.v === selectedUnit).l"></span>
-                            <i class="bi bi-chevron-down text-sm text-gray-400"></i>
-                        </button>
-                        <div x-show="open" x-cloak
-                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                            <template x-for="opt in options" :key="opt.v">
-                                <button type="button" @click="selectedUnit = opt.v; open = false"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                    x-text="opt.l"></button>
-                            </template>
-                        </div>
+                        {{ themed_dropdown(
+                            [{'value': '', 'label': 'Fixed Price (no unit)'}, {'value': 'piece', 'label': 'piece'}, {'value': 'kg', 'label': 'kg — per kilogram'}, {'value': 'g', 'label': 'g — per gram'}, {'value': 'liter', 'label': 'liter — per litre'}, {'value': 'ml', 'label': 'ml — per millilitre'}],
+                            'selectedUnit', 'selectedUnit = v', field_name='unit',
+                            button_class='bg-transparent border-0 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0'
+                        ) }}
                         <p class="text-[10px] text-gray-400 mt-2 font-medium"
                             x-show="selectedUnit && selectedUnit !== 'piece'" x-cloak>
                             Cashier enters actual quantity at billing — rate × qty = total

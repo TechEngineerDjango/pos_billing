@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% from "partials/country_picker.html" import country_picker %}
+{% from "partials/dropdown.html" import themed_dropdown %}
 
 {% block content %}
 <div class="h-[calc(100dvh-4rem)] bg-[#F5F5F7] dark:bg-[#0a0f1c] overflow-y-auto p-6 lg:p-12">
@@ -98,23 +99,14 @@
                                 value="{{ customer.credit_limit or 0 }}"
                                 class="w-full bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
                         </div>
-                        <div class="relative" x-data="{ open: false, options: [{v:'weekly',l:'Weekly'},{v:'monthly',l:'Monthly'},{v:'net_days',l:'Net Days'}] }" @click.outside="open = false">
+                        <div class="relative">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Payment
                                 Term</label>
-                            <input type="hidden" name="payment_term_type" :value="paymentTermType">
-                            <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between gap-2 bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
-                                <span x-text="options.find(o => o.v === paymentTermType).l"></span>
-                                <i class="bi bi-chevron-down text-sm text-gray-400"></i>
-                            </button>
-                            <div x-show="open" x-cloak
-                                class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                                <template x-for="opt in options" :key="opt.v">
-                                    <button type="button" @click="paymentTermType = opt.v; open = false"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                        x-text="opt.l"></button>
-                                </template>
-                            </div>
+                            {{ themed_dropdown(
+                                [{'value': 'weekly', 'label': 'Weekly'}, {'value': 'monthly', 'label': 'Monthly'}, {'value': 'net_days', 'label': 'Net Days'}],
+                                'paymentTermType', 'paymentTermType = v', field_name='payment_term_type',
+                                button_class='bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0'
+                            ) }}
                         </div>
                         <div class="col-span-2">
                             <!-- Each term type gets its own input, wrapped in <template x-if> (not
@@ -125,47 +117,28 @@
                                  as the POS Credit button fix earlier in this project). -->
                             <template x-if="paymentTermType === 'weekly'">
                                 <div class="relative"
-                                    x-data="{ open: false, selected: {{ customer.payment_term_value if customer.payment_term_type == 'weekly' else 0 }}, options: [{v:0,l:'Monday'},{v:1,l:'Tuesday'},{v:2,l:'Wednesday'},{v:3,l:'Thursday'},{v:4,l:'Friday'},{v:5,l:'Saturday'},{v:6,l:'Sunday'}] }"
-                                    @click.outside="open = false">
+                                    x-data="{ selected: {{ customer.payment_term_value if customer.payment_term_type == 'weekly' else 0 }} }">
                                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Due Day
                                         (each week)</label>
-                                    <input type="hidden" name="payment_term_value" :value="selected">
-                                    <button type="button" @click="open = !open"
-                                        class="w-full flex items-center justify-between gap-2 bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
-                                        <span x-text="options.find(o => o.v === selected).l"></span>
-                                        <i class="bi bi-chevron-down text-sm text-gray-400"></i>
-                                    </button>
-                                    <div x-show="open" x-cloak
-                                        class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                                        <template x-for="opt in options" :key="opt.v">
-                                            <button type="button" @click="selected = opt.v; open = false"
-                                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                                x-text="opt.l"></button>
-                                        </template>
-                                    </div>
+                                    {{ themed_dropdown(
+                                        [{'value': 0, 'label': 'Monday'}, {'value': 1, 'label': 'Tuesday'}, {'value': 2, 'label': 'Wednesday'}, {'value': 3, 'label': 'Thursday'}, {'value': 4, 'label': 'Friday'}, {'value': 5, 'label': 'Saturday'}, {'value': 6, 'label': 'Sunday'}],
+                                        'selected', 'selected = v', field_name='payment_term_value',
+                                        button_class='bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0'
+                                    ) }}
                                 </div>
                             </template>
                             <template x-if="paymentTermType === 'monthly'">
                                 <div class="relative"
-                                    x-data="{ open: false, selected: {{ customer.payment_term_value if customer.payment_term_type == 'monthly' else 1 }}, options: [{% for d in range(1, 32) %}{v: {{ d }}, l: '{{ d }}'}{% if not loop.last %}, {% endif %}{% endfor %}] }"
-                                    @click.outside="open = false">
+                                    x-data="{ selected: {{ customer.payment_term_value if customer.payment_term_type == 'monthly' else 1 }} }">
                                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Due Day
                                         (each month)</label>
-                                    <input type="hidden" name="payment_term_value" :value="selected">
-                                    <button type="button" @click="open = !open"
-                                        class="w-full flex items-center justify-between gap-2 bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0">
-                                        <span x-text="selected"></span>
-                                        <i class="bi bi-chevron-down text-sm text-gray-400"></i>
-                                    </button>
-                                    <div x-show="open" x-cloak
-                                        class="absolute left-0 top-full mt-2 min-w-full max-h-60 overflow-y-auto grid grid-cols-5 gap-1 p-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30">
-                                        <template x-for="opt in options" :key="opt.v">
-                                            <button type="button" @click="selected = opt.v; open = false"
-                                                class="text-center px-2 py-1.5 text-sm rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white"
-                                                :class="selected === opt.v ? 'bg-green-500/10 text-green-500 font-bold' : ''"
-                                                x-text="opt.l"></button>
-                                        </template>
-                                    </div>
+                                    {% set month_day_options = [] %}
+                                    {% for d in range(1, 32) %}{% set _ = month_day_options.append({'value': d, 'label': d|string}) %}{% endfor %}
+                                    {{ themed_dropdown(
+                                        month_day_options, 'selected', 'selected = v', field_name='payment_term_value',
+                                        button_class='bg-transparent border-0 border-b border-white/10 text-gray-900 dark:text-white font-bold text-lg p-0 focus:ring-0',
+                                        panel_class='grid grid-cols-5 gap-1 p-2'
+                                    ) }}
                                     <p class="text-[10px] text-gray-600 mt-1">Shorter months use their last day
                                         (e.g. 31 becomes Feb 28/29).</p>
                                 </div>

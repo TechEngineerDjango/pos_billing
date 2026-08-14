@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% from "partials/country_picker.html" import country_picker %}
+{% from "partials/dropdown.html" import themed_dropdown %}
 
 {% block content %}
 <div class="h-[calc(100dvh-4rem)] flex overflow-hidden bg-[#F5F5F7] dark:bg-[#0f172a]" x-data="dashboardApp('{{ shop.currency_symbol or '₹' }}')">
@@ -152,6 +153,30 @@
                     </svg>
                 </div>
                 <span class="font-medium hidden lg:block">Expenses</span>
+            </button>
+
+            <button @click="switchTab('transactions')"
+                :class="{'bg-cyan-500 text-white shadow-lg shadow-cyan-500/30': activeTab === 'transactions', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'transactions'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.123.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"></path>
+                    </svg>
+                </div>
+                <span class="font-medium hidden lg:block">Transactions</span>
+            </button>
+
+            <button @click="switchTab('printer_settings')"
+                :class="{'bg-violet-500 text-white shadow-lg shadow-violet-500/30': activeTab === 'printer_settings', 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5': activeTab !== 'printer_settings'}"
+                class="w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 group">
+                <div class="w-6 h-6 flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"></path>
+                    </svg>
+                </div>
+                <span class="font-medium hidden lg:block">Printer Settings</span>
             </button>
 
             <div class="pt-4 mt-4 border-t border-gray-100 dark:border-white/5">
@@ -418,6 +443,11 @@
             <input type="text" x-model="menuSearch" @input="onMenuSearchInput()" placeholder="Search by name or SKU..."
                 class="w-full mb-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-2xl px-5 py-3 text-sm dark:text-white shadow-sm">
 
+            <p x-show="menuError" class="text-red-500 text-sm font-bold mb-4">
+                <span x-text="menuError"></span>
+                <button type="button" @click="searchMenuItems()" class="underline ml-1">Retry</button>
+            </p>
+
             <template x-if="!menuLoading && menuItems.length === 0">
                 <p class="text-center text-sm text-gray-400 py-10" x-text="menuSearch ? 'No items match your search.' : 'No menu items yet.'"></p>
             </template>
@@ -507,6 +537,11 @@
 
             <input type="text" x-model="customerSearch" @input="onCustomerSearchInput()" placeholder="Search by name or phone..."
                 class="w-full mb-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/5 rounded-2xl px-5 py-3 text-sm dark:text-white shadow-sm">
+
+            <p x-show="customersError" class="text-red-500 text-sm font-bold mb-4">
+                <span x-text="customersError"></span>
+                <button type="button" @click="searchCustomersTab()" class="underline ml-1">Retry</button>
+            </p>
 
             <div
                 class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 overflow-x-auto">
@@ -735,6 +770,47 @@
                 </div>
             </div>
 
+            <!-- Profit & Loss -->
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-3xl border border-gray-200 dark:border-white/5 mb-8">
+                <h3 class="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4"><i class="bi bi-graph-up-arrow"></i> Profit &amp; Loss ({{ analytics.period_label or 'Selected Period' }})</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Net Revenue</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-white">{{ shop.currency_symbol }}{{ "%.0f"|format(analytics.profit_loss.net_revenue or 0) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">COGS</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-white">{{ shop.currency_symbol }}{{ "%.0f"|format(analytics.profit_loss.cogs or 0) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Operating Expenses</p>
+                        <p class="text-xl font-black text-gray-900 dark:text-white">{{ shop.currency_symbol }}{{ "%.0f"|format(analytics.profit_loss.operating_expenses or 0) }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Gross Profit</p>
+                        <p class="text-xl font-black {{ 'text-green-500' if (analytics.profit_loss.gross_profit or 0) >= 0 else 'text-red-500' }}">{{ shop.currency_symbol }}{{ "%.0f"|format(analytics.profit_loss.gross_profit or 0) }}</p>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-gray-100 dark:border-white/5">
+                    <div>
+                        <p class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-1">Net Profit</p>
+                        <p class="text-3xl font-black {{ 'text-green-500' if (analytics.profit_loss.net_profit or 0) >= 0 else 'text-red-500' }}">{{ shop.currency_symbol }}{{ "%.0f"|format(analytics.profit_loss.net_profit or 0) }}</p>
+                        <p class="text-[10px] text-gray-400 mt-1">{{ analytics.profit_loss.profit_margin or 0 }}% margin</p>
+                    </div>
+                    {% if (analytics.profit_loss.uncollected_credit or 0) > 0 %}
+                    <div class="text-left sm:text-right">
+                        <p class="text-xs font-bold text-orange-500 uppercase tracking-widest mb-1">Uncollected (Pay Later)</p>
+                        <p class="text-lg font-black text-orange-500">{{ shop.currency_symbol }}{{ "%.0f"|format(analytics.profit_loss.uncollected_credit or 0) }}</p>
+                        <p class="text-[10px] text-gray-400 mt-1">not yet counted as loss, still owed to you</p>
+                    </div>
+                    {% endif %}
+                </div>
+                <p class="text-[10px] text-gray-400 mt-4 pt-4 border-t border-gray-100 dark:border-white/5">
+                    COGS reflects restock cost only when entered at the time of restocking — restocks logged without a
+                    unit cost aren't included here, which can understate cost and overstate profit.
+                </p>
+            </div>
+
         </div>
 
         <!-- STAFF TAB -->
@@ -807,6 +883,11 @@
                 </div>
             </div>
 
+            <p x-show="error" class="text-red-500 text-sm font-bold mb-4">
+                <span x-text="error"></span>
+                <button type="button" @click="searchItems()" class="underline ml-1">Retry</button>
+            </p>
+
             <!-- Low Stock Alert Banner -->
             {% if low_stock_count > 0 %}
             <div class="mb-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-center gap-3">
@@ -825,21 +906,13 @@
                     <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search by name or SKU..."
                         class="w-full bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
                 </div>
-                <div class="relative sm:w-56" x-data="{ open: false }" @click.outside="open = false">
+                <div class="relative sm:w-56">
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Stock Status</label>
-                    <button type="button" @click="open = !open"
-                        class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
-                        <span x-text="{'': 'All Stock Statuses', 'untracked': 'Untracked', 'out': 'Out of Stock', 'low': 'Low Stock', 'ok': 'OK'}[stockStatus]"></span>
-                        <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                    </button>
-                    <div x-show="open" x-cloak @click.outside="open = false"
-                        class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                        <template x-for="opt in [{v:'', l:'All Stock Statuses'}, {v:'untracked', l:'Untracked'}, {v:'out', l:'Out of Stock'}, {v:'low', l:'Low Stock'}, {v:'ok', l:'OK'}]" :key="opt.v">
-                            <button type="button" @click="stockStatus = opt.v; open = false; onStockStatusChange()"
-                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                x-text="opt.l"></button>
-                        </template>
-                    </div>
+                    {{ themed_dropdown(
+                        [{'value': '', 'label': 'All Stock Statuses'}, {'value': 'untracked', 'label': 'Untracked'}, {'value': 'out', 'label': 'Out of Stock'}, {'value': 'low', 'label': 'Low Stock'}, {'value': 'ok', 'label': 'OK'}],
+                        'stockStatus', 'stockStatus = v; onStockStatusChange()',
+                        button_class='bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white'
+                    ) }}
                 </div>
             </div>
 
@@ -963,24 +1036,12 @@
                                     class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0" placeholder="0.00">
                             </div>
                         </div>
-                        <div class="relative bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5"
-                            x-data="{ open: false, options: [{v:'Cash',l:'Cash'},{v:'UPI',l:'UPI'},{v:'Card',l:'Card'}] }"
-                            @click.outside="open = false">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Paid Via</label>
-                            <input type="hidden" name="payment_method" :value="restockPaymentMethod">
-                            <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between gap-2 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
-                                <span x-text="options.find(o => o.v === restockPaymentMethod).l"></span>
-                                <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                            </button>
-                            <div x-show="open" x-cloak
-                                class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                                <template x-for="opt in options" :key="opt.v">
-                                    <button type="button" @click="restockPaymentMethod = opt.v; open = false"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                        x-text="opt.l"></button>
-                                </template>
-                            </div>
+                            {{ themed_dropdown(
+                                [{'value': 'Cash', 'label': 'Cash'}, {'value': 'UPI', 'label': 'UPI'}, {'value': 'Card', 'label': 'Card'}],
+                                'restockPaymentMethod', 'restockPaymentMethod = v', field_name='payment_method'
+                            ) }}
                         </div>
                         <p class="text-[10px] text-gray-600 -mt-2">Enter a cost per unit to automatically log this
                             restock as an "Inventory Purchase" expense (tax is the total tax paid on the invoice) —
@@ -1051,21 +1112,15 @@
                     <input type="text" x-model="search" @input="onSearchInput()" placeholder="Description or vendor..."
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white">
                 </div>
-                <div class="relative" x-data='{ open: false, options: [{v:"",l:"All Categories"}{% for cat in expense_categories %}, {v: {{ cat | tojson }}, l: {{ cat | tojson }}}{% endfor %}] }' @click.outside="open = false">
+                <div class="relative">
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
-                    <button type="button" @click="open = !open"
-                        class="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white whitespace-nowrap">
-                        <span x-text="options.find(o => o.v === filters.category).l"></span>
-                        <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                    </button>
-                    <div x-show="open" x-cloak
-                        class="absolute left-0 top-full mt-2 min-w-full max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30">
-                        <template x-for="opt in options" :key="opt.v">
-                            <button type="button" @click="filters.category = opt.v; open = false; offset = 0; fetchExpenses()"
-                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                x-text="opt.l"></button>
-                        </template>
-                    </div>
+                    {% set expense_filter_options = [] %}
+                    {% set _ = expense_filter_options.append({'value': '', 'label': 'All Categories'}) %}
+                    {% for cat in expense_categories %}{% set _ = expense_filter_options.append({'value': cat, 'label': cat}) %}{% endfor %}
+                    {{ themed_dropdown(
+                        expense_filter_options, 'filters.category', 'filters.category = v; offset = 0; fetchExpenses()',
+                        button_class='bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-sm dark:text-white'
+                    ) }}
                 </div>
                 <div>
                     <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">From</label>
@@ -1083,7 +1138,10 @@
                 </button>
             </div>
 
-            <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-4"></p>
+            <p x-show="error" class="text-red-500 text-sm font-bold mb-3">
+                <span x-text="error"></span>
+                <button type="button" @click="fetchExpenses()" class="underline ml-1">Retry</button>
+            </p>
 
             <!-- Expenses Table -->
             <div class="bg-white dark:bg-slate-800 rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5 overflow-x-auto">
@@ -1155,23 +1213,14 @@
                     <h2 class="text-2xl font-black italic tracking-tighter uppercase mb-6 dark:text-white" x-text="editingSlug ? 'Edit Expense' : 'Add Expense'"></h2>
                     <p x-show="formError" x-text="formError" class="text-red-500 text-sm font-bold mb-4"></p>
                     <div class="space-y-4">
-                        <div class="relative bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5"
-                            x-data='{ open: false, options: [{% for cat in expense_categories %}{v: {{ cat | tojson }}, l: {{ cat | tojson }}}{% if not loop.last %}, {% endif %}{% endfor %}] }'
-                            @click.outside="open = false">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Category</label>
-                            <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between gap-2 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
-                                <span x-text="form.category"></span>
-                                <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                            </button>
-                            <div x-show="open" x-cloak
-                                class="absolute left-0 top-full mt-2 min-w-full max-h-60 overflow-y-auto bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                                <template x-for="opt in options" :key="opt.v">
-                                    <button type="button" @click="form.category = opt.v; open = false"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                        x-text="opt.l"></button>
-                                </template>
-                            </div>
+                            {# Jinja has no list-comprehension expression syntax, so dynamic
+                               option lists are built imperatively via .append() — the macro
+                               itself always takes a plain list of {value,label} dicts. #}
+                            {% set category_options = [] %}
+                            {% for cat in expense_categories %}{% set _ = category_options.append({'value': cat, 'label': cat}) %}{% endfor %}
+                            {{ themed_dropdown(category_options, 'form.category', 'form.category = v') }}
                         </div>
                         <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Description</label>
@@ -1201,23 +1250,12 @@
                                 <input type="date" x-model="form.expense_date"
                                     class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
                             </div>
-                            <div class="relative bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5"
-                                x-data="{ open: false, options: [{v:'Cash',l:'Cash'},{v:'UPI',l:'UPI'},{v:'Card',l:'Card'}] }"
-                                @click.outside="open = false">
+                            <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                                 <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Payment Method</label>
-                                <button type="button" @click="open = !open"
-                                    class="w-full flex items-center justify-between gap-2 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
-                                    <span x-text="form.payment_method"></span>
-                                    <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                                </button>
-                                <div x-show="open" x-cloak
-                                    class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                                    <template x-for="opt in options" :key="opt.v">
-                                        <button type="button" @click="form.payment_method = opt.v; open = false"
-                                            class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                            x-text="opt.l"></button>
-                                    </template>
-                                </div>
+                                {{ themed_dropdown(
+                                    [{'value': 'Cash', 'label': 'Cash'}, {'value': 'UPI', 'label': 'UPI'}, {'value': 'Card', 'label': 'Card'}],
+                                    'form.payment_method', 'form.payment_method = v'
+                                ) }}
                             </div>
                         </div>
                         <div class="flex gap-3 pt-4">
@@ -1262,7 +1300,10 @@
                 </div>
                 <p class="text-xs text-gray-400 mb-6">The khata, digitized — sorted by who needs collecting from first.</p>
                 <p x-show="notice" x-text="notice" class="text-indigo-500 text-sm font-bold mb-3"></p>
-                <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-3"></p>
+                <p x-show="error" class="text-red-500 text-sm font-bold mb-3">
+                    <span x-text="error"></span>
+                    <button type="button" @click="fetchAccounts()" class="underline ml-1">Retry</button>
+                </p>
 
                 <!-- Stat cards -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
@@ -1285,40 +1326,24 @@
                     <input type="text" x-model="search" @input="onSearchInput()" placeholder="Search account..."
                         class="flex-1 min-w-[12rem] bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white">
 
-                    <div class="relative" x-data="{ open: false, options: [{v:'urgency',l:'Sort: Urgency'},{v:'balance',l:'Sort: Balance'},{v:'overdue_days',l:'Sort: Days Overdue'},{v:'name',l:'Sort: Name'}] }" @click.outside="open = false">
-                        <button type="button" @click="open = !open"
-                            class="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white whitespace-nowrap">
-                            <span x-text="options.find(o => o.v === sortBy).l"></span>
-                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                        </button>
-                        <div x-show="open" x-cloak
-                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                            <template x-for="opt in options" :key="opt.v">
-                                <button type="button" @click="sortBy = opt.v; open = false; accountsOffset = 0; fetchAccounts()"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                    x-text="opt.l"></button>
-                            </template>
-                        </div>
+                    <div class="relative">
+                        {{ themed_dropdown(
+                            [{'value': 'urgency', 'label': 'Sort: Urgency'}, {'value': 'balance', 'label': 'Sort: Balance'}, {'value': 'overdue_days', 'label': 'Sort: Days Overdue'}, {'value': 'name', 'label': 'Sort: Name'}],
+                            'sortBy', 'sortBy = v; accountsOffset = 0; fetchAccounts()',
+                            button_class='bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white'
+                        ) }}
                     </div>
                     <button @click="order = (order === 'asc' ? 'desc' : 'asc'); accountsOffset = 0; fetchAccounts()"
                         class="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white font-bold">
                         <span x-text="order === 'asc' ? '↑ Asc' : '↓ Desc'"></span>
                     </button>
 
-                    <div class="relative" x-data="{ open: false, options: [{v:'',l:'All Terms'},{v:'weekly',l:'Weekly'},{v:'monthly',l:'Monthly'},{v:'net_days',l:'Net Days'}] }" @click.outside="open = false">
-                        <button type="button" @click="open = !open"
-                            class="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white whitespace-nowrap">
-                            <span x-text="options.find(o => o.v === paymentTermType).l"></span>
-                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                        </button>
-                        <div x-show="open" x-cloak
-                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                            <template x-for="opt in options" :key="opt.v">
-                                <button type="button" @click="paymentTermType = opt.v; open = false; accountsOffset = 0; fetchAccounts()"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                    x-text="opt.l"></button>
-                            </template>
-                        </div>
+                    <div class="relative">
+                        {{ themed_dropdown(
+                            [{'value': '', 'label': 'All Terms'}, {'value': 'weekly', 'label': 'Weekly'}, {'value': 'monthly', 'label': 'Monthly'}, {'value': 'net_days', 'label': 'Net Days'}],
+                            'paymentTermType', 'paymentTermType = v; accountsOffset = 0; fetchAccounts()',
+                            button_class='bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-1.5 text-sm dark:text-white'
+                        ) }}
                     </div>
 
                     <label class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-300 font-bold whitespace-nowrap">
@@ -1626,20 +1651,12 @@
                                     class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
                                 <input type="number" step="0.01" x-model="billsFilters.max_amount" @change="onBillsFilterChange()" placeholder="Max amount"
                                     class="w-28 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white">
-                                <div class="relative" x-data="{ open: false, options: [{v:'',l:'All Statuses'},{v:'Paid',l:'Paid'},{v:'Unpaid',l:'Unpaid'},{v:'PartiallyPaid',l:'Partially Paid'}] }" @click.outside="open = false">
-                                    <button type="button" @click="open = !open"
-                                        class="flex items-center gap-2 bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white whitespace-nowrap">
-                                        <span x-text="options.find(o => o.v === billsFilters.status).l"></span>
-                                        <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                                    </button>
-                                    <div x-show="open" x-cloak
-                                        class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                                        <template x-for="opt in options" :key="opt.v">
-                                            <button type="button" @click="billsFilters.status = opt.v; open = false; onBillsFilterChange()"
-                                                class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                                x-text="opt.l"></button>
-                                        </template>
-                                    </div>
+                                <div class="relative">
+                                    {{ themed_dropdown(
+                                        [{'value': '', 'label': 'All Statuses'}, {'value': 'Paid', 'label': 'Paid'}, {'value': 'Unpaid', 'label': 'Unpaid'}, {'value': 'PartiallyPaid', 'label': 'Partially Paid'}],
+                                        'billsFilters.status', 'billsFilters.status = v; onBillsFilterChange()',
+                                        button_class='bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 rounded-xl px-3 py-2 text-xs dark:text-white'
+                                    ) }}
                                 </div>
                                 <button @click="clearBillsFilters()" class="text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-gray-600 dark:hover:text-white sm:ml-auto">Clear</button>
                             </div>
@@ -1778,6 +1795,10 @@
                     Clear
                 </button>
             </div>
+            <p x-show="error" class="text-red-500 text-sm font-bold mb-4">
+                <span x-text="error"></span>
+                <button type="button" @click="fetchOrders()" class="underline ml-1">Retry</button>
+            </p>
 
             <div class="bg-white dark:bg-slate-800 rounded-xl sm:rounded-[2rem] shadow-sm border border-gray-200 dark:border-white/5">
                 <div x-show="loading" class="p-8 text-center text-gray-400">Loading…</div>
@@ -2046,7 +2067,10 @@
                 </button>
             </div>
             <p class="text-xs text-gray-400 mb-6">Every bill this shop has issued — sorted newest first.</p>
-            <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-4"></p>
+            <p x-show="error" class="text-red-500 text-sm font-bold mb-3">
+                <span x-text="error"></span>
+                <button type="button" @click="fetchTransactions()" class="underline ml-1">Retry</button>
+            </p>
 
             <!-- Filters (collapsed by default) -->
             <div x-show="filtersOpen" x-cloak class="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-gray-200 dark:border-white/5 p-4 mb-6 grid grid-cols-2 sm:flex sm:flex-wrap gap-3 sm:gap-4 sm:items-end">
@@ -2190,44 +2214,33 @@
                     </div>
 
                     <!-- Paper Width -->
-                    <div class="relative" x-data="{ open: false, options: [{v:'58mm',l:'58mm (Narrow)'},{v:'80mm',l:'80mm (Wide)'}] }" @click.outside="open = false">
+                    <div>
                         <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Printer Paper Width</label>
-                        <input type="hidden" name="printer_paper_width" :value="paperWidth">
-                        <button type="button" @click="open = !open"
-                            class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
-                            <span x-text="options.find(o => o.v === paperWidth).l"></span>
-                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                        </button>
-                        <div x-show="open" x-cloak
-                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                            <template x-for="opt in options" :key="opt.v">
-                                <button type="button" @click="paperWidth = opt.v; open = false"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                    x-text="opt.l"></button>
-                            </template>
-                        </div>
+                        {{ themed_dropdown(
+                            [{'value': '58mm', 'label': '58mm (Narrow)'}, {'value': '80mm', 'label': '80mm (Wide)'}],
+                            'paperWidth', 'paperWidth = v', field_name='printer_paper_width',
+                            button_class='bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all'
+                        ) }}
                     </div>
 
                     <!-- Printer Alignment -->
-                    <div class="relative" x-data="{ open: false, options: [{v:'left',l:'Left Aligned'},{v:'center',l:'Center Aligned'}] }" @click.outside="open = false">
+                    <div>
                         <label class="text-sm font-medium text-gray-500 dark:text-gray-400 block mb-2">Printer Text Alignment</label>
-                        <input type="hidden" name="printer_alignment" :value="alignment">
-                        <button type="button" @click="open = !open"
-                            class="w-full flex items-center justify-between gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all">
-                            <span x-text="options.find(o => o.v === alignment).l"></span>
-                            <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                        </button>
-                        <div x-show="open" x-cloak
-                            class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                            <template x-for="opt in options" :key="opt.v">
-                                <button type="button" @click="alignment = opt.v; open = false"
-                                    class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                    x-text="opt.l"></button>
-                            </template>
-                        </div>
+                        {{ themed_dropdown(
+                            [{'value': 'left', 'label': 'Left Aligned'}, {'value': 'center', 'label': 'Center Aligned'}],
+                            'alignment', 'alignment = v', field_name='printer_alignment',
+                            button_class='bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all'
+                        ) }}
                     </div>
 
-                    <!-- Timezone -->
+                    <!-- Timezone — intentionally NOT using the themed_dropdown macro
+                         (partials/dropdown.html). Its selected value is local state
+                         seeded once from Jinja, not an external getter/setter pair, and
+                         it needs search + continent-grouping over 400+ entries — closer
+                         in shape to countryPicker (also left out of the generic macro)
+                         than to a themed_dropdown consumer. Forcing it through the
+                         generic getter/setter/options-list API would be more awkward
+                         than this self-contained version. -->
                     <div class="md:col-span-2 relative"
                         x-data='{
                             open: false,
@@ -2328,7 +2341,10 @@
                     <i class="bi bi-plus-lg"></i>
                 </button>
             </div>
-            <p x-show="error" x-text="error" class="text-red-500 text-sm font-bold mb-4"></p>
+            <p x-show="error" class="text-red-500 text-sm font-bold mb-3">
+                <span x-text="error"></span>
+                <button type="button" @click="searchCustomers()" class="underline ml-1">Retry</button>
+            </p>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Customer picker -->
@@ -2496,24 +2512,12 @@
                             <input type="number" step="0.01" name="price" required
                                 class="w-full bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
                         </div>
-                        <div class="relative bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5"
-                            x-data="{ open: false, options: [{v:'', l:'Fixed'}, {v:'piece', l:'piece'}, {v:'kg', l:'kg'}, {v:'g', l:'g'}, {v:'liter', l:'liter'}, {v:'ml', l:'ml'}] }"
-                            @click.outside="open = false">
+                        <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Unit</label>
-                            <input type="hidden" name="unit" :value="selectedUnit">
-                            <button type="button" @click="open = !open"
-                                class="w-full flex items-center justify-between gap-2 bg-transparent border-0 dark:text-white font-bold p-0 focus:ring-0">
-                                <span x-text="options.find(o => o.v === selectedUnit).l"></span>
-                                <i class="bi bi-chevron-down text-xs text-gray-400"></i>
-                            </button>
-                            <div x-show="open" x-cloak
-                                class="absolute left-0 top-full mt-2 min-w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-white/10 rounded-xl shadow-lg z-30 overflow-hidden">
-                                <template x-for="opt in options" :key="opt.v">
-                                    <button type="button" @click="selectedUnit = opt.v; open = false"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 dark:text-white whitespace-nowrap"
-                                        x-text="opt.l"></button>
-                                </template>
-                            </div>
+                            {{ themed_dropdown(
+                                [{'value': '', 'label': 'Fixed'}, {'value': 'piece', 'label': 'piece'}, {'value': 'kg', 'label': 'kg'}, {'value': 'g', 'label': 'g'}, {'value': 'liter', 'label': 'liter'}, {'value': 'ml', 'label': 'ml'}],
+                                'selectedUnit', 'selectedUnit = v', field_name='unit'
+                            ) }}
                         </div>
                         <div class="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                             <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Tax (%)</label>

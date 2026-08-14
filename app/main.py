@@ -31,6 +31,7 @@ from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.middleware.csrf import CSRFMiddleware
 from app.workers.billing_cron import billing_worker_loop
 from app.workers.credit_statement_cron import credit_statement_worker_loop
+from app.workers.session_cron import session_kickout_worker_loop
 
 
 # ---------------------------------------------------------------------------
@@ -81,12 +82,14 @@ async def lifespan(app: FastAPI):
 
     billing_task = asyncio.create_task(billing_worker_loop())
     credit_statement_task = asyncio.create_task(credit_statement_worker_loop())
+    session_kickout_task = asyncio.create_task(session_kickout_worker_loop())
 
     yield
 
     # Shutdown
     billing_task.cancel()
     credit_statement_task.cancel()
+    session_kickout_task.cancel()
     logger.info("Closing Database Connection...")
     await close_redis()
     logger.info("Redis connection closed.")
@@ -145,12 +148,26 @@ async def health_check(db: AsyncSession = Depends(get_db)):
 
 @app.exception_handler(401)
 async def unauthorized_redirect_handler(request: Request, exc):
+    # Every 401 raised in this app means the auth cookie is no longer good
+    # for anything (missing, invalid, or its tracked session was kicked out
+    # for inactivity — see get_current_user). Clearing it here is what makes
+    # that stick: without it, the cookie stays valid for the JWT's full
+    # 8-hour lifetime, and /auth/login's own "already logged in" redirect
+    # would just bounce the browser straight back in, silently undoing the
+    # kickout on the very next request.
     if request.method == "GET":
-        return RedirectResponse(url="/auth/login", status_code=303)
-    return JSONResponse(
-        status_code=401,
-        content={"detail": "Not authenticated"},
-    )
+        response = RedirectResponse(url="/auth/login", status_code=303)
+    else:
+        response = JSONResponse(status_code=401, content={"detail": "Not authenticated"})
+    # A 401 from the login endpoint itself means the submitted credentials
+    # were wrong (or the account is deactivated) — it says nothing about the
+    # browser's *existing* access_token cookie, which may belong to a
+    # different, still-valid session in another tab. Only clear the cookie
+    # when the 401 came from validating that existing cookie, not from a
+    # fresh credential submission.
+    if request.url.path != "/auth/login":
+        response.delete_cookie("access_token")
+    return response
 
 from pydantic import ValidationError
 

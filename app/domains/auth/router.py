@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta, timezone
@@ -93,18 +94,21 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     # --- Idle Session Enforcement ---
+    # Looked up by token alone (not also is_active) — session_token is
+    # globally unique, so if a row already exists for this exact JWT we
+    # must reactivate that same row below rather than insert a second one
+    # with the same token and hit the unique constraint.
     suffix = token[-50:]
     stmt = select(UserSession).where(
         UserSession.user_id == user.id,
         UserSession.session_token == suffix,
-        UserSession.is_active == True
     )
     session_res = await db.execute(stmt)
-    active_session = session_res.scalars().first()
+    tracked_session = session_res.scalars().first()
 
-    if active_session:
+    if tracked_session and tracked_session.is_active:
         now = datetime.now(timezone.utc)
-        last = active_session.last_activity
+        last = tracked_session.last_activity
         if last and last.tzinfo is None:
             last = last.replace(tzinfo=timezone.utc)
 
@@ -112,7 +116,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
 
         if idle_minutes > settings.SESSION_IDLE_TIMEOUT_MINUTES:
             # Session has been idle too long — terminate it
-            active_session.is_active = False
+            tracked_session.is_active = False
             db.add(SecurityLog(
                 event_type="SESSION_IDLE_TIMEOUT",
                 severity="info",
@@ -125,8 +129,48 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
 
         # Heartbeat: update last_activity at most once every 5 minutes
         if idle_minutes >= 5:
-            active_session.last_activity = now
+            tracked_session.last_activity = now
             await db.commit()
+    elif tracked_session:
+        # A row exists for this exact token but is_active=False — it was
+        # deliberately terminated, either by the idle-timeout branch above
+        # on a previous request, or by session_kickout_worker_loop's
+        # background sweep (app/workers/session_cron.py) catching a session
+        # that went idle without its owner ever coming back to trigger the
+        # check above. The kickout must actually stick: silently letting
+        # this request through (or quietly reactivating the row) would make
+        # every idle-timeout meaningless, since the JWT cookie itself stays
+        # valid for its full 8-hour lifetime regardless of this table. The
+        # 401 here is what forces main.py's handler to clear that cookie —
+        # a real re-login is required to get a fresh, genuinely active row.
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired due to inactivity")
+    else:
+        # No row exists at all for this token — not a kickout, just a valid
+        # JWT that was never tied to a tracking row (e.g. a token minted
+        # before this table existed). Start tracking it; nothing here
+        # indicates it was ever flagged idle, so there's no reason to force
+        # a re-login.
+        user_agent_str = request.headers.get("user-agent", "Unknown Device")
+        db.add(UserSession(
+            user_id=user.id,
+            session_token=suffix,
+            ip_address=request.client.host if request.client else None,
+            user_agent=get_device_name(user_agent_str),
+            login_count=1,
+            is_active=True,
+        ))
+        try:
+            await db.commit()
+        except IntegrityError:
+            # Two concurrent requests carrying the same cookie (e.g. two
+            # open tabs) can both land here for the same never-before-seen
+            # token and both attempt to insert the same session_token
+            # (unique constraint). The loser's insert is rejected — that's
+            # correct, there should only ever be one row per token — but it
+            # must recover, not crash: roll back and re-read the row the
+            # winner just committed, then proceed as if it had found it in
+            # the first place.
+            await db.rollback()
 
     return user
 
@@ -246,29 +290,22 @@ async def login(request: Request, response: Response, form_data: OAuth2PasswordR
     user_agent_str = request.headers.get("user-agent", "Unknown Device")
     device_name = get_device_name(user_agent_str)
 
-    stmt = select(UserSession).where(
-        UserSession.user_id == user_id,
-        UserSession.ip_address == client_ip,
-        UserSession.user_agent == device_name,
-        UserSession.is_active == True
+    # Always create a fresh row for this login rather than reusing/overwriting
+    # an existing active row for the same user+ip+device: each login mints a
+    # brand-new JWT, and a still-active row from another tab may already be
+    # tracking a still-valid older JWT. Overwriting that row's session_token
+    # orphaned the older tab's token — get_current_user would then find no
+    # row for it and silently mint a *second* new row, inflating the active
+    # session count instead of preventing duplicates.
+    new_session = UserSession(
+        user_id=user_id,
+        session_token=access_token[-50:],
+        ip_address=client_ip,
+        user_agent=device_name,
+        login_count=1,
+        is_active=True
     )
-    session_res = await db.execute(stmt)
-    existing_session = session_res.scalars().first()
-
-    if existing_session:
-        existing_session.login_count += 1
-        existing_session.last_activity = now
-        existing_session.session_token = access_token[-50:]
-    else:
-        new_session = UserSession(
-            user_id=user_id,
-            session_token=access_token[-50:],
-            ip_address=client_ip,
-            user_agent=device_name,
-            login_count=1,
-            is_active=True
-        )
-        db.add(new_session)
+    db.add(new_session)
 
     # Log successful login
     success_log = SecurityLog(

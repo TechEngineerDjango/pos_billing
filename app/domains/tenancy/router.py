@@ -1,15 +1,13 @@
-import datetime as dt
 import json
 import logging
-from datetime import timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request, Form, HTTPException, UploadFile, File
 from fastapi.encoders import jsonable_encoder
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
@@ -22,6 +20,7 @@ from app.core.dependencies.csrf import verify_csrf
 from app.domains.features.service import FeatureService
 from app.core.redis import get_redis
 from app.shared.time_utils import utc_iso
+from app.workers.session_cron import sweep_idle_sessions
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +78,12 @@ async def superadmin_dashboard(
     features_res = await db.execute(select(Feature).order_by(Feature.category, Feature.name))
     all_features = features_res.scalars().all()
 
-    # Fetch active user sessions grouped by user
+    # session_kickout_worker_loop (app/workers/session_cron.py) sweeps idle
+    # sessions on its own 5-min timer regardless of whether anyone's looking
+    # at this page. Also sweep synchronously right here so a view immediately
+    # after a sweep cycle never shows a session that's actually past timeout.
+    await sweep_idle_sessions(db)
+
     sessions_res = await db.execute(
         select(UserSession)
         .where(UserSession.is_active == True)
@@ -121,6 +125,52 @@ async def superadmin_dashboard(
 # ============================================================================
 # SHOP MANAGEMENT
 # ============================================================================
+
+@router.get("/api/shops")
+async def list_shops(
+    q: str = "",
+    offset: int = 0,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_superadmin),
+):
+    """Paginated, searchable Fleet list — backs the Fleet tab's search input
+    and Prev/Next controls so the tab doesn't have to render every shop as
+    an unbounded card grid. Single round trip via count(*) over(), same
+    pattern as app/domains/customers/repository.py's CustomerRepository.search."""
+    limit = max(1, min(limit, 100))
+    conditions = []
+    q_clean = q.strip()
+    if q_clean:
+        conditions.append(Shop.name.ilike(f"%{q_clean}%"))
+
+    result = await db.execute(
+        select(Shop, func.count().over().label("total_count"))
+        .options(selectinload(Shop.subscription))
+        .where(*conditions)
+        .order_by(Shop.name)
+        .limit(limit).offset(offset)
+    )
+    rows = result.all()
+    total = rows[0].total_count if rows else 0
+
+    items = []
+    for shop, _ in rows:
+        items.append({
+            "id": shop.id,
+            "slug": shop.slug,
+            "name": shop.name,
+            "address": shop.address,
+            "currency_symbol": shop.currency_symbol,
+            "is_active": shop.is_active,
+            "subscription": {
+                "id": shop.subscription.id,
+                "name": shop.subscription.name,
+                "price": float(shop.subscription.price),
+            } if shop.subscription else None,
+        })
+    return JSONResponse({"items": items, "total": total})
+
 
 @router.post("/shops/create")
 async def create_shop(
@@ -263,6 +313,7 @@ async def delete_shop(
 
 @router.post("/shops/toggle/{shop_id}")
 async def toggle_shop(
+    request: Request,
     shop_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_superadmin)
@@ -273,6 +324,12 @@ async def toggle_shop(
     if shop:
         shop.is_active = not shop.is_active
         await db.commit()
+
+    # Same reasoning as assign_subscription just above: the Fleet list's
+    # Toggle Status button shouldn't force a full-dashboard re-render for
+    # one boolean flipping on one shop.
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({"status": "ok", "is_active": shop.is_active if shop else None})
     return RedirectResponse(url="/superadmin/?tab=fleet", status_code=303)
 
 
@@ -430,19 +487,43 @@ async def delete_subscription(
 
 @router.post("/subscriptions/assign")
 async def assign_subscription(
+    request: Request,
     shop_id: int = Form(...),
-    subscription_id: Optional[int] = Form(None),  # Made optional for "No Plan"
+    # Declared as str, not Optional[int]: the "No Plan (Free Tier)" <option>
+    # submits value="" for this field, and FastAPI/Pydantic does not coerce
+    # an empty string to None for an Optional[int] — it tries int("") and
+    # raises a 422 before this function body ever runs. Accepting the raw
+    # string and converting manually is what actually makes "no plan" work.
+    subscription_id: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_superadmin)
 ):
     """Assign a subscription plan to a shop. Pass empty subscription_id for no plan."""
     result = await db.execute(select(Shop).where(Shop.id == shop_id))
     shop = result.scalars().first()
+    new_sub = None
     if shop:
-        # If subscription_id is empty string or 0, set to None (no plan)
-        shop.subscription_id = subscription_id if subscription_id else None
+        # subscription_id is None or "" for "no plan" (both possible: the
+        # field is optional, and the dropdown's empty option submits "").
+        shop.subscription_id = int(subscription_id) if subscription_id else None
         await db.commit()
-        await db.refresh(shop)
+        if shop.subscription_id:
+            sub_res = await db.execute(select(Subscription).where(Subscription.id == shop.subscription_id))
+            new_sub = sub_res.scalars().first()
+
+    # A same-origin fetch (the Fleet tab's inline plan-change form) gets a
+    # small JSON reply instead of the old full-page redirect — updating one
+    # shop's plan shouldn't force the entire superadmin dashboard (every
+    # shop, every subscription, every log) to re-render. A plain <form>
+    # submit (no JS, or JS disabled) still gets the redirect, so the feature
+    # keeps working without JavaScript.
+    if request.headers.get("X-Requested-With") == "fetch":
+        return JSONResponse({
+            "status": "ok",
+            "subscription_id": shop.subscription_id if shop else None,
+            "plan_name": new_sub.name if new_sub else None,
+            "plan_price": float(new_sub.price) if new_sub else None,
+        })
     return RedirectResponse(url="/superadmin/?tab=fleet", status_code=303)
 
 

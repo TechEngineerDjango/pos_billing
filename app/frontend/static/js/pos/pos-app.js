@@ -1,4 +1,14 @@
-// Initialize Alpine feature store BEFORE posApp() runs
+// Sets the Alpine feature store read by pos.html's `$store.features[...]`
+// gates (Customer Details, Credit/Pay Later, Cash Calculator, WhatsApp
+// buttons). Called from inside posApp() itself, not eagerly at script-load
+// time: spa-nav.js runs a destination page's scripts *before* writing its
+// HTML into the live document (deliberately, so Alpine's MutationObserver
+// never sees x-data before this script has defined it) — so an eager call
+// here would run before #pos-features-data exists in the live DOM, silently
+// fall back to `{}`, and hide every one of those gates until a hard reload.
+// Alpine only calls posApp() once its markup (including the data island) is
+// actually live, in both a fresh page load and an SPA nav, so reading it
+// here is always correctly timed.
 function initPosFeatureStore() {
     const raw = JSON.parse(document.getElementById('pos-features-data')?.textContent || '{}');
     // Normalize: FeatureService returns {KEY: {enabled: bool, ...}} — flatten to {KEY: bool}
@@ -7,14 +17,6 @@ function initPosFeatureStore() {
         flat[k] = (typeof v === 'object' && v !== null) ? (v.enabled === true) : Boolean(v);
     }
     Alpine.store('features', flat);
-}
-if (window.Alpine && window.Alpine.store) {
-    // Alpine is already running — this script is re-executing after an
-    // in-page nav swap (spa-nav.js), not a fresh document load. alpine:init
-    // only fires once per page, so waiting for it here would never run.
-    initPosFeatureStore();
-} else {
-    document.addEventListener('alpine:init', initPosFeatureStore);
 }
 
 /**
@@ -108,6 +110,8 @@ const CashService = {
 
 // --- 3. CONTROLLER LAYER: ALPINE COMPONENT ---
 function posApp() {
+    initPosFeatureStore();
+
     // Load static data from islands
     const itemsData = JSON.parse(document.getElementById('pos-items-data').textContent);
     const features = JSON.parse(document.getElementById('pos-features-data')?.textContent || '{}');

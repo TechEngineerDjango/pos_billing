@@ -10,8 +10,29 @@ function superAdminApp() {
         saving: false,
         billingData: { items: [], total: 0, page: 1, pages: 1, size: 10 },
         billingFilters: { search: '' },
+        // Fleet rows are JS-rendered (x-for), so they can't read
+        // {{ request.state.csrf_token }} directly like Jinja-rendered forms
+        // do — read once via the same shared getter saveDesign() already uses.
+        csrfToken: '',
+
+        // Fleet tab — paginated, search-driven list (replaces the old
+        // unbounded card-per-shop grid, same treatment as the dashboard's
+        // Menu/Customers tabs). Branding/Design still reads full shop
+        // records from shopsData (below) — this list only carries the
+        // lighter fields the Fleet row itself displays.
+        shopsList: [],
+        shopsTotal: 0,
+        shopsOffset: 0,
+        shopsLimit: 10,
+        shopsSearch: '',
+        _shopsSearchTimer: null,
+        shopsLoading: false,
+        shopsError: '',
+        _shopsLoaded: false,
 
         init() {
+            this.csrfToken = ApiClient.getCsrfToken();
+
             const urlParams = new URLSearchParams(window.location.search);
             const errorMsg = urlParams.get('error');
             if (errorMsg) {
@@ -34,6 +55,49 @@ function superAdminApp() {
             if (this.activeTab === 'billing') {
                 this.fetchInvoices(1);
             }
+            if (this.activeTab === 'fleet') {
+                this.searchShops();
+            }
+        },
+
+        onShopsSearchInput() {
+            clearTimeout(this._shopsSearchTimer);
+            this._shopsSearchTimer = setTimeout(() => { this.shopsOffset = 0; this.searchShops(); }, 300);
+        },
+
+        async searchShops() {
+            this.shopsLoading = true;
+            this.shopsError = '';
+            try {
+                const params = new URLSearchParams({ q: this.shopsSearch, limit: this.shopsLimit, offset: this.shopsOffset });
+                const resp = await fetch(`/superadmin/api/shops?${params.toString()}`);
+                if (!resp.ok) throw new Error('Failed to load shops');
+                const data = await resp.json();
+                this.shopsList = data.items;
+                this.shopsTotal = data.total;
+                this._shopsLoaded = true;
+            } catch (e) {
+                this.shopsError = e.message || 'Failed to load shops';
+                throw e;
+            } finally {
+                this.shopsLoading = false;
+            }
+        },
+
+        get shopsPage() {
+            return Math.floor(this.shopsOffset / this.shopsLimit) + 1;
+        },
+        get shopsTotalPages() {
+            return Math.max(1, Math.ceil(this.shopsTotal / this.shopsLimit));
+        },
+        goToShopsPage(page) {
+            const clamped = Math.max(1, Math.min(page, this.shopsTotalPages));
+            this.shopsOffset = (clamped - 1) * this.shopsLimit;
+            this.searchShops();
+        },
+        changeShopsLimit() {
+            this.shopsOffset = 0;
+            this.searchShops();
         },
 
         designConfig: {
@@ -83,6 +147,56 @@ function superAdminApp() {
 
             if (t === 'billing') {
                 this.fetchInvoices(1);
+            }
+            if (t === 'fleet' && !this._shopsLoaded && !this.shopsLoading) {
+                this.searchShops();
+            }
+        },
+
+        // Posts the Fleet list's inline "Change Plan" form via fetch instead
+        // of letting it do a native submit — a native submit would follow
+        // the server's redirect as a full document navigation, re-rendering
+        // the entire superadmin dashboard (every shop, every subscription,
+        // every log) just to reflect one shop's plan changing. `shop` is the
+        // exact object from shopsList's x-for loop — mutating it directly is
+        // enough for Alpine's reactivity to update this row, no manual DOM
+        // patching needed (unlike an earlier version of this function, back
+        // when Fleet rows were Jinja-rendered instead of JS-array-bound).
+        async assignPlan(event, shop) {
+            const form = event.target;
+            try {
+                const resp = await fetch(form.action, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'fetch' },
+                    body: new FormData(form),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Failed to update plan');
+                }
+                const data = await resp.json();
+                shop.subscription = data.plan_name
+                    ? { id: data.subscription_id, name: data.plan_name, price: data.plan_price }
+                    : null;
+            } catch (e) {
+                alert('Failed to update plan: ' + e.message);
+                throw e;
+            }
+        },
+
+        // Same reasoning as assignPlan: fetch instead of a native form
+        // submit, mutate the shopsList row in place instead of reloading.
+        async toggleShop(shop) {
+            try {
+                const resp = await fetch(`/superadmin/shops/toggle/${shop.id}`, {
+                    method: 'POST',
+                    headers: { 'X-Requested-With': 'fetch', 'x-csrf-token': ApiClient.getCsrfToken() },
+                });
+                if (!resp.ok) throw new Error('Failed to toggle shop status');
+                const data = await resp.json();
+                shop.is_active = data.is_active;
+            } catch (e) {
+                alert('Failed to toggle status: ' + e.message);
             }
         },
 

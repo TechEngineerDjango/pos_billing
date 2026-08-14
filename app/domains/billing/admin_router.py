@@ -21,6 +21,7 @@ from app.domains.inventory.sku import generate_sku
 from app.shared.time_utils import utc_iso, shop_local
 from app.shared.timezones import TIMEZONE_CHOICES
 from app.domains.expenses.service import CATEGORIES as EXPENSE_CATEGORIES
+from app.domains.billing.profit_loss import compute_profit_loss
 
 router = APIRouter(prefix="/admin", tags=["Admin"], dependencies=[Depends(verify_csrf)])
 import os
@@ -96,11 +97,16 @@ async def admin_overview(
             customers = cust_res.scalars().all()
             stats["customer_count"] = len(customers)
             
-            # Bills for Reports (excluding cancelled bills)
+            # Bills for Reports — Completed only. "Held" (parked/draft carts,
+            # never paid — only Held bills can even be cancelled, see
+            # billing/service.py's cancel_bill) is a distinct status from
+            # Cancelled and was previously leaking into every revenue figure
+            # below via a `!= "Cancelled"` filter. Matches the status filter
+            # already used for tax reporting in reports/strategies/gst_tax.py.
             bills_res = await db.execute(
                 select(Bill).where(
                     Bill.shop_id == shop.id,
-                    Bill.status != "Cancelled"
+                    Bill.status == "Completed"
                 ).order_by(Bill.timestamp.desc())
             )
             bills = bills_res.scalars().all()
@@ -164,6 +170,8 @@ async def admin_overview(
             today_total = 0.0
             today_orders = 0
             period_orders_count = 0
+            period_net_revenue = 0.0
+            period_uncollected = 0.0
             
             for bill in bills:
                 bill_date = bill.timestamp
@@ -183,7 +191,10 @@ async def admin_overview(
                 if bill_date >= period_start:
                     current_period_total += float(bill.total_amount)
                     period_orders_count += 1
-                    
+                    period_net_revenue += float(bill.total_amount - (bill.tax_amount or 0))
+                    if bill.payment_status != "Paid":
+                        period_uncollected += float(bill.total_amount - (bill.amount_paid or 0))
+
                     # Group by appropriate granularity
                     if group_by == "day":
                         key = bill_date.strftime(date_format)
@@ -265,7 +276,11 @@ async def admin_overview(
                 # Average order value
                 "avg_order_value": round(current_period_total / period_orders_count, 2) if period_orders_count > 0 else 0,
             }
-    
+
+            analytics["profit_loss"] = await compute_profit_loss(
+                db, shop.id, period_net_revenue, period_uncollected, period_start, today
+            )
+
     # Get shop features based on subscription (Using FeatureService to get M2M features correctly)
     feature_service = FeatureService(db=db)
     shop_features = await feature_service.get_all_features_for_shop(shop) if shop else {}
